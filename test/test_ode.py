@@ -46,14 +46,12 @@ class TestBackwardEulerTimeIntegration(unittest.TestCase):
         )
         self.y = torch.rand((self.ntime, self.nbatch, 2))
 
-        # Lookback should be 1
-        self.lookback = 1
-
     def test_shapes(self):
         nchunk = 8
         R, J = self.model(
-            self.y[: nchunk + self.lookback], self.times[: nchunk + self.lookback]
+            self.y[: nchunk + self.model.lookback],
+            self.times[: nchunk + self.model.lookback],
         )
 
         self.assertEquals(R.shape, (nchunk, self.nbatch, 2))
-        self.assertEquals(J.shape, (1 + self.lookback, nchunk, self.nbatch, 2, 2))
+        self.assertEquals(J.shape, (1 + self.model.lookback, nchunk, self.nbatch, 2, 2))

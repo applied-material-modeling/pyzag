@@ -1,10 +1,17 @@
-class RecursiveNonlinearEquationSolver:
-    """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
+import torch
 
-    The time series is generated in a batched manner, generating `block_size` steps at a time.
 
-    The key input to this class is a pytorch callable defining the recursive system of nonlinear equations
-    defining a time series through the relation:
+class NonlinearRecursiveFunction(torch.nn.Module):
+    """Basic structure of a nonlinear recursive function
+
+    This class has two basic responsibilities, to define the residual and Jacobian of the function itself and second
+    to define the lookback.
+
+    The function and Jacobian are defined through `forward` so that this class is callable.
+
+    The lookback is defined as a property
+
+    The function here defines a time series through the recursive relation
 
     .. math::
         f(x_{n+1}, x_{n}, x_{n-1}, \\ldots) = 0
@@ -57,13 +64,19 @@ class RecursiveNonlinearEquationSolver:
 
     Put it another way, the only hard requirement for driving forces provided as `*args` is that the first dimension of the
     tensor must be slicable in the same way as the state :math:`x`.
+    """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class RecursiveNonlinearEquationSolver:
+    """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
+
+    The time series is generated in a batched manner, generating `block_size` steps at a time.
 
     Args:
-        func (callable):    callable returning the nonlinear residual and Jacobian.
-            The signature of this function is R, J = f(X, *args) where the shape of the state X and the
-            driving forces provided by args must meet the definition described above.  Similarly, the output
-            shapes of R and J relate to the input shapes of X and *args as described above.
+        func (`nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
         y0 (torch.tensor):  initial state values with shape (..., nstate)
 
     Keyword Args:
@@ -77,10 +90,38 @@ class RecursiveNonlinearEquationSolver:
         self.y0 = y0
         self.block_size = block_size
 
+        # For the moment we only accept lookback = 1
+        if self.func.lookback != 1:
+            raise ValueError(
+                "The RecursiveNonlinearFunction has lookback = %i, but the current solver only handles lookback = 1!"
+                % self.func.lookback
+            )
+
     def solve(self, n, *args):
         """Solve the recursive equations for n steps
 
         Args:
-
+            n (int):    number of recursive time steps to solve
+            *args:      driving forces to pass to the model
         """
-        pass
+        # Make sure our shapes are okay
+        self._check_shapes(n, args)
+
+        # Generate the steps
+
+    def _check_shapes(self, n, forces):
+        """Check the shapes of everything before starting the calculation
+
+        Args:
+            n (int):        number of recursive time steps
+            forces (list):  list of driving forces
+        """
+        correct_force_batch_shape = (n + 1,) + self.y0.shape[:-1]
+        for f in forces:
+            if f.shape[:-1] != correct_force_batch_shape:
+                raise ValueError(
+                    "One of the provided driving forces does not have the correct shape.  The batch shape should be "
+                    + str(correct_force_batch_shape)
+                    + " but is instead "
+                    + str(f.shape[:-1])
+                )

@@ -2,8 +2,10 @@
 
 import torch
 
+from pyzag import nonlinear
 
-class IntegrateODE(torch.nn.Module):
+
+class IntegrateODE(nonlinear.NonlinearRecursiveFunction):
     """Maps an ODE to a nonlinear function with some numerical integration scheme
 
     The input is a torch Module which defines the rate form of the ODE.  The forward function must
@@ -39,6 +41,9 @@ class BackwardEulerODE(IntegrateODE):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Lookback of 1!
+        self.lookback = 1
 
     def forward(self, x, t):
         """Provide the blocked residual and Jacobian for the time integration scheme
