@@ -2,6 +2,9 @@ from pyzag import ode, nonlinear
 
 import torch
 
+# Ensure test consistency
+torch.manual_seed(42)
+
 import unittest
 
 torch.set_default_dtype(torch.float64)

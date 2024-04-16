@@ -214,17 +214,7 @@ class LUFactorization(BidiagonalOperator):
         Args:
             v (torch.tensor): tensor of shape (sbat, sblk*nblk)
         """
-        return (
-            self.matvec(
-                v.reshape((self.sbat, self.nblk, self.sblk))
-                .transpose(0, 1)
-                .unsqueeze(-1)
-                .contiguous()
-            )
-            .squeeze(-1)
-            .transpose(0, 1)
-            .flatten(start_dim=1)
-        )
+        return self.matvec(v)
 
 
 def thomas_solve(lu, pivots, B, v):
@@ -239,11 +229,13 @@ def thomas_solve(lu, pivots, B, v):
         v (torch.tensor): right hand side (nblk,sbat,sblk)
     """
     i = 0
-    v[i] = torch.linalg.lu_solve(lu[i], pivots[i], v[i])
+    v[i] = torch.linalg.lu_solve(lu[i], pivots[i], v[i].unsqueeze(-1)).squeeze(-1)
     for i in range(1, lu.shape[0]):
         v[i] = torch.linalg.lu_solve(
-            lu[i], pivots[i], v[i] - torch.bmm(B[i - 1], v[i - 1].clone())
-        )
+            lu[i],
+            pivots[i],
+            v[i].unsqueeze(-1) - torch.bmm(B[i - 1], v[i - 1].unsqueeze(-1).clone()),
+        ).squeeze(-1)
 
     return v
 
@@ -263,7 +255,7 @@ class BidiagonalThomasFactorization(LUFactorization):
         Complete the backsolve for a given right hand side
 
         Args:
-            v (torch.tensor): tensor of shape (nblk, sbat, sblk, 1)
+            v (torch.tensor): tensor of shape (nblk, sbat, sblk)
         """
         return thomas_solve(self.lu, self.pivots, self.B, v)
 
@@ -282,7 +274,7 @@ class BidiagonalPCRFactorization(LUFactorization):
         Complete the backsolve for a given right hand side
 
         Args:
-            v (torch.tensor): tensor of shape (nblk, sbat, sblk, 1)
+            v (torch.tensor): tensor of shape (nblk, sbat, sblk)
         """
         # We could do this in place if it wasn't for the pad
         self.B = pad(self.B, (0, 0, 0, 0, 0, 0, 1, 0))
@@ -296,7 +288,7 @@ class BidiagonalPCRFactorization(LUFactorization):
         # To retain consistent sizes
         self.B = self.B[1:]
 
-        return torch.linalg.lu_solve(self.lu, self.pivots, v)
+        return torch.linalg.lu_solve(self.lu, self.pivots, v.unsqueeze(-1)).squeeze(-1)
 
     def _solve_block(self, lu, pivots, B, v):
         """Solve a subsection of the matrix via PCR
@@ -305,7 +297,7 @@ class BidiagonalPCRFactorization(LUFactorization):
             lu (torch.tensor): (ncurr,sbat,sblk,sblk)
             pivots (torch.tensor): (ncurr,sbat,sblk)
             B (torch.tensor): (ncurr,sbat,sblk,sblk)
-            v (torch.tensor): (ncurr,sbat,sblk,1)
+            v (torch.tensor): (ncurr,sbat,sblk)
         """
         # Number of iterations required to reduce this block
         niter = lu.shape[0].bit_length() - 1
@@ -314,13 +306,14 @@ class BidiagonalPCRFactorization(LUFactorization):
         lu = lu.unsqueeze(0)
         pivots = pivots.unsqueeze(0)
         B = B.unsqueeze(0)
-        v = v.unsqueeze(0)
+        v = v.unsqueeze(0).unsqueeze(-1)
 
         # Actually start reduction!
         for i in range(niter):
             # Reduce RHS
             v[:, 1:] -= mbmm(
-                B[:, 1:], torch.linalg.lu_solve(lu[:, :-1], pivots[:, :-1], v[:, :-1])
+                B[:, 1:],
+                torch.linalg.lu_solve(lu[:, :-1], pivots[:, :-1], v[:, :-1]),
             )
 
             # Reduce off diagonal coefficients
@@ -335,7 +328,7 @@ class BidiagonalPCRFactorization(LUFactorization):
             lu = self._cyclic_shift(lu, i)
             pivots = self._cyclic_shift(pivots, i)
 
-        return B.squeeze(1)[1:], v.squeeze(1)[1:]
+        return B.squeeze(1)[1:], v.squeeze(1)[1:].squeeze(-1)
 
     @staticmethod
     def _pow2(n):
@@ -428,7 +421,9 @@ class BidiagonalHybridFactorization(BidiagonalPCRFactorization):
         # We still need to solve the first block even if last is 0
 
         # The actual LU solve for the solution
-        v[:last] = torch.linalg.lu_solve(self.lu[:last], self.pivots[:last], v[:last])
+        v[:last] = torch.linalg.lu_solve(
+            self.lu[:last], self.pivots[:last], v[:last].unsqueeze(-1)
+        ).squeeze(-1)
 
         # Now take over for Thomas
         for i in range(last, self.nblk):
@@ -438,8 +433,9 @@ class BidiagonalHybridFactorization(BidiagonalPCRFactorization):
             v[i] = torch.linalg.lu_solve(
                 self.lu[i],
                 self.pivots[i],
-                v[i] - torch.bmm(self.B[i - 1], v[i - 1].clone()),
-            )
+                v[i].unsqueeze(-1)
+                - torch.bmm(self.B[i - 1], v[i - 1].clone().unsqueeze(-1)),
+            ).squeeze(-1)
 
         return v
 
@@ -513,12 +509,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
             v (torch.tensor):   batch of vectors
         """
         # Reshaped v
-        vp = (
-            v.view(self.sbat, self.nblk, self.sblk)
-            .transpose(0, 1)
-            .reshape(self.sbat * self.nblk, self.sblk)
-            .unsqueeze(-1)
-        )
+        vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-1)
 
         # Actual calculation
         b = torch.bmm(self.A.view(-1, self.sblk, self.sblk), vp)
@@ -526,12 +517,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
             self.B.view(-1, self.sblk, self.sblk), vp[: -self.sbat]
         )
 
-        return (
-            b.squeeze(-1)
-            .view(self.nblk, self.sbat, self.sblk)
-            .transpose(1, 0)
-            .flatten(start_dim=1)
-        )
+        return b.squeeze(-1).view(self.nblk, self.sbat, self.sblk)
 
     def inverse(self):
         """

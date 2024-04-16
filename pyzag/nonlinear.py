@@ -13,9 +13,7 @@ def form_operators(R, J, solver):
         R (torch.tensor): current residual, shape :math:`(n_{block},...,n_{state})`
         J (torch.tensor): current Jacobian, shape :math:`(n_{lookback+1},...,n_{state},n_{state})`
     """
-    return R.transpose(0, 1).flatten(1), chunktime.BidiagonalForwardOperator(
-        J[1], J[0], inverse_operator=solver
-    )
+    return R, chunktime.BidiagonalForwardOperator(J[1], J[0], inverse_operator=solver)
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
@@ -215,14 +213,14 @@ class RecursiveNonlinearEquationSolver:
         def RJ(y):
             # Batch update the rate and jacobian
             yd, yJ = self.func(
-                torch.cat([prev_solution, y.reshape(nbatch, nblk, -1).transpose(0, 1)]),
+                torch.cat([prev_solution, y]),
                 *forces,
             )
             return form_operators(yd, yJ, self.direct_solver)
 
         y = chunktime.newton_raphson_chunk(
             RJ,
-            solution.transpose(0, 1).flatten(1),
+            solution,
             self.linear_solve_context,
             rtol=self.rtol,
             atol=self.atol,
@@ -231,7 +229,7 @@ class RecursiveNonlinearEquationSolver:
             linesearch=self.linesearch,
         )
 
-        return y.reshape(nbatch, nblk, -1).transpose(0, 1)
+        return y
 
     def _initial_guess(self, result, k, nchunk):
         """
