@@ -22,7 +22,6 @@ from pyoptmat.utility import mbmm
 def newton_raphson_chunk(
     fn,
     x0,
-    solver,
     rtol=1e-6,
     atol=1e-10,
     miter=100,
@@ -58,7 +57,7 @@ def newton_raphson_chunk(
     while (i < miter) and torch.any(
         torch.logical_not(torch.logical_or(nR <= atol, nR / nR0 <= rtol))
     ):
-        dx = solver.solve(J, R)
+        dx = J.inverse().matvec(R)
         if linesearch:
             x, R, J, nR = chunk_linesearch(x, dx, fn, R, rtol, atol)
         else:
@@ -524,56 +523,6 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         Return an inverse operator
         """
         return self.inverse_operator(self.A, self.B)
-
-
-class ChunkTimeOperatorSolverContext:
-    """
-    Context manager for solving sparse chunked time systems
-
-    Args:
-        solve_method:   one of "dense" or "direct"
-    """
-
-    def __init__(self, solve_method):
-
-        if solve_method not in ["dense", "direct"]:
-            raise ValueError("Solve method must be one of dense or direct")
-        self.solve_method = solve_method
-
-    def solve(self, J, R):
-        """
-        Actually solve Jx = R
-
-        Args:
-            J (BidiagonalForwardOperator):  matrix operator
-            R (torch.tensor):       right hand side
-        """
-        if self.solve_method == "dense":
-            return self.solve_dense(J, R)
-        if self.solve_method == "direct":
-            return self.solve_direct(J, R)
-        raise RuntimeError("Unknown solver method...")
-
-    def solve_dense(self, J, R):
-        """
-        Highly inefficient solve where we first convert to a dense tensor
-
-        Args:
-            J (BidiagonalForwardOperator):  matrix operator
-            R (torch.tensor):       right hand side
-        """
-        return torch.linalg.solve_ex(J.to_diag().to_dense(), R)[0]
-
-    def solve_direct(self, J, R):
-        """
-        Solve with a direct factorization
-
-        Args:
-            J (BidiagonalForwardOperator):  matrix operator
-            R (torch.tensor):       right hand side
-        """
-        M = J.inverse()
-        return M(R)
 
 
 class SquareBatchedBlockDiagonalMatrix:

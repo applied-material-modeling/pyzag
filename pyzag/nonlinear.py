@@ -111,7 +111,6 @@ class RecursiveNonlinearEquationSolver:
         offset_step=0,
         guess_type="zero",
         guess_history=None,
-        linear_solve_method="direct",
         direct_solve_method="thomas",
         direct_solve_min_size=0,
         rtol=1.0e-6,
@@ -135,11 +134,6 @@ class RecursiveNonlinearEquationSolver:
                 "The RecursiveNonlinearFunction has lookback = %i, but the current solver only handles lookback = 1!"
                 % self.func.lookback
             )
-
-        # Setup the linear solver context
-        self.linear_solve_context = chunktime.ChunkTimeOperatorSolverContext(
-            linear_solve_method, **kwargs
-        )
 
         # Setup the direct solver type
         if direct_solve_method == "thomas":
@@ -207,8 +201,6 @@ class RecursiveNonlinearEquationSolver:
             solution (tensor): guess at nchunk steps of solution
             forces (list of tensors): driving forces for next chunk plus lookback, to be passed as *args
         """
-        nblk = solution.shape[0]
-        nbatch = solution.shape[1]
 
         def RJ(y):
             # Batch update the rate and jacobian
@@ -218,18 +210,15 @@ class RecursiveNonlinearEquationSolver:
             )
             return form_operators(yd, yJ, self.direct_solver)
 
-        y = chunktime.newton_raphson_chunk(
+        return chunktime.newton_raphson_chunk(
             RJ,
             solution,
-            self.linear_solve_context,
             rtol=self.rtol,
             atol=self.atol,
             miter=self.miter,
             throw_on_fail=self.throw_on_fail,
             linesearch=self.linesearch,
         )
-
-        return y
 
     def _initial_guess(self, result, k, nchunk):
         """
