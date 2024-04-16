@@ -64,14 +64,14 @@ class BackwardEulerODE(IntegrateODE):
 
         x_dot, J_dot = self.ode(t, x)
 
-        R = x[1:] - x[:-1] - x_dot[1:] * dt.unsqueeze(-1)
+        R = x[1:] - x[:-1] - x_dot[1:] * dt
         J = torch.stack(
             [
                 -torch.eye(x.shape[-1], dtype=x.dtype, device=x.device).expand_as(
                     J_dot[:-1]
                 ),
                 torch.eye(x.shape[-1], dtype=x.dtype, device=x.device)
-                - J_dot[:-1] * dt.unsqueeze(-1).unsqueeze(-1),
+                - J_dot[:-1] * dt.unsqueeze(-1),
             ]
         )
 

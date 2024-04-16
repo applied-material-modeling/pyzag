@@ -1,5 +1,22 @@
 import torch
 
+from pyzag import chunktime
+
+# TODO: 1) separate out step selector to object 2) separate out initial guess selector to object,
+# 3) linear solver to object, 4) nonlinear solver to class
+
+
+def form_operators(R, J, solver):
+    """Form the operator used for the block solve
+
+    Args:
+        R (torch.tensor): current residual, shape :math:`(n_{block},...,n_{state})`
+        J (torch.tensor): current Jacobian, shape :math:`(n_{lookback+1},...,n_{state},n_{state})`
+    """
+    return R.transpose(0, 1).flatten(1), chunktime.BidiagonalForwardOperator(
+        J[1], J[0], inverse_operator=solver
+    )
+
 
 class NonlinearRecursiveFunction(torch.nn.Module):
     """Basic structure of a nonlinear recursive function
@@ -82,13 +99,37 @@ class RecursiveNonlinearEquationSolver:
     Keyword Args:
         block_size (int):   maximum block size for time vectorization.  This might be decreased at the end of the time series to
             hit the number of time steps requested by the `solve` method.
+        offset_step (int):  length of first block of steps, allowing it to be different from the general `block_size`
+        guess_type (str):   how to formulate the initial guess, options are "zero" (all zeros), "previous" (previous n steps).
+                            The `guess_history` option overrides this choice.
+        guess_history (torch.tenosr):   complete time history to use as a guess
     """
 
-    def __init__(self, func, y0, block_size=1):
+    def __init__(
+        self,
+        func,
+        y0,
+        block_size=1,
+        offset_step=0,
+        guess_type="zero",
+        guess_history=None,
+        linear_solve_method="direct",
+        direct_solve_method="thomas",
+        direct_solve_min_size=0,
+        rtol=1.0e-6,
+        atol=1.0e-8,
+        miter=200,
+        linesearch=False,
+        throw_on_fail=False,
+        **kwargs,
+    ):
         # Store basic information
         self.func = func
         self.y0 = y0
         self.block_size = block_size
+        self.offset_step = offset_step
+        self.guess_type = guess_type
+        self.guess_history = guess_history
 
         # For the moment we only accept lookback = 1
         if self.func.lookback != 1:
@@ -97,17 +138,140 @@ class RecursiveNonlinearEquationSolver:
                 % self.func.lookback
             )
 
-    def solve(self, n, *args):
+        # Setup the linear solver context
+        self.linear_solve_context = chunktime.ChunkTimeOperatorSolverContext(
+            linear_solve_method, **kwargs
+        )
+
+        # Setup the direct solver type
+        if direct_solve_method == "thomas":
+            self.direct_solver = chunktime.BidiagonalThomasFactorization
+        elif direct_solve_method == "pcr":
+            self.direct_solver = chunktime.BidiagonalPCRFactorization
+        elif direct_solve_method == "hybrid":
+            self.direct_solver = lambda A, B: chunktime.BidiagonalHybridFactorization(
+                A, B, min_size=direct_solve_min_size
+            )
+        else:
+            raise ValueError(
+                f"Unknown batched bidiagonal solver method {direct_solve_method}!"
+            )
+
+        # Solver params
+        self.rtol = rtol
+        self.atol = atol
+        self.miter = miter
+        self.linesearch = linesearch
+        self.throw_on_fail = throw_on_fail
+
+    def solve(self, n, *args, cache_adjoint=False):
         """Solve the recursive equations for n steps
 
         Args:
-            n (int):    number of recursive time steps to solve
+            n (int):    number of recursive time steps to solve, step 1 is y0
             *args:      driving forces to pass to the model
+
+        Keyword Args:
+            cache_adjoint (bool): if true store results for adjoint pass
         """
         # Make sure our shapes are okay
         self._check_shapes(n, args)
 
         # Generate the steps
+        steps = self._gen_steps(n)
+
+        # Setup results and store y0
+        result = torch.empty(
+            n, *self.y0.shape, dtype=self.y0.dtype, device=self.y0.device
+        )
+        result[0] = self.y0
+
+        # Actually solve
+        for k1, k2 in zip(steps[:-1], steps[1:]):
+            result[k1:k2] = self.block_update(
+                result[k1 - self.func.lookback : k1],
+                self._initial_guess(result, k1, k2 - k1),
+                [arg[k1 - self.func.lookback : k2] for arg in args],
+            )
+
+        # Cache result and driving forces if needed for adjoint pass
+        if cache_adjoint:
+            self.forces = [arg.flip(0) for arg in args]
+            self.result = result.flip(0)
+
+        return result
+
+    def block_update(self, prev_solution, solution, forces):
+        """Actually update the recursive system
+
+        Args:
+            prev_solution (tensor): previous lookback steps of solution
+            solution (tensor): guess at nchunk steps of solution
+            forces (list of tensors): driving forces for next chunk plus lookback, to be passed as *args
+        """
+        nblk = solution.shape[0]
+        nbatch = solution.shape[1]
+
+        def RJ(y):
+            # Batch update the rate and jacobian
+            yd, yJ = self.func(
+                torch.cat([prev_solution, y.reshape(nbatch, nblk, -1).transpose(0, 1)]),
+                *forces,
+            )
+            return form_operators(yd, yJ, self.direct_solver)
+
+        y = chunktime.newton_raphson_chunk(
+            RJ,
+            solution.transpose(0, 1).flatten(1),
+            self.linear_solve_context,
+            rtol=self.rtol,
+            atol=self.atol,
+            miter=self.miter,
+            throw_on_fail=self.throw_on_fail,
+            linesearch=self.linesearch,
+        )
+
+        return y.reshape(nbatch, nblk, -1).transpose(0, 1)
+
+    def _initial_guess(self, result, k, nchunk):
+        """
+        Form the initial guess
+
+        Args:
+            result (torch.tensor): currently-populated results
+            k (int): current time step
+            nchunk (int): current chunk size
+        """
+        if self.guess_history is not None:
+            guess = self.guess_history[k : k + nchunk]
+        elif self.guess_type == "zero":
+            guess = torch.zeros_like(result[k : k + nchunk])
+        # TODO: fixeme
+        elif self.guess_type == "previous":
+            if k - nchunk - 1 < 0:
+                guess = torch.zeros_like(result[k : k + nchunk])
+            else:
+                guess = result[(k - nchunk) : k] - result[k - nchunk - 1].unsqueeze(0)
+            blk = nchunk - result[k : k + nchunk].shape[0]
+            guess = guess[blk:]
+        else:
+            raise ValueError(f"Unknown initial guess strategy {self.guess_type}!")
+
+        return guess
+
+    def _gen_steps(self, ntotal):
+        """
+        Generate the increments in time to use the chunk integrate the equations
+
+        Args:
+            t (torch.tensor):   timesteps requested
+        """
+        steps = [1]
+        if self.offset_step > 0:
+            steps += [self.offset_step + 1]
+        steps += list(range(steps[-1], ntotal, self.block_size))[1:] + [ntotal]
+
+        return steps
 
     def _check_shapes(self, n, forces):
         """Check the shapes of everything before starting the calculation
@@ -116,7 +280,7 @@ class RecursiveNonlinearEquationSolver:
             n (int):        number of recursive time steps
             forces (list):  list of driving forces
         """
-        correct_force_batch_shape = (n + 1,) + self.y0.shape[:-1]
+        correct_force_batch_shape = (n,) + self.y0.shape[:-1]
         for f in forces:
             if f.shape[:-1] != correct_force_batch_shape:
                 raise ValueError(
