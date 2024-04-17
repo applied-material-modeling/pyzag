@@ -75,50 +75,125 @@ class NonlinearRecursiveFunction(torch.nn.Module):
         super().__init__(*args, **kwargs)
 
 
+class FullTrajectoryPredictor:
+    """Predict steps using a complete user-provided trajectory
+
+    This is often used during optimization runs, where the provided trajectory could be the results from the previous step in the
+    optimization routine
+
+    Args:
+        history (torch.tensor):     tensor of shape :math:`(n_{time},...,n_{state})` giving a complete previous trajectory
+    """
+
+    def __init__(self, history):
+        self.history = history
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        return self.history[k : k + kinc]
+
+
+class ZeroPredictor:
+    """Predict steps just using zeros"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        return torch.zeros_like(results[k : k + kinc])
+
+
+class PreviousStepsPredictor:
+    """Predict by providing the values from the previous steps"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        if k - kinc - 1 < 0:
+            return torch.zeros_like(results[k : k + kinc])
+        return results[(k - kinc) : k]
+
+
+class StepGenerator:
+    """Generate chunks of recursive steps to produce at once
+
+    Args:
+        block_size (int):   regular chunk size
+        first_block_size (int): if > 0 then use a special first chunk size, after that use block_size
+    """
+
+    def __init__(self, block_size=1, first_block_size=0):
+        self.block_size = block_size
+        self.offset_step = first_block_size
+
+    def __call__(self, n):
+        self.steps = [1]
+        if self.offset_step > 0:
+            self.steps += [self.offset_step + 1]
+        self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
+
+        self.i = 0
+
+        return self
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """Return two at a time"""
+        self.i += 1
+        if self.i < len(self.steps):
+            return self.steps[self.i - 1], self.steps[self.i]
+        raise StopIteration
+
+
 class RecursiveNonlinearEquationSolver:
     """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
 
     The time series is generated in a batched manner, generating `block_size` steps at a time.
 
     Args:
-        func (`nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
+        func (nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
         y0 (torch.tensor):  initial state values with shape (..., nstate)
 
     Keyword Args:
-        block_size (int):   maximum block size for time vectorization.  This might be decreased at the end of the time series to
-            hit the number of time steps requested by the `solve` method.
-        offset_step (int):  length of first block of steps, allowing it to be different from the general `block_size`
-        guess_type (str):   how to formulate the initial guess, options are "zero" (all zeros), "previous" (previous n steps).
-                            The `guess_history` option overrides this choice.
-        guess_history (torch.tenosr):   complete time history to use as a guess
+        step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
+        predictor (nonlinear.Predictor): how to generate guesses for the nonlinear solve.  Default uses all zeros
+        direct_solve_operator (chunktime.LUFactorization):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
     """
 
     def __init__(
         self,
         func,
         y0,
-        block_size=1,
-        offset_step=0,
-        guess_type="zero",
-        guess_history=None,
+        step_generator=StepGenerator(1),
+        predictor=ZeroPredictor(),
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
-        rtol=1.0e-6,
-        atol=1.0e-8,
-        miter=200,
-        linesearch=False,
-        throw_on_fail=False,
-        **kwargs,
+        nonlinear_solver=chunktime.ChunkNewtonRaphson(),
     ):
         # Store basic information
         self.func = func
         self.y0 = y0
 
         self.direct_solve_operator = direct_solve_operator
-
-        self.block_size = block_size
-        self.offset_step = offset_step
-        self.guess_type = guess_type
-        self.guess_history = guess_history
+        self.step_generator = step_generator
+        self.predictor = predictor
+        self.nonlinear_solver = nonlinear_solver
 
         # For the moment we only accept lookback = 1
         if self.func.lookback != 1:
@@ -126,13 +201,6 @@ class RecursiveNonlinearEquationSolver:
                 "The RecursiveNonlinearFunction has lookback = %i, but the current solver only handles lookback = 1!"
                 % self.func.lookback
             )
-
-        # Solver params
-        self.rtol = rtol
-        self.atol = atol
-        self.miter = miter
-        self.linesearch = linesearch
-        self.throw_on_fail = throw_on_fail
 
     def solve(self, n, *args, cache_adjoint=False):
         """Solve the recursive equations for n steps
@@ -147,9 +215,6 @@ class RecursiveNonlinearEquationSolver:
         # Make sure our shapes are okay
         self._check_shapes(n, args)
 
-        # Generate the steps
-        steps = self._gen_steps(n)
-
         # Setup results and store y0
         result = torch.empty(
             n, *self.y0.shape, dtype=self.y0.dtype, device=self.y0.device
@@ -157,10 +222,10 @@ class RecursiveNonlinearEquationSolver:
         result[0] = self.y0
 
         # Actually solve
-        for k1, k2 in zip(steps[:-1], steps[1:]):
+        for k1, k2 in self.step_generator(n):
             result[k1:k2] = self.block_update(
                 result[k1 - self.func.lookback : k1],
-                self._initial_guess(result, k1, k2 - k1),
+                self.predictor.predict(result, k1, k2 - k1),
                 [arg[k1 - self.func.lookback : k2] for arg in args],
             )
 
@@ -190,54 +255,7 @@ class RecursiveNonlinearEquationSolver:
                 J[1], J[0], inverse_operator=self.direct_solve_operator
             )
 
-        return chunktime.newton_raphson_chunk(
-            RJ,
-            solution,
-            rtol=self.rtol,
-            atol=self.atol,
-            miter=self.miter,
-            throw_on_fail=self.throw_on_fail,
-            linesearch=self.linesearch,
-        )
-
-    def _initial_guess(self, result, k, nchunk):
-        """
-        Form the initial guess
-
-        Args:
-            result (torch.tensor): currently-populated results
-            k (int): current time step
-            nchunk (int): current chunk size
-        """
-        if self.guess_history is not None:
-            guess = self.guess_history[k : k + nchunk]
-        elif self.guess_type == "zero":
-            guess = torch.zeros_like(result[k : k + nchunk])
-        elif self.guess_type == "previous":
-            if k - nchunk - 1 < 0:
-                guess = torch.zeros_like(result[k : k + nchunk])
-            else:
-                guess = result[(k - nchunk) : k]
-            blk = nchunk - result[k : k + nchunk].shape[0]
-            guess = guess[blk:]
-        else:
-            raise ValueError(f"Unknown initial guess strategy {self.guess_type}!")
-
-        return guess
-
-    def _gen_steps(self, ntotal):
-        """
-        Generate the increments in time to use the chunk integrate the equations
-
-        Args:
-            t (torch.tensor):   timesteps requested
-        """
-        steps = [1]
-        if self.offset_step > 0:
-            steps += [self.offset_step + 1]
-        steps += list(range(steps[-1], ntotal, self.block_size))[1:] + [ntotal]
-
-        return steps
+        return self.nonlinear_solver.solve(RJ, solution)
 
     def _check_shapes(self, n, forces):
         """Check the shapes of everything before starting the calculation

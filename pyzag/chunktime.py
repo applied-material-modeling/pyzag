@@ -19,101 +19,117 @@ import numpy as np
 from pyoptmat.utility import mbmm
 
 
-def newton_raphson_chunk(
-    fn,
-    x0,
-    rtol=1e-6,
-    atol=1e-10,
-    miter=100,
-    throw_on_fail=False,
-    linesearch=False,
-):
-    """
-    Solve a nonlinear system with Newton's method with a tensor for a
-    BackwardEuler type chunking operator context manager.
-
-    Args:
-      fn (function):        function that returns R, J, and the solver context
-      x0 (torch.tensor):    starting point
-      solver (ChunkTimeOperatorSolverContext): solver context
+class ChunkNewtonRaphson:
+    """Solve a nonlinear system with Newton's method where the residual and Jacobian are presented as chunked operators
 
     Keyword Args:
-      rtol (float):         nonlinear relative tolerance
-      atol (float):         nonlinear absolute tolerance
-      miter (int):          maximum number of nonlinear iterations
-      throw_on_fail (bool): throw exception if solve fails
-      linesearch (bool):    if true use backtracking linesearch
-
-    Returns:
-      torch.tensor:         solution to system of equations
+        rtol (float): nonlinear relative tolerance
+        atol (float): nonlinear absolute tolerance
+        miter (int): maximum number of iterations
+        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
     """
-    x = x0
-    R, J = fn(x)
 
-    nR = torch.norm(R, dim=-1)
-    nR0 = nR
-    i = 0
+    def __init__(self, rtol=1e-6, atol=1e-10, miter=200, throw_on_fail=False):
+        self.rtol = rtol
+        self.atol = atol
+        self.miter = miter
+        self.throw_on_fail = throw_on_fail
 
-    while (i < miter) and torch.any(
-        torch.logical_not(torch.logical_or(nR <= atol, nR / nR0 <= rtol))
-    ):
-        dx = J.inverse().matvec(R)
-        if linesearch:
-            x, R, J, nR = chunk_linesearch(x, dx, fn, R, rtol, atol)
-        else:
-            x -= dx
-            R, J = fn(x)
-            nR = torch.norm(R, dim=-1)
-        i += 1
+    def solve(self, fn, x0):
+        """Actually solve the system
 
-    if i == miter:
-        if throw_on_fail:
-            raise RuntimeError("Implicit solve did not succeed.")
-        warnings.warn("Implicit solve did not succeed.  Results may be inaccurate...")
+        Args:
+            fn (function): function that returns the residual and Jacobian (as appropriate chunked operators)
+            x0 (torch.tensor): initial guess, again properly chunked
 
-    return x
+        Returns:
+            torch.tensor:   solution
+        """
+        x = x0
+        R, J = fn(x)
 
+        nR = torch.norm(R, dim=-1)
+        nR0 = nR
+        i = 0
 
-def chunk_linesearch(
-    x, dx, fn, R0, overall_rtol, overall_atol, sigma=2.0, c=0.0, miter=10
-):
-    """
-    Backtracking linesearch for the chunk NR algorithm.
-
-    Terminates when the Armijo criteria is reached, or you exceed
-    some maximum iterations, or when you would meet the
-    convergence requirements with the current alpha
-
-    Args:
-        x (torch.tensor): initial point
-        dx (torch.tensor): direction
-        R0 (torch.tensor): initial residual
-        overall_rtol (scalar): Newton relative tolerance
-        overall_atol (scalar): Newton absolute tolerance
-
-    Keyword Args:
-        sigma (scalar): decrease factor, i.e. alpha /= sigma
-        c (scalar): stopping criteria
-        miter (scalar): maximum iterations
-    """
-    alpha = torch.ones(x.shape[:-1], device=x.device)
-    nR0 = torch.norm(R0, dim=-1)
-    i = 0
-    while True:
-        R, J = fn(x - dx * alpha.unsqueeze(-1))
-        nR = torch.norm(R, dim=-1) ** 2.0
-        crit = nR0**2.0 + 2.0 * c * alpha * torch.einsum("...i,...i", R0, dx)
-        i += 1
-        if (
-            torch.all(nR < crit)
-            or i >= miter
-            or torch.all(torch.sqrt(nR) < overall_atol)
-            or torch.all(torch.sqrt(nR) / nR0 < overall_rtol)
+        while (i < self.miter) and torch.any(
+            torch.logical_not(torch.logical_or(nR <= self.atol, nR / nR0 <= self.rtol))
         ):
-            break
-        alpha[nR >= crit] /= sigma
+            dx = J.inverse().matvec(R)
+            x, R, J, nR = self.step(x, dx, fn, R)
+            i += 1
 
-    return x - dx * alpha.unsqueeze(-1), R, J, torch.norm(R, dim=-1)
+        if i == self.miter:
+            if self.throw_on_fail:
+                raise RuntimeError("Implicit solve did not succeed.")
+            warnings.warn(
+                "Implicit solve did not succeed.  Results may be inaccurate..."
+            )
+
+        return x
+
+    def step(self, x, dx, fn, R0):
+        """Take a simple Newton step
+
+        Args:
+            x (torch.tensor): current solution
+            dx (torch.tensor): newton increment
+            fn (function): function
+            R0 (torch.tensor): current residual
+        """
+        x -= dx
+        R, J = fn(x)
+        nR = torch.norm(R, dim=-1)
+
+        return x, R, J, nR
+
+
+class ChunkNewtonRaphsonLinesearch(ChunkNewtonRaphson):
+    """Solve a nonlinear system with Newton's method with line search
+
+    Keyword Args:
+        rtol (float): nonlinear relative tolerance
+        atol (float): nonlinear absolute tolerance
+        miter (int): maximum number of iterations
+        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
+        sigma (float): linesearch cutback
+        c (float): stopping criteria
+        ls_miter (int): linearch maximum iterations
+    """
+
+    def __init__(self, *args, sigma=2.0, c=0.0, ls_miter=10, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sigma = sigma
+        self.c = c
+        self.ls_miter = ls_miter
+
+    def step(self, x, dx, fn, R0):
+        """Take a simple Newton with linesearch step
+
+        Args:
+            x (torch.tensor): current solution
+            dx (torch.tensor): newton increment
+            fn (function): function
+            R0 (torch.tensor): current residual
+        """
+        alpha = torch.ones(x.shape[:-1], device=x.device)
+        nR0 = torch.norm(R0, dim=-1)
+        i = 0
+        while True:
+            R, J = fn(x - dx * alpha.unsqueeze(-1))
+            nR = torch.norm(R, dim=-1) ** 2.0
+            crit = nR0**2.0 + 2.0 * c * alpha * torch.einsum("...i,...i", R0, dx)
+            i += 1
+            if (
+                torch.all(nR < crit)
+                or i >= self.ls_miter
+                or torch.all(torch.sqrt(nR) < self.atol)
+                or torch.all(torch.sqrt(nR) / nR0 < self.rtol)
+            ):
+                break
+            alpha[nR >= crit] /= self.sigma
+
+        return x - dx * alpha.unsqueeze(-1), R, J, torch.norm(R, dim=-1)
 
 
 class BidiagonalOperator(torch.nn.Module):

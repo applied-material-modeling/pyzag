@@ -97,7 +97,7 @@ class TestBackwardEulerTimeIntegrationLinear(unittest.TestCase):
             solver = nonlinear.RecursiveNonlinearEquationSolver(
                 self.model,
                 self.model.ode.y0(self.nbatch),
-                block_size=nchunk,
+                step_generator=nonlinear.StepGenerator(nchunk),
                 direct_solve_operator=method,
             )
 
@@ -143,7 +143,10 @@ class TestBackwardEulerTimeIntegrationLogistic(unittest.TestCase):
             chunktime.BidiagonalHybridFactorization(2),
         ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
-                self.model, self.y0, block_size=nchunk, direct_solve_operator=method
+                self.model,
+                self.y0,
+                step_generator=nonlinear.StepGenerator(nchunk),
+                direct_solve_operator=method,
             )
 
             nres = solver.solve(self.ntime, self.times)
