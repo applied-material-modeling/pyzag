@@ -58,7 +58,7 @@ class TestBackwardEulerChunkTimeOperator(unittest.TestCase):
         """Hybrid method, but set min_size so it always uses PCR"""
         for self.nblk in range(1, self.max_nblk):
             self._gen_operators()
-            M = chunktime.BidiagonalHybridFactorization(self.blk_A, self.blk_B)
+            M = chunktime.BidiagonalHybridFactorizationImpl(self.blk_A, self.blk_B)
             one = self._transform_soln(
                 torch.linalg.solve(
                     self.A.to_diag().to_dense(), self._transform_rhs(self.b)
@@ -72,7 +72,7 @@ class TestBackwardEulerChunkTimeOperator(unittest.TestCase):
         """Hybrid method, but set min_size so it always uses Thomas"""
         for self.nblk in range(1, self.max_nblk):
             self._gen_operators()
-            M = chunktime.BidiagonalHybridFactorization(
+            M = chunktime.BidiagonalHybridFactorizationImpl(
                 self.blk_A, self.blk_B, min_size=self.max_nblk + 1
             )
             one = self._transform_soln(
@@ -88,7 +88,7 @@ class TestBackwardEulerChunkTimeOperator(unittest.TestCase):
         """Hybrid method actually set to do something"""
         for self.nblk in range(1, self.max_nblk):
             self._gen_operators()
-            M = chunktime.BidiagonalHybridFactorization(
+            M = chunktime.BidiagonalHybridFactorizationImpl(
                 self.blk_A, self.blk_B, min_size=self.nblk // 2
             )
             one = self._transform_soln(

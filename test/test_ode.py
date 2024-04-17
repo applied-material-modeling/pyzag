@@ -92,7 +92,7 @@ class TestBackwardEulerTimeIntegrationLinear(unittest.TestCase):
         for method in [
             chunktime.BidiagonalThomasFactorization,
             chunktime.BidiagonalPCRFactorization,
-            chunktime.BidiagonalHybridFactorization,
+            chunktime.BidiagonalHybridFactorization(2),
         ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
                 self.model,
@@ -140,7 +140,7 @@ class TestBackwardEulerTimeIntegrationLogistic(unittest.TestCase):
         for method in [
             chunktime.BidiagonalThomasFactorization,
             chunktime.BidiagonalPCRFactorization,
-            chunktime.BidiagonalHybridFactorization,
+            chunktime.BidiagonalHybridFactorization(2),
         ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
                 self.model, self.y0, block_size=nchunk, direct_solve_operator=method

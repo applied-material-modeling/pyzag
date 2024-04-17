@@ -375,9 +375,10 @@ class BidiagonalPCRFactorization(LUFactorization):
 
 
 # Cheater wrapper
-BidiagonalHybridFactorization = (
-    lambda A, B, min_size=0: BidiagonalHybridFactorizationImpl(A, B, min_size=min_size)
-)
+def BidiagonalHybridFactorization(min_size=1):
+    return lambda A, B, min_size=min_size: BidiagonalHybridFactorizationImpl(
+        A, B, min_size=min_size
+    )
 
 
 class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
