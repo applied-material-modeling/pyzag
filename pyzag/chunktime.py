@@ -374,7 +374,13 @@ class BidiagonalPCRFactorization(LUFactorization):
         )
 
 
-class BidiagonalHybridFactorization(BidiagonalPCRFactorization):
+# Cheater wrapper
+BidiagonalHybridFactorization = (
+    lambda A, B, min_size=0: BidiagonalHybridFactorizationImpl(A, B, min_size=min_size)
+)
+
+
+class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
     """A factorization approach that switches from PCR to Thomas
 
     Specifically, this class uses PCR until the PCR chunk size is

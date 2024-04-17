@@ -6,16 +6,6 @@ from pyzag import chunktime
 # 3) linear solver to object, 4) nonlinear solver to class
 
 
-def form_operators(R, J, solver):
-    """Form the operator used for the block solve
-
-    Args:
-        R (torch.tensor): current residual, shape :math:`(n_{block},...,n_{state})`
-        J (torch.tensor): current Jacobian, shape :math:`(n_{lookback+1},...,n_{state},n_{state})`
-    """
-    return R, chunktime.BidiagonalForwardOperator(J[1], J[0], inverse_operator=solver)
-
-
 class NonlinearRecursiveFunction(torch.nn.Module):
     """Basic structure of a nonlinear recursive function
 
@@ -111,8 +101,7 @@ class RecursiveNonlinearEquationSolver:
         offset_step=0,
         guess_type="zero",
         guess_history=None,
-        direct_solve_method="thomas",
-        direct_solve_min_size=0,
+        direct_solve_operator=chunktime.BidiagonalThomasFactorization,
         rtol=1.0e-6,
         atol=1.0e-8,
         miter=200,
@@ -123,6 +112,9 @@ class RecursiveNonlinearEquationSolver:
         # Store basic information
         self.func = func
         self.y0 = y0
+
+        self.direct_solve_operator = direct_solve_operator
+
         self.block_size = block_size
         self.offset_step = offset_step
         self.guess_type = guess_type
@@ -133,20 +125,6 @@ class RecursiveNonlinearEquationSolver:
             raise ValueError(
                 "The RecursiveNonlinearFunction has lookback = %i, but the current solver only handles lookback = 1!"
                 % self.func.lookback
-            )
-
-        # Setup the direct solver type
-        if direct_solve_method == "thomas":
-            self.direct_solver = chunktime.BidiagonalThomasFactorization
-        elif direct_solve_method == "pcr":
-            self.direct_solver = chunktime.BidiagonalPCRFactorization
-        elif direct_solve_method == "hybrid":
-            self.direct_solver = lambda A, B: chunktime.BidiagonalHybridFactorization(
-                A, B, min_size=direct_solve_min_size
-            )
-        else:
-            raise ValueError(
-                f"Unknown batched bidiagonal solver method {direct_solve_method}!"
             )
 
         # Solver params
@@ -204,11 +182,13 @@ class RecursiveNonlinearEquationSolver:
 
         def RJ(y):
             # Batch update the rate and jacobian
-            yd, yJ = self.func(
+            R, J = self.func(
                 torch.cat([prev_solution, y]),
                 *forces,
             )
-            return form_operators(yd, yJ, self.direct_solver)
+            return R, chunktime.BidiagonalForwardOperator(
+                J[1], J[0], inverse_operator=self.direct_solve_operator
+            )
 
         return chunktime.newton_raphson_chunk(
             RJ,
@@ -233,12 +213,11 @@ class RecursiveNonlinearEquationSolver:
             guess = self.guess_history[k : k + nchunk]
         elif self.guess_type == "zero":
             guess = torch.zeros_like(result[k : k + nchunk])
-        # TODO: fixeme
         elif self.guess_type == "previous":
             if k - nchunk - 1 < 0:
                 guess = torch.zeros_like(result[k : k + nchunk])
             else:
-                guess = result[(k - nchunk) : k] - result[k - nchunk - 1].unsqueeze(0)
+                guess = result[(k - nchunk) : k]
             blk = nchunk - result[k : k + nchunk].shape[0]
             guess = guess[blk:]
         else:

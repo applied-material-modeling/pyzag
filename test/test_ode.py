@@ -1,4 +1,4 @@
-from pyzag import ode, nonlinear
+from pyzag import ode, nonlinear, chunktime
 
 import torch
 
@@ -89,12 +89,16 @@ class TestBackwardEulerTimeIntegrationLinear(unittest.TestCase):
     def test_integrate_forward(self):
         nchunk = 8
 
-        for method in ["thomas", "pcr", "hybrid"]:
+        for method in [
+            chunktime.BidiagonalThomasFactorization,
+            chunktime.BidiagonalPCRFactorization,
+            chunktime.BidiagonalHybridFactorization,
+        ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
                 self.model,
                 self.model.ode.y0(self.nbatch),
                 block_size=nchunk,
-                direct_solve_method=method,
+                direct_solve_operator=method,
             )
 
             nres = solver.solve(self.ntime, self.times)
@@ -133,9 +137,13 @@ class TestBackwardEulerTimeIntegrationLogistic(unittest.TestCase):
     def test_integrate_forward(self):
         nchunk = 8
 
-        for method in ["thomas", "pcr", "hybrid"]:
+        for method in [
+            chunktime.BidiagonalThomasFactorization,
+            chunktime.BidiagonalPCRFactorization,
+            chunktime.BidiagonalHybridFactorization,
+        ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
-                self.model, self.y0, block_size=nchunk, direct_solve_method=method
+                self.model, self.y0, block_size=nchunk, direct_solve_operator=method
             )
 
             nres = solver.solve(self.ntime, self.times)
