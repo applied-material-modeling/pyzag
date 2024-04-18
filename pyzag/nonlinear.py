@@ -1,6 +1,7 @@
 import torch
 
 from pyzag import chunktime
+from pyzag.utility import mbmm
 
 # TODO: 1) separate out step selector to object 2) separate out initial guess selector to object,
 # 3) linear solver to object, 4) nonlinear solver to class
@@ -140,6 +141,7 @@ class StepGenerator:
     def __init__(self, block_size=1, first_block_size=0):
         self.block_size = block_size
         self.offset_step = first_block_size
+        self.back = False
 
     def __call__(self, n):
         self.steps = [1]
@@ -151,18 +153,39 @@ class StepGenerator:
 
         return self
 
+    def reverse(self):
+        self.back = True
+        self.i = len(self.steps) - 1
+        return self
+
     def __iter__(self):
         return self
 
     def __next__(self):
         """Return two at a time"""
+        if self.back:
+            return self.next_reverse()
+        return self.next_forward()
+
+    def next_forward(self):
+        """Iterate forward through the steps"""
         self.i += 1
         if self.i < len(self.steps):
             return self.steps[self.i - 1], self.steps[self.i]
         raise StopIteration
 
+    def next_reverse(self):
+        """Iterate backward through the steps"""
+        self.i -= 1
+        if self.i >= 0:
+            return (
+                self.steps[-1] + 1 - self.steps[self.i + 1],
+                self.steps[-1] + 1 - self.steps[self.i],
+            )
+        raise StopIteration
 
-class RecursiveNonlinearEquationSolver:
+
+class RecursiveNonlinearEquationSolver(torch.nn.Module):
     """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
 
     The time series is generated in a batched manner, generating `block_size` steps at a time.
@@ -175,6 +198,7 @@ class RecursiveNonlinearEquationSolver:
         step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
         predictor (nonlinear.Predictor): how to generate guesses for the nonlinear solve.  Default uses all zeros
         direct_solve_operator (chunktime.LUFactorization):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
+        extra_adjoint_params (list of torch.nn.Parameter): extra parameters to add to the adjoint pass, beyond those given by func.parameters()
     """
 
     def __init__(
@@ -186,6 +210,7 @@ class RecursiveNonlinearEquationSolver:
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
         nonlinear_solver=chunktime.ChunkNewtonRaphson(),
     ):
+        super().__init__()
         # Store basic information
         self.func = func
         self.y0 = y0
@@ -231,6 +256,7 @@ class RecursiveNonlinearEquationSolver:
 
         # Cache result and driving forces if needed for adjoint pass
         if cache_adjoint:
+            self.n = n
             self.forces = [arg.flip(0) for arg in args]
             self.result = result.flip(0)
 
@@ -257,6 +283,74 @@ class RecursiveNonlinearEquationSolver:
 
         return self.nonlinear_solver.solve(RJ, solution)
 
+    def rewind(self, output_grad):
+        """Rewind through an adjoint pass to provide the dot product for each quantity in output_grad
+
+        Args:
+            output_grad (torch.tensor): thing to dot product with
+        """
+        # Setup storage for result
+        grad_result = tuple(
+            torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
+        )
+
+        # Flip the input
+        output_grad = output_grad.flip(0)
+
+        # Start at the last gradient
+        prev_adjoint = output_grad[0]
+
+        # Now do the adjoint pass
+        for k1, k2 in self.step_generator(self.n).reverse():
+            # We could consider caching these instead
+            with torch.enable_grad():
+                R, J = self.func(
+                    self.result[k1 - 1 : k2], *[f[k1 - 1 : k2] for f in self.forces]
+                )
+
+            # Do the adjoint solve
+            full_adjoint = self.block_update_adjoint(
+                J, output_grad[k1 - self.func.lookback : k2], prev_adjoint
+            )
+
+            # Update the gradients
+            grad_result = self.accumulate(
+                grad_result, output_grad[k1 - self.func.lookback : k2], full_adjoint, R
+            )
+
+            # Store the previous adjoint value...
+            prev_adjoint = full_adjoint[-1]
+
+        # Need to return the adjoint at time step zero for y0 derivatives
+        return grad_result
+
+    def accumulate(self, grad_result, gg, full_adjoint, R):
+        """Accumulate the updated gradient values
+
+        Args:
+            grad_result (tuple of tensor): current gradient results
+            full_adjoint (torch.tensor): adjoint values
+            R (torch.tensor): function values, for AD
+        """
+        g = torch.autograd.grad(R, self.parameters(), gg[-1:] - full_adjoint[:-1])
+        return tuple(pi + gi for pi, gi in zip(grad_result, g))
+
+    def block_update_adjoint(self, J, grads, a_prev):
+        """Do the blocked adjoint solve
+
+        Args:
+            J (torch.tensor):   block of jacobians
+            grads (torch.tensor): block of gradient values
+            a_prev (torch.tensor): previous adjoint value
+
+        Returns:
+            adjoint_block (torch.tensor): next block of updated adjoint values
+        """
+        operator = self.direct_solve_operator(J[1], J[0])
+        rhs = mbmm(J[1], grads[1:].unsqueeze(-1)).squeeze(-1)
+
+        return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
+
     def _check_shapes(self, n, forces):
         """Check the shapes of everything before starting the calculation
 
@@ -273,3 +367,23 @@ class RecursiveNonlinearEquationSolver:
                     + " but is instead "
                     + str(f.shape[:-1])
                 )
+
+
+class AdjointWrapper(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, solver, n, forces, *params):
+        with torch.no_grad():
+            y = solver.solve(n, *forces, cache_adjoint=True)
+            ctx.solver = solver
+            return y
+
+    @staticmethod
+    def backward(ctx, output_grad):
+        with torch.no_grad():
+            grad_res = ctx.solver.rewind(output_grad)
+            return (None, None, None, *grad_res)
+
+
+def solve_adjoint(solver, n, *forces):
+    wrapper = AdjointWrapper()
+    return wrapper.apply(solver, n, forces, *solver.parameters())

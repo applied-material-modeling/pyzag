@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+from pyzag import ode, nonlinear, chunktime
+
+import torch
+
+# Ensure test consistency
+torch.manual_seed(42)
+
+import unittest
+
+torch.set_default_dtype(torch.float64)
+
+
+class LinearSystem(torch.nn.Module):
+    """Linear system of equations"""
+
+    def __init__(self, n):
+        super().__init__()
+        self.n = n
+        Ap = torch.rand((n, n))
+        self.A = torch.nn.Parameter(Ap.transpose(0, 1) * Ap)
+
+        self.vals, self.vecs = torch.linalg.eigh(self.A)
+
+    def forward(self, t, y):
+        return torch.matmul(self.A.unsqueeze(0).unsqueeze(0), y.unsqueeze(-1)).squeeze(
+            -1
+        ), self.A.unsqueeze(0).unsqueeze(0).expand(
+            t.shape[0], t.shape[1], self.n, self.n
+        )
+
+    def y0(self, nbatch):
+        return torch.rand((nbatch, self.n))
+
+if __name__ == "__main__":
+    n = 4
+    model = ode.BackwardEulerODE(LinearSystem(n))
+    nbatch = 5
+    ntime = 100
+    nchunk = 6
+
+    times = (
+        torch.linspace(0, 1, ntime)
+        .unsqueeze(-1)
+        .expand(-1, nbatch)
+        .unsqueeze(-1)
+    )
+
+    solver = nonlinear.RecursiveNonlinearEquationSolver(
+        model,
+        model.ode.y0(nbatch),
+        step_generator=nonlinear.StepGenerator(nchunk),
+    )
+    res = solver.solve(ntime, times)
+    val = torch.linalg.norm(res)
+    print(val)
+    val.backward()
+
+    first = solver.func.ode.A.grad
+    print(first)
+    
+    solver.zero_grad()
+    res2 = nonlinear.solve_adjoint(solver, ntime, times)
+    val2 = torch.linalg.norm(res2)
+    print(val2)
+    val2.backward()
+
+    second = solver.func.ode.A.grad
+    print(second)
+
+    print(first/second)
+
+
+

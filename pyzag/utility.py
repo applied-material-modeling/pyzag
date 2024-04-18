@@ -5,6 +5,13 @@ import numpy as np
 import numpy.random as ra
 
 
+def mbmm(A1, A2):
+    """
+    Batched matrix-matrix multiplication with several batch dimensions
+    """
+    return torch.einsum("...ik,...kj->...ij", A1, A2)
+
+
 class ArbitraryBatchTimeSeriesInterpolator(torch.nn.Module):
     """
     Interpolate :code:`data` located at discrete :code:`times`
