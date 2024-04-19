@@ -305,7 +305,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             # We could consider caching these instead
             with torch.enable_grad():
                 R, J = self.func(
-                    self.result[k1 - 1 : k2], *[f[k1 - 1 : k2] for f in self.forces]
+                    self.result[k1 - self.func.lookback : k2],
+                    *[f[k1 - self.func.lookback : k2] for f in self.forces],
                 )
 
             # Do the adjoint solve
@@ -349,10 +350,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Returns:
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
-        test = -J[1].transpose(-1, -2) - 2 * J[0]
-        operator = self.direct_solve_operator(test, J[0, 1:])
-        rhs = mbmm(test, grads[1:].unsqueeze(-1)).squeeze(-1)
-        rhs[0] -= mbmm(J[0, 0], a_prev.unsqueeze(-1)).squeeze(-1)
+        operator = self.direct_solve_operator(J[0], J[1, 1:])
+        rhs = -grads[1:]
+        rhs[0] -= mbmm(J[1, 0], a_prev.unsqueeze(-1)).squeeze(-1)
 
         return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
 
