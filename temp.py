@@ -38,9 +38,9 @@ class LinearSystem(torch.nn.Module):
 
 if __name__ == "__main__":
     n = 4
-    nbatch = 5
+    nbatch = 1
     ntime = 100
-    nchunk = 8
+    nchunk = 1
 
     sec = LinearSystem(n)
     model = ode.BackwardEulerODE(sec)
@@ -51,6 +51,8 @@ if __name__ == "__main__":
     arg = pode.odeint_adjoint(sec, y0, times.squeeze(-1), block_size=nchunk)
     sigh = torch.linalg.norm(arg)
     sigh.backward()
+    print("ODE")
+    print(sigh)
     print(sec.A.grad)
 
     model.zero_grad()
@@ -63,6 +65,7 @@ if __name__ == "__main__":
 
     res = solver.solve(ntime, times)
     val = torch.linalg.norm(res)
+    print("AD")
     print(val)
     val.backward()
 
@@ -72,6 +75,7 @@ if __name__ == "__main__":
     solver.zero_grad()
     res2 = nonlinear.solve_adjoint(solver, ntime, times)
     val2 = torch.linalg.norm(res2)
+    print("Adjoint")
     print(val2)
     val2.backward()
 

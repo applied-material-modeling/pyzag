@@ -350,6 +350,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Returns:
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
+        # Remember to transpose
         operator = self.direct_solve_operator(J[0], J[1, 1:])
         rhs = -grads[1:]
         rhs[0] -= mbmm(J[1, 0], a_prev.unsqueeze(-1)).squeeze(-1)
