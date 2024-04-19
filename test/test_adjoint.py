@@ -51,17 +51,3 @@ class TestSimpleAdjointLinear(unittest.TestCase):
 
     def test_parameters(self):
         self.assertEqual(1, len(list(self.model.parameters())))
-
-    def test_adjoint(self):
-        solver = nonlinear.RecursiveNonlinearEquationSolver(
-            self.model,
-            self.model.ode.y0(self.nbatch),
-            step_generator=nonlinear.StepGenerator(self.nchunk),
-        )
-
-        res = solver.solve(self.ntime, self.times, cache_adjoint=True)
-        grad = torch.ones((self.ntime, self.nbatch, self.n))
-
-        adj_grad = solver.rewind(grad)
-
-        self.assertTrue(False)

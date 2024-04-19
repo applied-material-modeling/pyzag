@@ -278,7 +278,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 *forces,
             )
             return R, chunktime.BidiagonalForwardOperator(
-                J[1], J[0], inverse_operator=self.direct_solve_operator
+                J[1], J[0, 1:], inverse_operator=self.direct_solve_operator
             )
 
         return self.nonlinear_solver.solve(RJ, solution)
@@ -321,6 +321,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             # Store the previous adjoint value...
             prev_adjoint = full_adjoint[-1]
 
+        print("HMM")
+        print(prev_adjoint)
+
         # Need to return the adjoint at time step zero for y0 derivatives
         return grad_result
 
@@ -332,7 +335,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             full_adjoint (torch.tensor): adjoint values
             R (torch.tensor): function values, for AD
         """
-        g = torch.autograd.grad(R, self.parameters(), gg[-1:] - full_adjoint[:-1])
+        g = torch.autograd.grad(R, self.parameters(), full_adjoint[1:])
         return tuple(pi + gi for pi, gi in zip(grad_result, g))
 
     def block_update_adjoint(self, J, grads, a_prev):
@@ -346,8 +349,10 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Returns:
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
-        operator = self.direct_solve_operator(J[1], J[0])
-        rhs = mbmm(J[1], grads[1:].unsqueeze(-1)).squeeze(-1)
+        test = -J[1].transpose(-1, -2) - 2 * J[0]
+        operator = self.direct_solve_operator(test, J[0, 1:])
+        rhs = mbmm(test, grads[1:].unsqueeze(-1)).squeeze(-1)
+        rhs[0] -= mbmm(J[0, 0], a_prev.unsqueeze(-1)).squeeze(-1)
 
         return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
 

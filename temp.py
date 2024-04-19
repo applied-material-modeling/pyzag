@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-from pyzag import ode, nonlinear, chunktime
+from pyzag import ode, nonlinear
+
+from pyoptmat import ode as pode
 
 import torch
 
@@ -33,25 +35,32 @@ class LinearSystem(torch.nn.Module):
     def y0(self, nbatch):
         return torch.rand((nbatch, self.n))
 
+
 if __name__ == "__main__":
     n = 4
-    model = ode.BackwardEulerODE(LinearSystem(n))
     nbatch = 5
     ntime = 100
-    nchunk = 6
+    nchunk = 8
 
-    times = (
-        torch.linspace(0, 1, ntime)
-        .unsqueeze(-1)
-        .expand(-1, nbatch)
-        .unsqueeze(-1)
-    )
+    sec = LinearSystem(n)
+    model = ode.BackwardEulerODE(sec)
+    y0 = sec.y0(nbatch)
+
+    times = torch.linspace(0, 1, ntime).unsqueeze(-1).expand(-1, nbatch).unsqueeze(-1)
+
+    arg = pode.odeint_adjoint(sec, y0, times.squeeze(-1), block_size=nchunk)
+    sigh = torch.linalg.norm(arg)
+    sigh.backward()
+    print(sec.A.grad)
+
+    model.zero_grad()
 
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         model,
-        model.ode.y0(nbatch),
+        y0,
         step_generator=nonlinear.StepGenerator(nchunk),
     )
+
     res = solver.solve(ntime, times)
     val = torch.linalg.norm(res)
     print(val)
@@ -59,7 +68,7 @@ if __name__ == "__main__":
 
     first = solver.func.ode.A.grad
     print(first)
-    
+
     solver.zero_grad()
     res2 = nonlinear.solve_adjoint(solver, ntime, times)
     val2 = torch.linalg.norm(res2)
@@ -68,8 +77,3 @@ if __name__ == "__main__":
 
     second = solver.func.ode.A.grad
     print(second)
-
-    print(first/second)
-
-
-
