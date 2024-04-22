@@ -370,6 +370,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
 
 class AdjointWrapper(torch.autograd.Function):
+    """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
+
     @staticmethod
     def forward(ctx, solver, n, forces, *params):
         with torch.no_grad():
@@ -385,5 +387,12 @@ class AdjointWrapper(torch.autograd.Function):
 
 
 def solve_adjoint(solver, n, *forces):
+    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in a differentiable way
+
+    Args:
+        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        n (int): number of recursive steps
+        *forces (*args of tensors): driving forces
+    """
     wrapper = AdjointWrapper()
     return wrapper.apply(solver, n, forces, *solver.parameters())

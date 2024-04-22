@@ -26,10 +26,19 @@ class LinearSystem(torch.nn.Module):
         self.vals, self.vecs = torch.linalg.eigh(self.A)
 
     def forward(self, t, y):
-        return torch.matmul(self.A.unsqueeze(0).unsqueeze(0), y.unsqueeze(-1)).squeeze(
-            -1
-        ), self.A.unsqueeze(0).unsqueeze(0).expand(
+        if t.dim() == 3:
+            t = t[..., 0]
+        return torch.matmul(
+            self.A.unsqueeze(0).unsqueeze(0) * torch.cos(t).unsqueeze(-1).unsqueeze(-1),
+            y.unsqueeze(-1),
+        ).squeeze(-1), self.A.unsqueeze(0).unsqueeze(0).expand(
             t.shape[0], t.shape[1], self.n, self.n
+        ) * torch.cos(
+            t
+        ).unsqueeze(
+            -1
+        ).unsqueeze(
+            -1
         )
 
     def y0(self, nbatch):
@@ -38,9 +47,9 @@ class LinearSystem(torch.nn.Module):
 
 if __name__ == "__main__":
     n = 4
-    nbatch = 2
+    nbatch = 1
     ntime = 100
-    nchunk = 3
+    nchunk = 1
 
     sec = LinearSystem(n)
     model = ode.BackwardEulerODE(sec)
