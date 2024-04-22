@@ -38,18 +38,18 @@ class LinearSystem(torch.nn.Module):
 
 if __name__ == "__main__":
     n = 4
-    nbatch = 1
+    nbatch = 2
     ntime = 100
-    nchunk = 1
+    nchunk = 3
 
     sec = LinearSystem(n)
-    model = ode.ForwardEulerODE(sec)
+    model = ode.BackwardEulerODE(sec)
     y0 = sec.y0(nbatch)
 
     times = torch.linspace(0, 1, ntime).unsqueeze(-1).expand(-1, nbatch).unsqueeze(-1)
 
     arg = pode.odeint_adjoint(
-        sec, y0, times.squeeze(-1), block_size=nchunk, method="forward-euler"
+        sec, y0, times.squeeze(-1), block_size=nchunk, method="backward-euler"
     )
     sigh = torch.linalg.norm(arg)
     sigh.backward()
