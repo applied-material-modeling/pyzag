@@ -179,8 +179,8 @@ class StepGenerator:
         self.i -= 1
         if self.i >= 0:
             return (
-                self.steps[-1] + 1 - self.steps[self.i + 1],
-                self.steps[-1] + 1 - self.steps[self.i],
+                self.steps[self.i],
+                self.steps[self.i + 1],
             )
         raise StopIteration
 
@@ -257,8 +257,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # Cache result and driving forces if needed for adjoint pass
         if cache_adjoint:
             self.n = n
-            self.forces = [arg.flip(0) for arg in args]
-            self.result = result.flip(0)
+            self.forces = [arg.clone() for arg in args]
+            self.result = result.clone()
 
         return result
 
@@ -294,27 +294,24 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
         )
 
-        # Flip the input
-        output_grad = output_grad.flip(0)
-
         # Now do the adjoint pass
         for k1, k2 in self.step_generator(self.n).reverse():
             # We could consider caching these instead
             with torch.enable_grad():
                 R, J = self.func(
-                    self.result[k1 - self.func.lookback : k2].flip(0),
-                    *[f[k1 - self.func.lookback : k2].flip(0) for f in self.forces],
+                    self.result[k1 - self.func.lookback : k2],
+                    *[f[k1 - self.func.lookback : k2] for f in self.forces],
                 )
                 R = R.flip(0)
                 J = J.flip(1)
 
             # Setup first step, if required
-            if k1 == 1:
-                adjoint = -torch.linalg.solve(J[1, 0], output_grad[0]).unsqueeze(0)
+            if k2 == len(self.result):
+                adjoint = -torch.linalg.solve(J[1, -1], output_grad[-1]).unsqueeze(0)
 
             # Do the adjoint solve
             adjoint = self.block_update_adjoint(
-                J, output_grad[k1 - self.func.lookback : k2], adjoint[-1]
+                J, output_grad[k1 - self.func.lookback : k2].flip(0), adjoint[-1]
             )
 
             # Accumulate

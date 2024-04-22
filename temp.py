@@ -13,6 +13,8 @@ import unittest
 
 torch.set_default_dtype(torch.float64)
 
+f = 1.0
+
 
 class LinearSystem(torch.nn.Module):
     """Linear system of equations"""
@@ -29,12 +31,13 @@ class LinearSystem(torch.nn.Module):
         if t.dim() == 3:
             t = t[..., 0]
         return torch.matmul(
-            self.A.unsqueeze(0).unsqueeze(0) * torch.cos(t).unsqueeze(-1).unsqueeze(-1),
+            self.A.unsqueeze(0).unsqueeze(0)
+            * torch.cos(t * f).unsqueeze(-1).unsqueeze(-1),
             y.unsqueeze(-1),
         ).squeeze(-1), self.A.unsqueeze(0).unsqueeze(0).expand(
             t.shape[0], t.shape[1], self.n, self.n
         ) * torch.cos(
-            t
+            t * f
         ).unsqueeze(
             -1
         ).unsqueeze(
