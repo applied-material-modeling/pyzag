@@ -356,7 +356,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # Remember to transpose
         operator = self.direct_solve_operator(J[1], J[0, 1:])
         rhs = mbmm(J[1], grads[1:].unsqueeze(-1)).squeeze(-1)
-        rhs[0] += a_prev  # -J0?
+        rhs[0] -= mbmm(J[0, 0], a_prev.unsqueeze(-1)).squeeze(-1)
 
         return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
 
