@@ -43,12 +43,14 @@ if __name__ == "__main__":
     nchunk = 1
 
     sec = LinearSystem(n)
-    model = ode.BackwardEulerODE(sec)
+    model = ode.ForwardEulerODE(sec)
     y0 = sec.y0(nbatch)
 
     times = torch.linspace(0, 1, ntime).unsqueeze(-1).expand(-1, nbatch).unsqueeze(-1)
 
-    arg = pode.odeint_adjoint(sec, y0, times.squeeze(-1), block_size=nchunk)
+    arg = pode.odeint_adjoint(
+        sec, y0, times.squeeze(-1), block_size=nchunk, method="forward-euler"
+    )
     sigh = torch.linalg.norm(arg)
     sigh.backward()
     print("ODE")

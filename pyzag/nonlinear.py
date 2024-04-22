@@ -305,13 +305,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             )
             R = R.flip(0)
             J = J.flip(1)
-        adjoint = -torch.linalg.solve(J[1, 0], output_grad[0]).unsqueeze(0)
+        adjoint = torch.zeros_like(output_grad)
+        adjoint[0] = -torch.linalg.solve(J[1, 0], output_grad[0])
 
         # Now do the adjoint pass
         for k1, k2 in self.step_generator(self.n).reverse():
-            # Update the gradients
-            grad_result = self.accumulate(grad_result, adjoint, R)
-
             # We could consider caching these instead
             with torch.enable_grad():
                 R, J = self.func(
@@ -322,14 +320,20 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 J = J.flip(1)
 
             # Do the adjoint solve
-            adjoint = self.block_update_adjoint(
-                J, output_grad[k1 - self.func.lookback : k2], adjoint[-1]
+            adjoint[k1:k2] = self.block_update_adjoint(
+                J, output_grad[k1 - self.func.lookback : k2], adjoint[k1 - 1]
             )
 
-        print("HMM")
-        print(adjoint[-1])
+        with torch.enable_grad():
+            R, J = self.func(
+                self.result.flip(0),
+                *[f.flip(0) for f in self.forces],
+            )
+            R = R.flip(0)
+            J = J.flip(1)
 
-        # Need to return the adjoint at time step zero for y0 derivatives
+        grad_result = self.accumulate(grad_result, adjoint[:-1], R)
+
         return grad_result
 
     def accumulate(self, grad_result, full_adjoint, R):
