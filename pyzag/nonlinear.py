@@ -297,8 +297,21 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # Flip the input
         output_grad = output_grad.flip(0)
 
+        # Get the initial values
+        with torch.enable_grad():
+            R, J = self.func(
+                self.result[0:2].flip(0),
+                *[f[0:2].flip(0) for f in self.forces],
+            )
+            R = R.flip(0)
+            J = J.flip(1)
+        adjoint = -torch.linalg.solve(J[1, 0], output_grad[0]).unsqueeze(0)
+
         # Now do the adjoint pass
         for k1, k2 in self.step_generator(self.n).reverse():
+            # Update the gradients
+            grad_result = self.accumulate(grad_result, adjoint, R)
+
             # We could consider caching these instead
             with torch.enable_grad():
                 R, J = self.func(
@@ -308,30 +321,18 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 R = R.flip(0)
                 J = J.flip(1)
 
-            # Transpose later
-            if k1 == 1:
-                prev_adjoint = -torch.linalg.solve(J[0, 0], output_grad[0])
-
             # Do the adjoint solve
-            full_adjoint = self.block_update_adjoint(
-                J, output_grad[k1 - self.func.lookback : k2], prev_adjoint
+            adjoint = self.block_update_adjoint(
+                J, output_grad[k1 - self.func.lookback : k2], adjoint[-1]
             )
-
-            # Update the gradients
-            grad_result = self.accumulate(
-                grad_result, output_grad[k1 - self.func.lookback : k2], full_adjoint, R
-            )
-
-            # Store the previous adjoint value...
-            prev_adjoint = full_adjoint[-1]
 
         print("HMM")
-        print(prev_adjoint)
+        print(adjoint[-1])
 
         # Need to return the adjoint at time step zero for y0 derivatives
         return grad_result
 
-    def accumulate(self, grad_result, gg, full_adjoint, R):
+    def accumulate(self, grad_result, full_adjoint, R):
         """Accumulate the updated gradient values
 
         Args:
@@ -339,7 +340,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             full_adjoint (torch.tensor): adjoint values
             R (torch.tensor): function values, for AD
         """
-        g = torch.autograd.grad(R, self.parameters(), -full_adjoint[1:] + gg[1:])
+        g = torch.autograd.grad(R, self.parameters(), full_adjoint)
         return tuple(pi + gi for pi, gi in zip(grad_result, g))
 
     def block_update_adjoint(self, J, grads, a_prev):
@@ -355,10 +356,10 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """
         # Remember to transpose
         operator = self.direct_solve_operator(J[1], J[0, 1:])
-        rhs = mbmm(J[1], grads[1:].unsqueeze(-1)).squeeze(-1)
+        rhs = -grads[1:]
         rhs[0] -= mbmm(J[0, 0], a_prev.unsqueeze(-1)).squeeze(-1)
 
-        return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
+        return operator.matvec(rhs)
 
     def _check_shapes(self, n, forces):
         """Check the shapes of everything before starting the calculation

@@ -40,7 +40,7 @@ if __name__ == "__main__":
     n = 4
     nbatch = 1
     ntime = 100
-    nchunk = 3
+    nchunk = 1
 
     sec = LinearSystem(n)
     model = ode.BackwardEulerODE(sec)
