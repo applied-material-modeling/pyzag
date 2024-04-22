@@ -297,17 +297,20 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # Flip the input
         output_grad = output_grad.flip(0)
 
-        # Start at the last gradient
-        prev_adjoint = output_grad[0]
-
         # Now do the adjoint pass
         for k1, k2 in self.step_generator(self.n).reverse():
             # We could consider caching these instead
             with torch.enable_grad():
                 R, J = self.func(
-                    self.result[k1 - self.func.lookback : k2],
-                    *[f[k1 - self.func.lookback : k2] for f in self.forces],
+                    self.result[k1 - self.func.lookback : k2].flip(0),
+                    *[f[k1 - self.func.lookback : k2].flip(0) for f in self.forces],
                 )
+                R = R.flip(0)
+                J = J.flip(1)
+
+            # Transpose later
+            if k1 == 1:
+                prev_adjoint = -torch.linalg.solve(J[0, 0], output_grad[0])
 
             # Do the adjoint solve
             full_adjoint = self.block_update_adjoint(
@@ -336,7 +339,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             full_adjoint (torch.tensor): adjoint values
             R (torch.tensor): function values, for AD
         """
-        g = torch.autograd.grad(R, self.parameters(), full_adjoint[1:])
+        g = torch.autograd.grad(R, self.parameters(), -full_adjoint[1:] + gg[1:])
         return tuple(pi + gi for pi, gi in zip(grad_result, g))
 
     def block_update_adjoint(self, J, grads, a_prev):
@@ -351,9 +354,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
         # Remember to transpose
-        operator = self.direct_solve_operator(J[0], J[1, 1:])
-        rhs = -grads[1:]
-        rhs[0] -= mbmm(J[1, 0], a_prev.unsqueeze(-1)).squeeze(-1)
+        operator = self.direct_solve_operator(J[1], J[0, 1:])
+        rhs = mbmm(J[1], grads[1:].unsqueeze(-1)).squeeze(-1)
+        rhs[0] += a_prev  # -J0?
 
         return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
 
