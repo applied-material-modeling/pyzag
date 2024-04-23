@@ -289,10 +289,24 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Args:
             output_grad (torch.tensor): thing to dot product with
         """
-        # Setup storage for result
-        grad_result = tuple(
-            torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
-        )
+        # Obviously not practical
+        with torch.enable_grad():
+            R, J = self.func(self.result, *[f for f in self.forces])
+
+        inds = list(range(len(self.result)))[::-1]
+        adjoint = torch.zeros_like(output_grad)
+        adjoint[-1] = -torch.linalg.solve(J[1, -1].transpose(-1, -2), output_grad[-1])
+
+        for k in inds[1:-1]:
+            adjoint[k] = -torch.linalg.solve(
+                J[1, k - 1].transpose(-1, -2),
+                output_grad[k]
+                + mbmm(J[0, k].transpose(-1, -2), adjoint[k + 1].unsqueeze(-1)).squeeze(
+                    -1
+                ),
+            )
+
+        return torch.autograd.grad(R, self.parameters(), adjoint[1:])
 
         # Now do the adjoint pass
         for k1, k2 in self.step_generator(self.n).reverse():

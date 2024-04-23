@@ -22,10 +22,7 @@ class LinearSystem(torch.nn.Module):
     def __init__(self, n):
         super().__init__()
         self.n = n
-        Ap = torch.rand((n, n))
-        self.A = torch.nn.Parameter(Ap.transpose(0, 1) * Ap)
-
-        self.vals, self.vecs = torch.linalg.eigh(self.A)
+        self.A = torch.nn.Parameter(torch.rand((n, n)))
 
     def forward(self, t, y):
         if t.dim() == 3:
