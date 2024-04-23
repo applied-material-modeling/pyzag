@@ -153,35 +153,14 @@ class StepGenerator:
 
         return self
 
-    def reverse(self):
-        self.back = True
-        self.i = len(self.steps) - 1
-        return self
-
     def __iter__(self):
         return self
 
     def __next__(self):
-        """Return two at a time"""
-        if self.back:
-            return self.next_reverse()
-        return self.next_forward()
-
-    def next_forward(self):
         """Iterate forward through the steps"""
         self.i += 1
         if self.i < len(self.steps):
             return self.steps[self.i - 1], self.steps[self.i]
-        raise StopIteration
-
-    def next_reverse(self):
-        """Iterate backward through the steps"""
-        self.i -= 1
-        if self.i >= 0:
-            return (
-                self.steps[self.i],
-                self.steps[self.i + 1],
-            )
         raise StopIteration
 
 
@@ -289,14 +268,32 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Args:
             output_grad (torch.tensor): thing to dot product with
         """
+        # Obviously figure this out...
+        n = len(self.result)
+        rev = [(n - k2, n - k1) for k1, k2 in self.step_generator(n)][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
+
+        print(rev)
+
         # Obviously not practical
         with torch.enable_grad():
             R, J = self.func(self.result, *[f for f in self.forces])
 
-        inds = list(range(len(self.result)))[::-1]
         adjoint = torch.zeros_like(output_grad)
         adjoint[-1] = -torch.linalg.solve(J[1, -1].transpose(-1, -2), output_grad[-1])
 
+        for k1, k2 in rev:
+            # print(k1, k2)
+            # print("setting %i" % k1)
+            # print("diagonal is %i" % (k1 - 1))
+            # print("last is %i" % (k2))
+            # print("off diagonal is %i" % (k1))
+            adjoint[k1:k2] = self.block_update_adjoint(
+                J[:, k1 - 1 : k2].flip(1), output_grad[k1:k2].flip(0), adjoint[k2]
+            ).flip(0)
+
+        """
         for k in inds[1:-1]:
             adjoint[k] = -torch.linalg.solve(
                 J[1, k - 1].transpose(-1, -2),
@@ -305,6 +302,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                     -1
                 ),
             )
+        """
 
         return torch.autograd.grad(R, self.parameters(), adjoint[1:])
 
@@ -356,11 +354,13 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
         # Remember to transpose
-        operator = self.direct_solve_operator(J[1], J[0, 1:])
-        rhs = -grads[1:]
-        rhs[0] -= mbmm(J[0, 0], a_prev.unsqueeze(-1)).squeeze(-1)
+        operator = self.direct_solve_operator(
+            J[1, 1:].transpose(-1, -2), J[0, 1:-1].transpose(-1, -2)
+        )
+        rhs = -grads
+        rhs[0] -= mbmm(J[0, 0].transpose(-1, -2), a_prev.unsqueeze(-1)).squeeze(-1)
 
-        return torch.cat([a_prev.unsqueeze(0), operator.matvec(rhs)])
+        return operator.matvec(rhs)
 
     def _check_shapes(self, n, forces):
         """Check the shapes of everything before starting the calculation
