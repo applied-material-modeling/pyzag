@@ -22,18 +22,21 @@ class TestBasicStepper(unittest.TestCase):
         should += list(range(1, self.ntime, self.nchunk))[1:] + [self.ntime]
         dsteps = [(i, j) for i, j in zip(should[:-1], should[1:])]
 
+        self.assertEqual(steps[0][0], 1)
+        self.assertEqual(steps[-1][1], self.ntime)
         self.assertEqual(steps, dsteps)
 
     def test_reverse(self):
         steps = [(i, j) for i, j in self.stepper(self.ntime).reverse()]
-        should = [1]
-        should += list(range(1, self.ntime, self.nchunk))[1:] + [self.ntime]
-        dsteps = [
-            (1 + self.ntime - i, 1 + self.ntime - j)
-            for i, j in zip(should[::-1][:-1], should[::-1][1:])
-        ]
+        rev = [
+            (self.ntime - k2, self.ntime - k1) for k1, k2 in self.stepper(self.ntime)
+        ][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
 
-        self.assertEqual(steps, dsteps)
+        self.assertEqual(steps[0][1], self.ntime - 1)
+        self.assertEqual(steps[-1][0], 1)
+        self.assertEqual(steps, rev)
 
 
 class TestOffsetStepper(unittest.TestCase):
@@ -49,15 +52,18 @@ class TestOffsetStepper(unittest.TestCase):
         should += list(range(should[-1], self.ntime, self.nchunk))[1:] + [self.ntime]
         dsteps = [(i, j) for i, j in zip(should[:-1], should[1:])]
 
+        self.assertEqual(steps[0][0], 1)
+        self.assertEqual(steps[-1][1], self.ntime)
         self.assertEqual(steps, dsteps)
 
     def test_reverse(self):
         steps = [(i, j) for i, j in self.stepper(self.ntime).reverse()]
-        should = [1, 1 + self.offset]
-        should += list(range(should[-1], self.ntime, self.nchunk))[1:] + [self.ntime]
-        dsteps = [
-            (1 + self.ntime - i, 1 + self.ntime - j)
-            for i, j in zip(should[::-1][:-1], should[::-1][1:])
-        ]
+        rev = [
+            (self.ntime - k2, self.ntime - k1) for k1, k2 in self.stepper(self.ntime)
+        ][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
 
-        self.assertEqual(steps, dsteps)
+        self.assertEqual(steps[0][1], self.ntime - 1)
+        self.assertEqual(steps[-1][0], 1)
+        self.assertEqual(steps, rev)

@@ -144,10 +144,14 @@ class StepGenerator:
         self.back = False
 
     def __call__(self, n):
+        self.back = False
+        self.n = n
         self.steps = [1]
         if self.offset_step > 0:
             self.steps += [self.offset_step + 1]
         self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
+
+        self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
 
         self.i = 0
 
@@ -156,11 +160,25 @@ class StepGenerator:
     def __iter__(self):
         return self
 
+    def reverse(self):
+        self.back = True
+        rev = [
+            (self.n - k2, self.n - k1)
+            for k1, k2 in zip(self.steps[:-1], self.steps[1:])
+        ][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
+        self.pairs = rev
+
+        self.i = 0
+
+        return self
+
     def __next__(self):
         """Iterate forward through the steps"""
         self.i += 1
-        if self.i < len(self.steps):
-            return self.steps[self.i - 1], self.steps[self.i]
+        if self.i <= len(self.pairs):
+            return self.pairs[self.i - 1]
         raise StopIteration
 
 
@@ -268,84 +286,57 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Args:
             output_grad (torch.tensor): thing to dot product with
         """
-        # Obviously figure this out...
-        n = len(self.result)
-        rev = [(n - k2, n - k1) for k1, k2 in self.step_generator(n)][:-1]
-        if rev[-1][0] != 1:
-            rev += [(1, rev[-1][0])]
+        # Setup storage for result
+        grad_result = tuple(
+            torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
+        )
 
-        print(rev)
-
-        adjoint = torch.zeros_like(output_grad)
-
-        _, J = self.func(self.result[-2:], *[f[-2:] for f in self.forces])
-        print(J.shape)
-        adjoint[-1] = -torch.linalg.solve(J[1, 0].transpose(-1, -2), output_grad[-1])
-
-        for k1, k2 in rev:
-            # print(k1, k2)
-            # print("setting %i" % k1)
-            # print("diagonal is %i" % (k1 - 1))
-            # print("last is %i" % (k2))
-            # print("off diagonal is %i" % (k1))
-            _, J = self.func(
-                self.result[k1 - 1 : k2 + 1], *[f[k1 - 1 : k2 + 1] for f in self.forces]
-            )
-            adjoint[k1:k2] = self.block_update_adjoint(
-                J.flip(1), output_grad[k1:k2].flip(0), adjoint[k2]
-            ).flip(0)
-
-        """
-        for k in inds[1:-1]:
-            adjoint[k] = -torch.linalg.solve(
-                J[1, k - 1].transpose(-1, -2),
-                output_grad[k]
-                + mbmm(J[0, k].transpose(-1, -2), adjoint[k + 1].unsqueeze(-1)).squeeze(
-                    -1
-                ),
-            )
-        """
-
-        # Obviously not practical
-        with torch.enable_grad():
-            R, _ = self.func(self.result, *[f for f in self.forces])
-
-        return torch.autograd.grad(R, self.parameters(), adjoint[1:])
-
-        # Now do the adjoint pass
-        for k1, k2 in self.step_generator(self.n).reverse():
-            # We could consider caching these instead
+        # Loop backwards through time
+        for k1, k2 in self.step_generator(len(self.result)).reverse():
+            # Get our block of the results
             with torch.enable_grad():
                 R, J = self.func(
-                    self.result[k1 - self.func.lookback : k2],
-                    *[f[k1 - self.func.lookback : k2] for f in self.forces],
+                    self.result[k1 - 1 : k2 + 1],
+                    *[f[k1 - 1 : k2 + 1] for f in self.forces],
                 )
+                # We want these in reverse order for the chunked update
                 R = R.flip(0)
                 J = J.flip(1)
 
-            # Setup first step, if required
-            if k2 == len(self.result):
-                adjoint = -torch.linalg.solve(J[1, -1], output_grad[-1]).unsqueeze(0)
+            # Setup initial condition if this is our first time through
+            if k2 + 1 == len(self.result):
+                adjoint = -torch.linalg.solve(
+                    J[1, 0].transpose(-1, -2), output_grad[-1]
+                ).unsqueeze(0)
+                # And count the accumulation
+                with torch.enable_grad():
+                    grad_result = self.accumulate(
+                        grad_result, adjoint, R[:1], retain=True
+                    )
 
-            # Do the adjoint solve
+            # Do the block adjoint update
             adjoint = self.block_update_adjoint(
-                J, output_grad[k1 - self.func.lookback : k2].flip(0), adjoint[-1]
+                J, output_grad[k1:k2].flip(0), adjoint[-1]
             )
 
-            # Accumulate
-            grad_result = self.accumulate(grad_result, adjoint[:-1], R)
+            # And accumulate
+            with torch.enable_grad():
+                grad_result = self.accumulate(grad_result, adjoint, R[1:])
 
         return grad_result
 
-    def accumulate(self, grad_result, full_adjoint, R):
+    def accumulate(self, grad_result, full_adjoint, R, retain=False):
         """Accumulate the updated gradient values
 
         Args:
             grad_result (tuple of tensor): current gradient results
             full_adjoint (torch.tensor): adjoint values
             R (torch.tensor): function values, for AD
+
+        Keyword Args:
+            retain (bool): if True, retain the AD graph for a second pass
         """
-        g = torch.autograd.grad(R, self.parameters(), full_adjoint)
+        g = torch.autograd.grad(R, self.parameters(), full_adjoint, retain_graph=retain)
         return tuple(pi + gi for pi, gi in zip(grad_result, g))
 
     def block_update_adjoint(self, J, grads, a_prev):
