@@ -276,12 +276,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
         print(rev)
 
-        # Obviously not practical
-        with torch.enable_grad():
-            R, J = self.func(self.result, *[f for f in self.forces])
-
         adjoint = torch.zeros_like(output_grad)
-        adjoint[-1] = -torch.linalg.solve(J[1, -1].transpose(-1, -2), output_grad[-1])
+
+        _, J = self.func(self.result[-2:], *[f[-2:] for f in self.forces])
+        print(J.shape)
+        adjoint[-1] = -torch.linalg.solve(J[1, 0].transpose(-1, -2), output_grad[-1])
 
         for k1, k2 in rev:
             # print(k1, k2)
@@ -289,8 +288,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             # print("diagonal is %i" % (k1 - 1))
             # print("last is %i" % (k2))
             # print("off diagonal is %i" % (k1))
+            _, J = self.func(
+                self.result[k1 - 1 : k2 + 1], *[f[k1 - 1 : k2 + 1] for f in self.forces]
+            )
             adjoint[k1:k2] = self.block_update_adjoint(
-                J[:, k1 - 1 : k2].flip(1), output_grad[k1:k2].flip(0), adjoint[k2]
+                J.flip(1), output_grad[k1:k2].flip(0), adjoint[k2]
             ).flip(0)
 
         """
@@ -303,6 +305,10 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 ),
             )
         """
+
+        # Obviously not practical
+        with torch.enable_grad():
+            R, _ = self.func(self.result, *[f for f in self.forces])
 
         return torch.autograd.grad(R, self.parameters(), adjoint[1:])
 
