@@ -1,10 +1,9 @@
+"""Basic functionality for solving recursive nonlinear equations and calculating senstivities using the adjoint method"""
+
 import torch
 
 from pyzag import chunktime
 from pyzag.utility import mbmm
-
-# TODO: 1) separate out step selector to object 2) separate out initial guess selector to object,
-# 3) linear solver to object, 4) nonlinear solver to class
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
@@ -402,5 +401,4 @@ def solve_adjoint(solver, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    wrapper = AdjointWrapper()
-    return wrapper.apply(solver, n, forces, *solver.parameters())
+    return AdjointWrapper.apply(solver, n, forces, *solver.parameters())

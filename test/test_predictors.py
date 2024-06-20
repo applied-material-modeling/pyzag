@@ -1,3 +1,5 @@
+"""Test the various predictor strategies"""
+
 from pyzag import nonlinear
 
 import torch

@@ -1,3 +1,5 @@
+"""Test solving ODEs as specialized nonlinear recursive equations"""
+
 from pyzag import ode, nonlinear, chunktime
 
 import itertools

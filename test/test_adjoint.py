@@ -1,3 +1,5 @@
+"""Test adjoint gradient calculations"""
+
 from pyzag import ode, nonlinear
 
 import itertools
