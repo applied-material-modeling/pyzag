@@ -158,7 +158,7 @@ class TestGeneralFunction(unittest.TestCase):
 
         self.ntime = 100
 
-        self.ref_time = torch.linspace(0, 0.05, self.ntime)
+        self.ref_time = torch.linspace(0, 0.01, self.ntime)
 
         self.f = 0.5
 
