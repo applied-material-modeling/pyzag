@@ -16,8 +16,6 @@ import torch
 from torch.nn.functional import pad
 import numpy as np
 
-from pyoptmat.utility import mbmm
-
 
 class ChunkNewtonRaphson:
     """Solve a nonlinear system with Newton's method where the residual and Jacobian are presented as chunked operators
@@ -82,54 +80,6 @@ class ChunkNewtonRaphson:
         nR = torch.norm(R, dim=-1)
 
         return x, R, J, nR
-
-
-class ChunkNewtonRaphsonLinesearch(ChunkNewtonRaphson):
-    """Solve a nonlinear system with Newton's method with line search
-
-    Keyword Args:
-        rtol (float): nonlinear relative tolerance
-        atol (float): nonlinear absolute tolerance
-        miter (int): maximum number of iterations
-        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
-        sigma (float): linesearch cutback
-        c (float): stopping criteria
-        ls_miter (int): linearch maximum iterations
-    """
-
-    def __init__(self, *args, sigma=2.0, c=0.0, ls_miter=10, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sigma = sigma
-        self.c = c
-        self.ls_miter = ls_miter
-
-    def step(self, x, dx, fn, R0):
-        """Take a simple Newton with linesearch step
-
-        Args:
-            x (torch.tensor): current solution
-            dx (torch.tensor): newton increment
-            fn (function): function
-            R0 (torch.tensor): current residual
-        """
-        alpha = torch.ones(x.shape[:-1], device=x.device)
-        nR0 = torch.norm(R0, dim=-1)
-        i = 0
-        while True:
-            R, J = fn(x - dx * alpha.unsqueeze(-1))
-            nR = torch.norm(R, dim=-1) ** 2.0
-            crit = nR0**2.0 + 2.0 * c * alpha * torch.einsum("...i,...i", R0, dx)
-            i += 1
-            if (
-                torch.all(nR < crit)
-                or i >= self.ls_miter
-                or torch.all(torch.sqrt(nR) < self.atol)
-                or torch.all(torch.sqrt(nR) / nR0 < self.rtol)
-            ):
-                break
-            alpha[nR >= crit] /= self.sigma
-
-        return x - dx * alpha.unsqueeze(-1), R, J, torch.norm(R, dim=-1)
 
 
 class BidiagonalOperator(torch.nn.Module):
@@ -326,13 +276,13 @@ class BidiagonalPCRFactorization(LUFactorization):
         # Actually start reduction!
         for i in range(niter):
             # Reduce RHS
-            v[:, 1:] -= mbmm(
+            v[:, 1:] -= torch.matmul(
                 B[:, 1:],
                 torch.linalg.lu_solve(lu[:, :-1], pivots[:, :-1], v[:, :-1]),
             )
 
             # Reduce off diagonal coefficients
-            B[:, 2:] = -mbmm(
+            B[:, 2:] = -torch.matmul(
                 B[:, 2:],
                 torch.linalg.lu_solve(lu[:, 1:-1], pivots[:, 1:-1], B[:, 1:-1]),
             )

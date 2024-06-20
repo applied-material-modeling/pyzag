@@ -3,7 +3,6 @@
 import torch
 
 from pyzag import chunktime
-from pyzag.utility import mbmm
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
@@ -16,7 +15,7 @@ class NonlinearRecursiveFunction(torch.nn.Module):
 
     The lookback is defined as a property
 
-    The function here defines a time series through the recursive relation
+    The function here defines a series through the recursive relation
 
     .. math::
         f(x_{n+1}, x_{n}, x_{n-1}, \\ldots) = 0
@@ -64,10 +63,10 @@ class NonlinearRecursiveFunction(torch.nn.Module):
     .. math::
         f(x_{n+1}, x_{n}, x_{n-1}, \\ldots, u_{n+1}, u_{n}, u_{n-1}, \\ldots) = 0
 
-    However, for convience we instead take these driving forces as python `*args`.  Each entry in `*args` must have a
+    However, for convience we instead take these driving forces as python `*args` and `**kwargs`.  Each entry in `*args` and `**kwargs` must have a
     shape of :math:`(n_{block} + n_{lookback}, \\ldots)` and we leave it to the user to use each entry as they see fit.
 
-    Put it another way, the only hard requirement for driving forces provided as `*args` is that the first dimension of the
+    To put it another way, the only hard requirement for driving forces is that the first dimension of the
     tensor must be slicable in the same way as the state :math:`x`.
     """
 
@@ -184,7 +183,7 @@ class StepGenerator:
 class RecursiveNonlinearEquationSolver(torch.nn.Module):
     """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
 
-    The time series is generated in a batched manner, generating `block_size` steps at a time.
+    The series is generated in a batched manner, generating `block_size` steps at a time.
 
     Args:
         func (nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
@@ -194,7 +193,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
         predictor (nonlinear.Predictor): how to generate guesses for the nonlinear solve.  Default uses all zeros
         direct_solve_operator (chunktime.LUFactorization):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
-        extra_adjoint_params (list of torch.nn.Parameter): extra parameters to add to the adjoint pass, beyond those given by func.parameters()
     """
 
     def __init__(
@@ -354,7 +352,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             J[1, 1:].transpose(-1, -2), J[0, 1:-1].transpose(-1, -2)
         )
         rhs = -grads
-        rhs[0] -= mbmm(J[0, 0].transpose(-1, -2), a_prev.unsqueeze(-1)).squeeze(-1)
+        rhs[0] -= torch.matmul(J[0, 0].transpose(-1, -2), a_prev.unsqueeze(-1)).squeeze(
+            -1
+        )
 
         return operator.matvec(rhs)
 
