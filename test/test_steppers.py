@@ -1,3 +1,5 @@
+"""Test various time chunking step generators"""
+
 from pyzag import nonlinear
 
 import torch
