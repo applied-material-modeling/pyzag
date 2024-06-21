@@ -243,9 +243,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # Actually solve
         for k1, k2 in self.step_generator(n):
             result[k1:k2] = self.block_update(
-                result[k1 - self.func.lookback : k1],
-                self.predictor.predict(result, k1, k2 - k1),
-                [arg[k1 - self.func.lookback : k2] for arg in args],
+                result[k1 - self.func.lookback : k1].clone(),
+                self.predictor.predict(result, k1, k2 - k1).clone(),
+                [arg[k1 - self.func.lookback : k2].clone() for arg in args],
             )
 
         # Cache result and driving forces if needed for adjoint pass

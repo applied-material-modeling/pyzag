@@ -3,18 +3,25 @@ import sys
 sys.path.append("../..")
 
 import torch
+import matplotlib.pyplot as plt
 
+from pyzag import nonlinear
 from pyzag.neml2 import model
 import neml2
 
+torch.set_default_dtype(torch.double)
+
 if __name__ == "__main__":
+    # Name to load from the input file
     fname = "model.i"
     mname = "implicit_rate"
 
+    # Problem dimensions
     nbatch = 20
     ntime = 100
 
-    end_time = torch.logspace(-1, 5, nbatch)
+    # I will need to double check these match the actual NEML2 data
+    end_time = torch.logspace(-1, -5, nbatch)
     time = torch.stack([torch.linspace(0, et, ntime) for et in end_time]).T.unsqueeze(
         -1
     )
@@ -33,27 +40,21 @@ if __name__ == "__main__":
         .expand(-1, nbatch, -1)
     )
 
-    stress = (
-        torch.stack(
-            [
-                torch.linspace(0, 300, ntime),
-                torch.linspace(0, -10, ntime),
-                torch.linspace(0, -5, ntime),
-                torch.zeros(ntime),
-                torch.zeros(ntime),
-                torch.zeros(ntime),
-            ]
-        )
-        .T[:, None]
-        .expand(-1, nbatch, -1)
-    )
-
-    plastic_strain = torch.full((ntime, nbatch), 0.1).unsqueeze(-1)
-
     nmodel = neml2.load_model(fname, mname)
     pmodel = model.NEML2Model(nmodel)
 
-    state = pmodel.collect_state({"S": stress, "internal/ep": plastic_strain})
+    # There is NEML2Model.collect_state, but come on...
+    initial_state = torch.zeros((nbatch, 7))
     forces = pmodel.collect_forces({"t": time, "E": strain})
 
-    print(pmodel.forward(state, forces))
+    solver = nonlinear.RecursiveNonlinearEquationSolver(
+        pmodel,
+        initial_state,
+        step_generator=nonlinear.StepGenerator(10),
+        predictor=nonlinear.PreviousStepsPredictor(),
+    )
+    res = solver.solve(ntime, forces)
+
+    plt.plot(strain[:, 0, 0], res[:, 0, 0])
+    plt.plot(strain[:, -1, 0], res[:, -1, 0])
+    plt.show()
