@@ -41,7 +41,11 @@ if __name__ == "__main__":
     )
 
     nmodel = neml2.load_model(fname, mname)
-    pmodel = model.NEML2Model(nmodel)
+    pmodel = model.NEML2Model(
+        nmodel, exclude_parameters=["elasticity.E", "elasticity.nu"]
+    )
+
+    pmodel.yieldaabbsy.data = torch.tensor(100.0)
 
     # There is NEML2Model.collect_state, but come on...
     initial_state = torch.zeros((nbatch, 7))
@@ -55,6 +59,9 @@ if __name__ == "__main__":
     )
     res = solver.solve(ntime, forces)
 
-    plt.plot(strain[:, 0, 0], res[:, 0, 0])
-    plt.plot(strain[:, -1, 0], res[:, -1, 0])
+    print(pmodel.yieldaabbsy)
+    print(nmodel.named_parameters()["yield.sy"].tensor().tensor())
+
+    plt.plot(strain[:, 0, 0], res[:, 0, 0].detach().numpy())
+    plt.plot(strain[:, -1, 0], res[:, -1, 0].detach().numpy())
     plt.show()

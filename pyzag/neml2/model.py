@@ -40,6 +40,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         forces_axis (str): name of the forces axis
         residual_axis (str): name of the residual axis
         old_prefix (str): prefix on the axis name to get the old values
+        exclude_parameters (list of str): exclude parameters in the list from becoming torch parameters
     """
 
     def __init__(
@@ -49,6 +50,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         forces_axis="forces",
         residual_axis="residual",
         old_prefix="old_",
+        exclude_parameters=[],
         *args,
         **kwargs
     ):
@@ -56,6 +58,8 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
 
         self.model = model
         self.lookback = 1  # Really there isn't any other option in NEML2 right now
+
+        self._setup_parameters(exclude_parameters)
 
         # Store basic information about the model
         self.state_axis = state_axis
@@ -77,6 +81,21 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
 
         # Do some basic consistency checking
         self._check_model()
+
+    def _setup_parameters(self, exclude_parameters):
+        """Initialize the torch parameters for this object
+
+        Args:
+            exclude_parameters (list of str): parameters to not include
+        """
+        for k in self.model.named_parameters().keys():
+            if k in exclude_parameters:
+                continue
+            val = self.model.named_parameters()[k]
+            val.requires_grad_(True)
+            self.register_parameter(
+                k.replace(".", "aabb"), torch.nn.Parameter(val.tensor().tensor())
+            )
 
     def _make_output_slices(self):
         """Just figure out where the "state" and "old_state" blocks live"""
@@ -174,6 +193,9 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         # Need to assemble into one big tensor
         x = self._assemble_input(state, forces)
 
+        # Update the "true" model parameters
+        self._update_parameter_values()
+
         # Call the model to get the results and derivatives
         y, J = self.model.value_and_dvalue(x)
 
@@ -181,6 +203,13 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         J = self._extract_jacobian(J)
 
         return y.tensor().tensor(), J
+
+    def _update_parameter_values(self):
+        """Copy over the torch parameters to NEML2 prior to run"""
+        for n, p in self.named_parameters():
+            # FIX THIS
+            nparam = self.model.named_parameters()[n.replace("aabb", ".")]
+            nparam.set(BatchTensor(p.data, nparam.batch_dim()))
 
     def _assemble_input(self, state, forces):
         """Assemble the big BatchTensor of model input.
