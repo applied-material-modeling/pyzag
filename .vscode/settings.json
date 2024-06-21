@@ -1,8 +1,11 @@
 {
     "python.testing.pytestArgs": [
-        "-s",
         "test"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "[moose]": {
+        "outline.showProperties": false,
+        "outline.showStrings": false
+    }
 }
