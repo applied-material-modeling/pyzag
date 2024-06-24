@@ -58,9 +58,18 @@ if __name__ == "__main__":
     print(nmodel.named_parameters()["flow_rate.eta"].requires_grad)
     print(pmodel.flow_rateaabbeta.requires_grad)
 
+    pmodel.flow_rateaabbeta.data = torch.tensor(150.0)
+
+    print("BEFORE SET")
+    print(pmodel.flow_rateaabbeta)
+    print(nmodel.named_parameters()["flow_rate.eta"].tensor().tensor())
+
     y, J = pmodel(S, F)
 
     print("AFTER")
+    print(pmodel.flow_rateaabbeta)
+    print(nmodel.named_parameters()["flow_rate.eta"].tensor().tensor())
+
     print(pmodel.flow_rateaabbeta.requires_grad)
     print(nmodel.named_parameters()["flow_rate.eta"].requires_grad)
     print(y.requires_grad)
