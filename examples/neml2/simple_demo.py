@@ -51,6 +51,29 @@ if __name__ == "__main__":
     initial_state = torch.zeros((nbatch, 7))
     forces = pmodel.collect_forces({"t": time, "E": strain})
 
+    F = forces[:10]
+    S = torch.rand_like(F)
+
+    print("BEFORE")
+    print(nmodel.named_parameters()["flow_rate.eta"].requires_grad)
+    print(pmodel.flow_rateaabbeta.requires_grad)
+
+    y, J = pmodel(S, F)
+
+    print("AFTER")
+    print(pmodel.flow_rateaabbeta.requires_grad)
+    print(nmodel.named_parameters()["flow_rate.eta"].requires_grad)
+    print(y.requires_grad)
+    print(J.requires_grad)
+
+    test = torch.norm(y)
+    test.backward()
+
+    print(nmodel.named_parameters()["flow_rate.eta"].grad)
+    print(pmodel.flow_rateaabbeta.grad)
+
+    sys.exit()
+
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         pmodel,
         initial_state,
@@ -61,6 +84,12 @@ if __name__ == "__main__":
 
     print(pmodel.yieldaabbsy)
     print(nmodel.named_parameters()["yield.sy"].tensor().tensor())
+
+    whatever = torch.norm(res)
+    print(whatever)
+    whatever.backward()
+
+    print(pmodel.yieldaabbsy)
 
     plt.plot(strain[:, 0, 0], res[:, 0, 0].detach().numpy())
     plt.plot(strain[:, -1, 0], res[:, -1, 0].detach().numpy())

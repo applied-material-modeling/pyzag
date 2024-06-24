@@ -209,7 +209,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         for n, p in self.named_parameters():
             # FIX THIS
             nparam = self.model.named_parameters()[n.replace("aabb", ".")]
-            nparam.set(BatchTensor(p.data, nparam.batch_dim()))
+            nparam.set(BatchTensor(p, nparam.batch_dim()))
 
     def _assemble_input(self, state, forces):
         """Assemble the big BatchTensor of model input.
