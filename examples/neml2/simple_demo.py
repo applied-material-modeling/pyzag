@@ -56,11 +56,12 @@ if __name__ == "__main__":
         predictor=nonlinear.PreviousStepsPredictor(),
     )
     # Uncomment this line to use non-adjoint
-    # res = solver.solve(ntime, forces)
-    res = nonlinear.solve_adjoint(solver, ntime, forces)
+    with torch.autograd.set_detect_anomaly(True):
+        res = solver.solve(ntime, forces)
+        # res = nonlinear.solve_adjoint(solver, ntime, forces)
 
-    whatever = torch.norm(res)
-    whatever.backward()
+        whatever = torch.norm(res)
+        whatever.backward()
 
     print(pmodel.yieldaabbsy.grad)
 
