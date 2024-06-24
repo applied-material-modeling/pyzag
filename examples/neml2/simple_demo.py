@@ -43,7 +43,7 @@ if __name__ == "__main__":
     nmodel = neml2.load_model(fname, mname)
     pmodel = model.NEML2Model(nmodel)
 
-    pmodel.yieldaabbsy.data = torch.tensor(100.0)
+    pmodel.yield_sy.data = torch.tensor(100.0)
 
     # There is NEML2Model.collect_state, but come on...
     initial_state = torch.zeros((nbatch, 7))
@@ -57,13 +57,13 @@ if __name__ == "__main__":
     )
     # Uncomment this line to use non-adjoint
     with torch.autograd.set_detect_anomaly(True):
-        res = solver.solve(ntime, forces)
-        # res = nonlinear.solve_adjoint(solver, ntime, forces)
+        # res = solver.solve(ntime, forces)
+        res = nonlinear.solve_adjoint(solver, ntime, forces)
 
         whatever = torch.norm(res)
         whatever.backward()
 
-    print(pmodel.yieldaabbsy.grad)
+    print(pmodel.yield_sy.grad)
 
     plt.plot(strain[:, 0, 0], res[:, 0, 0].detach().numpy())
     plt.plot(strain[:, -1, 0], res[:, -1, 0].detach().numpy())

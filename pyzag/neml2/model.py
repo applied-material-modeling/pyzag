@@ -41,6 +41,8 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         residual_axis (str): name of the residual axis
         old_prefix (str): prefix on the axis name to get the old values
         exclude_parameters (list of str): exclude parameters in the list from becoming torch parameters
+        neml2_sep_char (str): parameter seprator character used in NEML2
+        our_set_char (str): how to convert that seperator into something python can use
     """
 
     def __init__(
@@ -51,6 +53,8 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         residual_axis="residual",
         old_prefix="old_",
         exclude_parameters=[],
+        neml2_sep_char=".",
+        our_sep_char="_",
         *args,
         **kwargs
     ):
@@ -59,6 +63,9 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         self.model = model
         self.lookback = 1  # Really there isn't any other option in NEML2 right now
 
+        # Setup parameters
+        self.neml2_sep_char = neml2_sep_char
+        self.our_sep_char = our_sep_char
         self._setup_parameters(exclude_parameters)
 
         # Store basic information about the model
@@ -88,14 +95,15 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         Args:
             exclude_parameters (list of str): parameters to not include
         """
+        self.parameter_name_map = {}
         for k in self.model.named_parameters().keys():
             if k in exclude_parameters:
                 continue
             val = self.model.named_parameters()[k]
             val.requires_grad_(True)
-            self.register_parameter(
-                k.replace(".", "aabb"), torch.nn.Parameter(val.tensor().tensor())
-            )
+            rename = k.replace(self.neml2_sep_char, self.our_sep_char)
+            self.parameter_name_map[rename] = k
+            self.register_parameter(rename, torch.nn.Parameter(val.tensor().tensor()))
 
     def _make_output_slices(self):
         """Just figure out where the "state" and "old_state" blocks live"""
@@ -207,8 +215,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
     def _update_parameter_values(self):
         """Copy over the torch parameters to NEML2 prior to run"""
         for n, p in self.named_parameters():
-            # FIX THIS
-            nparam = self.model.named_parameters()[n.replace("aabb", ".")]
+            nparam = self.model.named_parameters()[self.parameter_name_map[n]]
             nparam.set(BatchTensor(p, nparam.batch_dim()))
 
     def _assemble_input(self, state, forces):
