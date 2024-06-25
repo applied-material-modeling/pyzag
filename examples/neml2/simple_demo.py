@@ -52,13 +52,13 @@ if __name__ == "__main__":
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         pmodel,
         initial_state,
-        step_generator=nonlinear.StepGenerator(10),
-        predictor=nonlinear.PreviousStepsPredictor(),
+        step_generator=nonlinear.StepGenerator(1),
+        predictor=nonlinear.ZeroPredictor(),
     )
     # Uncomment this line to use non-adjoint
     with torch.autograd.set_detect_anomaly(True):
-        # res = solver.solve(ntime, forces)
-        res = nonlinear.solve_adjoint(solver, ntime, forces)
+        res = solver.solve(ntime, forces)
+        # res = nonlinear.solve_adjoint(solver, ntime, forces)
 
         whatever = torch.norm(res)
         whatever.backward()

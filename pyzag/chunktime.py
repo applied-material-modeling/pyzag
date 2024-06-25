@@ -63,11 +63,9 @@ class ChunkNewtonRaphson:
                 "Implicit solve did not succeed.  Results may be inaccurate..."
             )
 
-        x = self.step(x, J, fn, R, final=True)
-
         return x
 
-    def step(self, x, J, fn, R, final=False):
+    def step(self, x, J, fn, R):
         """Take a simple Newton step
 
         Args:
@@ -78,15 +76,11 @@ class ChunkNewtonRaphson:
         """
         dx = J.inverse().matvec(R)
 
-        if final:
-            x -= dx
-            return x
-        else:
-            x.data -= dx
-            R, J = fn(x)
-            nR = torch.norm(R, dim=-1)
+        x = x - dx
+        R, J = fn(x)
+        nR = torch.norm(R, dim=-1)
 
-            return x, R, J, nR
+        return x, R, J, nR
 
 
 class BidiagonalOperator(torch.nn.Module):
