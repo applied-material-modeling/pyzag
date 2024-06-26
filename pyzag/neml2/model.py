@@ -29,6 +29,20 @@ def expand_name(name, sep="/"):
     return sep.join(name)
 
 
+def cumsum(szs):
+    """
+    Make indices from tensor sizes
+
+    Args:
+        szs (list of int): tensor sizes
+    """
+    offsets = [0]
+    for i in szs:
+        offsets.append(offsets[-1] + i)
+
+    return offsets
+
+
 class NEML2Model(nonlinear.NonlinearRecursiveFunction):
     """Wraps a NEML2 model into a `nonlinear.NonlinearRecursiveFunction`
 
@@ -80,6 +94,12 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         # Establish the names of the forces
         self.force_names = self._gather_vars(self.forces_axis)
 
+        # Establish the names of the old forces: NEML2 may not need some of these
+        self.old_force_names = self._gather_vars(self.old_prefix + self.forces_axis)
+
+        # We also need to map between forces and old forces...
+        self.old_forces_inds = self._map_forces_old_forces()
+
         # Figure out the order of the state, old_state, forces, and old_forces
         self.input_order = self.model.input_axis().subaxis_names()
 
@@ -88,6 +108,30 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
 
         # Do some basic consistency checking
         self._check_model()
+
+    @property
+    def nstate(self):
+        return self.model.input_axis().subaxis("state").storage_size()
+
+    def _map_forces_old_forces(self):
+        """
+        Make a map between the entries of forces and old_forces
+        """
+        force_sizes = [
+            self.model.input_axis().subaxis(self.forces_axis).variables()[n[0]]
+            for n in self.force_names
+        ]
+        force_inds = cumsum(force_sizes)
+
+        inds = []
+        for var in self.old_force_names:
+            assert (
+                self.model.input_axis().subaxis(self.forces_axis).has_variable(AA(var))
+            )
+            i = self.force_names.index(var)
+            inds.append([force_inds[i], force_inds[i + 1]])
+
+        return inds
 
     def _setup_parameters(self, exclude_parameters):
         """Initialize the torch parameters for this object
@@ -110,10 +154,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         sz = [
             self.model.input_axis().subaxis(n).storage_size() for n in self.input_order
         ]
-        # Ugh or pull in numpy, or make a tensor just for cumsum
-        offsets = [0]
-        for i in sz:
-            offsets.append(offsets[-1] + i)
+        offsets = cumsum(sz)
 
         state_index = self.input_order.index(self.state_axis)
         old_state_index = self.input_order.index(self.old_prefix + self.state_axis)
@@ -145,13 +186,6 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
                 assert (
                     self.model.input_axis()
                     .subaxis(prefix + self.state_axis)
-                    .has_variable(AA(*var))
-                )
-        for var in self.force_names:
-            for prefix in ["", self.old_prefix]:
-                assert (
-                    self.model.input_axis()
-                    .subaxis(prefix + self.forces_axis)
                     .has_variable(AA(*var))
                 )
 
@@ -236,7 +270,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
             "state": state[self.lookback :],
             "old_state": state[: -self.lookback],
             "forces": forces[self.lookback :],
-            "old_forces": forces[: -self.lookback],
+            "old_forces": self._collect_old_forces(forces[: -self.lookback]),
         }
 
         x = BatchTensor(
@@ -244,6 +278,16 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         )
         self.model.reinit(x.batch.shape, 1)
         return LabeledVector(x, [self.model.input_axis()])
+
+    def _collect_old_forces(self, old_forces):
+        """Filter out only the old_forces that the model needs
+
+        Args:
+            old_forces (torch.tensor): complete tensor of old forces
+        """
+        return torch.cat(
+            [old_forces[..., i1:i2] for i1, i2 in self.old_forces_inds], dim=-1
+        )
 
     def _extract_jacobian(self, J):
         """Extract the "state" and "old_state" parts of the Jacobian
