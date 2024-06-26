@@ -28,9 +28,9 @@ if __name__ == "__main__":
     strain = (
         torch.stack(
             [
-                torch.linspace(0, 0.1, ntime),
-                torch.linspace(0, -0.05, ntime),
-                torch.linspace(0, -0.05, ntime),
+                torch.linspace(0, 0.01, ntime),
+                torch.linspace(0, -0.005, ntime),
+                torch.linspace(0, -0.004, ntime),
                 torch.zeros(ntime),
                 torch.zeros(ntime),
                 torch.zeros(ntime),
@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     # There is NEML2Model.collect_state, but come on...
     initial_state = torch.zeros((nbatch, pmodel.nstate))
+    initial_state[:, -3:] = 0.1
     forces = pmodel.collect_forces(
         {"t": time, "deformation_rate": strain, "vorticity": vort}
     )
@@ -54,18 +55,18 @@ if __name__ == "__main__":
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         pmodel,
         initial_state,
-        step_generator=nonlinear.StepGenerator(1),
-        predictor=nonlinear.ZeroPredictor(),
+        step_generator=nonlinear.StepGenerator(10),
+        predictor=nonlinear.PreviousStepsPredictor(),
     )
     # Uncomment this line to use non-adjoint
-    with torch.autograd.set_detect_anomaly(True):
-        res = solver.solve(ntime, forces)
-        # res = nonlinear.solve_adjoint(solver, ntime, forces)
+    # res = solver.solve(ntime, forces)
+    res = nonlinear.solve_adjoint(solver, ntime, forces)
 
-        whatever = torch.norm(res)
-        whatever.backward()
+    whatever = torch.norm(res)
+    print(whatever)
+    whatever.backward()
 
-    print(pmodel.elasticity_E.grad)
+    print([(n, p.grad) for n, p in pmodel.named_parameters()])
 
     plt.plot(strain[:, 0, 0], res[:, 0, 0].detach().numpy())
     plt.plot(strain[:, -1, 0], res[:, -1, 0].detach().numpy())

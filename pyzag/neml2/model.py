@@ -2,7 +2,8 @@ from pyzag import nonlinear
 
 import torch
 
-import neml2
+from collections.abc import MutableMapping
+
 from neml2.tensors import LabeledAxisAccessor as AA
 from neml2.tensors import BatchTensor, LabeledVector
 
@@ -41,6 +42,48 @@ def cumsum(szs):
         offsets.append(offsets[-1] + i)
 
     return offsets
+
+
+def flatten(dictionary, parent_key="", separator="_"):
+    """Reursively flatten a dictionary
+
+    Args:
+        dictionary (dict): input
+    """
+    items = []
+    for key, value in dictionary.items():
+        new_key = parent_key + separator + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            items.extend(flatten(value, new_key, separator=separator).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+
+def axis_layout(axis, recursive=False, offset=0):
+    """Expand a whole axis, down to the variables, into a layout dict
+
+    Args:
+        axis (neml2.LabeldAxis): axis to examine
+
+    Keyword Args:
+        recurse (bool): if true, recursively call this for all subaxes
+        offset (int): add an offset to the indices
+    """
+    layout = {}
+    for k, loc in axis.layout().items():
+        if axis.has_subaxis(AA(k)):
+            if recursive:
+                layout[k] = axis_layout(
+                    axis.subaxis(k), recursive=True, offset=loc[0] + offset
+                )
+            else:
+                continue
+        else:
+            layout[k] = (loc[0] + offset, loc[1] + offset)
+
+    # Need to recursively merge...
+    return flatten(layout)
 
 
 class NEML2Model(nonlinear.NonlinearRecursiveFunction):
@@ -279,6 +322,17 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         self.model.reinit(x.batch.shape, 1)
         return LabeledVector(x, [self.model.input_axis()])
 
+    def extract_state(self, state):
+        """Extracts individual tensors from the concatanated state
+
+        Args:
+            state (torch.tensor): single tensor state from the model results
+        """
+        layout = axis_layout(
+            self.model.input_axis().subaxis(self.state_axis), recursive=True
+        )
+        return {n: state[..., i:j] for n, (i, j) in layout.items()}
+
     def _collect_old_forces(self, old_forces):
         """Filter out only the old_forces that the model needs
 
@@ -293,7 +347,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         """Extract the "state" and "old_state" parts of the Jacobian
 
         Args:
-            J: output from NEML2 model
+            J (neml2.LabeledMatrix): output from NEML2 model
         """
         Jt = J.tensor().tensor()
         return torch.stack(

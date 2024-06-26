@@ -52,19 +52,26 @@ if __name__ == "__main__":
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         pmodel,
         initial_state,
-        step_generator=nonlinear.StepGenerator(1),
-        predictor=nonlinear.ZeroPredictor(),
+        step_generator=nonlinear.StepGenerator(10),
+        predictor=nonlinear.PreviousStepsPredictor(),
     )
     # Uncomment this line to use non-adjoint
-    with torch.autograd.set_detect_anomaly(True):
-        res = solver.solve(ntime, forces)
-        # res = nonlinear.solve_adjoint(solver, ntime, forces)
+    # res = solver.solve(ntime, forces)
+    res = nonlinear.solve_adjoint(solver, ntime, forces)
 
-        whatever = torch.norm(res)
-        whatever.backward()
+    whatever = torch.norm(res)
+    whatever.backward()
 
-    print(pmodel.yield_sy.grad)
+    print([(n, p.grad) for n, p in pmodel.named_parameters()])
 
-    plt.plot(strain[:, 0, 0], res[:, 0, 0].detach().numpy())
-    plt.plot(strain[:, -1, 0], res[:, -1, 0].detach().numpy())
+    output = pmodel.extract_state(res)
+
+    plt.plot(strain[:, :, 0], output["S"][:, :, 0].detach().numpy())
+    plt.xlabel("Strain")
+    plt.ylabel("Stress")
+    plt.show()
+
+    plt.plot(strain[:, :, 0], output["internal_ep"][:, :, 0].detach().numpy())
+    plt.xlabel("Strain")
+    plt.ylabel("Plastic strain")
     plt.show()
