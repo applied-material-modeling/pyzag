@@ -278,7 +278,7 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         # Need to assemble into one big tensor
         x = self._assemble_input(state, forces)
 
-        # Update the "true" model parameters
+        # Update the "true" model parameters to match our values
         self._update_parameter_values()
 
         # Call the model to get the results and derivatives

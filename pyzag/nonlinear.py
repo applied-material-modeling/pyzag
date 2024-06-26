@@ -393,8 +393,19 @@ class AdjointWrapper(torch.autograd.Function):
             return (None, None, None, *grad_res)
 
 
+def solve(solver, n, *forces):
+    """Solve a nonlinear.RecursiveNonlinearEquationSolver for a time history without the adjoint method
+
+    Args:
+        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        n (int): number of recursive steps
+        *forces (*args of tensors): driving forces
+    """
+    return solver.solve(n * forces)
+
+
 def solve_adjoint(solver, n, *forces):
-    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in a differentiable way
+    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in an adjoint differentiable way
 
     Args:
         solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
