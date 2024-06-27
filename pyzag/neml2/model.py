@@ -134,14 +134,24 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         # Identify the names of the state variables and establish a fixed order
         self.state_names = self._gather_vars(self.state_axis)
 
+        # Names of the old state
+        self.old_state_names = self._gather_vars(self.old_prefix + self.state_axis)
+
+        # Map between the two
+        self.old_state_inds = self._map_new_old(
+            self.state_axis, self.state_names, self.old_state_names
+        )
+
         # Establish the names of the forces
         self.force_names = self._gather_vars(self.forces_axis)
 
-        # Establish the names of the old forces: NEML2 may not need some of these
+        # Establish the names of the old forces
         self.old_force_names = self._gather_vars(self.old_prefix + self.forces_axis)
 
         # We also need to map between forces and old forces...
-        self.old_forces_inds = self._map_forces_old_forces()
+        self.old_forces_inds = self._map_new_old(
+            self.forces_axis, self.force_names, self.old_force_names
+        )
 
         # Figure out the order of the state, old_state, forces, and old_forces
         self.input_order = self.model.input_axis().subaxis_names()
@@ -156,23 +166,16 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
     def nstate(self):
         return self.model.input_axis().subaxis("state").storage_size()
 
-    def _map_forces_old_forces(self):
+    def _map_new_old(self, axis, names, old_names):
         """
-        Make a map between the entries of forces and old_forces
+        Make a map between the entries of the current and old axes
         """
-        force_sizes = [
-            self.model.input_axis().subaxis(self.forces_axis).variables()[n[0]]
-            for n in self.force_names
-        ]
-        force_inds = cumsum(force_sizes)
+        var_map = axis_layout(self.model.input_axis().subaxis(axis), recursive=True)
 
         inds = []
-        for var in self.old_force_names:
-            assert (
-                self.model.input_axis().subaxis(self.forces_axis).has_variable(AA(var))
-            )
-            i = self.force_names.index(var)
-            inds.append([force_inds[i], force_inds[i + 1]])
+        for var in old_names:
+            assert self.model.input_axis().subaxis(axis).has_variable(AA(var))
+            inds.append(var_map[self.our_sep_char.join(var)])
 
         return inds
 
@@ -222,15 +225,6 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         assert self.model.input_axis().has_subaxis(
             AA(self.old_prefix + self.forces_axis)
         )
-
-        # There should be a common set of state variables and a common set of forces variables
-        for var in self.state_names:
-            for prefix in ["", self.old_prefix]:
-                assert (
-                    self.model.input_axis()
-                    .subaxis(prefix + self.state_axis)
-                    .has_variable(AA(*var))
-                )
 
         # Output axis should just have residual
         assert self.model.output_axis().nsubaxis == 1
@@ -311,9 +305,9 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
 
         data = {
             "state": state[self.lookback :],
-            "old_state": state[: -self.lookback],
+            "old_state": self._reduce(state[: -self.lookback], self.old_state_inds),
             "forces": forces[self.lookback :],
-            "old_forces": self._collect_old_forces(forces[: -self.lookback]),
+            "old_forces": self._reduce(forces[: -self.lookback], self.old_forces_inds),
         }
 
         x = BatchTensor(
@@ -333,15 +327,14 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
         )
         return {n: state[..., i:j] for n, (i, j) in layout.items()}
 
-    def _collect_old_forces(self, old_forces):
-        """Filter out only the old_forces that the model needs
+    def _reduce(self, old, inds):
+        """Filter out only the old quantities the model actually needs
 
         Args:
-            old_forces (torch.tensor): complete tensor of old forces
+            old (torch.tensor): complete old tensor
+            inds (list of indices): map
         """
-        return torch.cat(
-            [old_forces[..., i1:i2] for i1, i2 in self.old_forces_inds], dim=-1
-        )
+        return torch.cat([old[..., i1:i2] for i1, i2 in inds], dim=-1)
 
     def _extract_jacobian(self, J):
         """Extract the "state" and "old_state" parts of the Jacobian
@@ -350,9 +343,28 @@ class NEML2Model(nonlinear.NonlinearRecursiveFunction):
             J (neml2.LabeledMatrix): output from NEML2 model
         """
         Jt = J.tensor().tensor()
-        return torch.stack(
-            [
-                Jt[..., self.output_slices[1][0] : self.output_slices[1][1]],
-                Jt[..., self.output_slices[0][0] : self.output_slices[0][1]],
-            ]
+        J_new = Jt[..., self.output_slices[0][0] : self.output_slices[0][1]]
+        J_old = Jt[..., self.output_slices[1][0] : self.output_slices[1][1]]
+
+        # Need to expand J_old to match J_new
+        new_state_layout = axis_layout(
+            self.model.input_axis().subaxis(self.state_axis), recursive=True
         )
+        old_state_layout = axis_layout(
+            self.model.input_axis().subaxis(self.old_prefix + self.state_axis),
+            recursive=True,
+        )
+
+        old_blocks = []
+        full_names = [self.our_sep_char.join(n) for n in self.state_names]
+        for var in full_names:
+            if var in old_state_layout:
+                inds = old_state_layout[var]
+                old_blocks.append(J_old[..., inds[0] : inds[1]])
+            else:
+                inds = new_state_layout[var]
+                old_blocks.append(torch.zeros_like(J_new[..., inds[0] : inds[1]]))
+
+        J_old = torch.cat(old_blocks, dim=-1)
+
+        return torch.stack([J_old, J_new])
