@@ -187,7 +187,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
     Args:
         func (nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
-        y0 (torch.tensor):  initial state values with shape (..., nstate)
 
     Keyword Args:
         step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
@@ -198,7 +197,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
     def __init__(
         self,
         func,
-        y0,
         step_generator=StepGenerator(1),
         predictor=ZeroPredictor(),
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
@@ -207,7 +205,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         super().__init__()
         # Store basic information
         self.func = func
-        self.y0 = y0
 
         self.direct_solve_operator = direct_solve_operator
         self.step_generator = step_generator
@@ -221,10 +218,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 % self.func.lookback
             )
 
-    def solve(self, n, *args, cache_adjoint=False):
+    def solve(self, y0, n, *args, cache_adjoint=False):
         """Solve the recursive equations for n steps
 
         Args:
+            y0 (torch.tensor):  initial state values with shape (..., nstate)
             n (int):    number of recursive time steps to solve, step 1 is y0
             *args:      driving forces to pass to the model
 
@@ -232,13 +230,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             cache_adjoint (bool): if true store results for adjoint pass
         """
         # Make sure our shapes are okay
-        self._check_shapes(n, args)
+        self._check_shapes(y0, n, args)
 
         # Setup results and store y0
-        result = torch.empty(
-            n, *self.y0.shape, dtype=self.y0.dtype, device=self.y0.device
-        )
-        result[0] = self.y0
+        result = torch.empty(n, *y0.shape, dtype=y0.dtype, device=y0.device)
+        result[0] = y0
 
         # Actually solve
         for k1, k2 in self.step_generator(n):
@@ -358,14 +354,15 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
         return operator.matvec(rhs)
 
-    def _check_shapes(self, n, forces):
+    def _check_shapes(self, y0, n, forces):
         """Check the shapes of everything before starting the calculation
 
         Args:
+            y0 (torch.tensor):  initial state values with shape (..., nstate)
             n (int):        number of recursive time steps
             forces (list):  list of driving forces
         """
-        correct_force_batch_shape = (n,) + self.y0.shape[:-1]
+        correct_force_batch_shape = (n,) + y0.shape[:-1]
         for f in forces:
             if f.shape[:-1] != correct_force_batch_shape:
                 raise ValueError(
@@ -380,9 +377,9 @@ class AdjointWrapper(torch.autograd.Function):
     """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
 
     @staticmethod
-    def forward(ctx, solver, n, forces, *params):
+    def forward(ctx, solver, y0, n, forces, *params):
         with torch.no_grad():
-            y = solver.solve(n, *forces, cache_adjoint=True)
+            y = solver.solve(y0, n, *forces, cache_adjoint=True)
             ctx.solver = solver
             return y
 
@@ -390,10 +387,10 @@ class AdjointWrapper(torch.autograd.Function):
     def backward(ctx, output_grad):
         with torch.no_grad():
             grad_res = ctx.solver.rewind(output_grad)
-            return (None, None, None, *grad_res)
+            return (None, None, None, None, *grad_res)
 
 
-def solve(solver, n, *forces):
+def solve(solver, y0, n, *forces):
     """Solve a nonlinear.RecursiveNonlinearEquationSolver for a time history without the adjoint method
 
     Args:
@@ -401,10 +398,10 @@ def solve(solver, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    return solver.solve(n * forces)
+    return solver.solve(y0, n, *forces)
 
 
-def solve_adjoint(solver, n, *forces):
+def solve_adjoint(solver, y0, n, *forces):
     """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in an adjoint differentiable way
 
     Args:
@@ -412,4 +409,4 @@ def solve_adjoint(solver, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    return AdjointWrapper.apply(solver, n, forces, *solver.parameters())
+    return AdjointWrapper.apply(solver, y0, n, forces, *solver.parameters())

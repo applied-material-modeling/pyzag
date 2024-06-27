@@ -21,12 +21,13 @@ class DerivativeCheck:
     def adjoint_grads(self):
         solver = nonlinear.RecursiveNonlinearEquationSolver(
             self.pmodel,
-            self.initial_state.detach().clone(),
             step_generator=nonlinear.StepGenerator(self.nchunk),
             predictor=nonlinear.PreviousStepsPredictor(),
         )
         solver.zero_grad()
-        res = nonlinear.solve_adjoint(solver, len(self.forces), self.forces)
+        res = nonlinear.solve_adjoint(
+            solver, self.initial_state.detach().clone(), len(self.forces), self.forces
+        )
         val = torch.norm(res)
         val.backward()
 
@@ -35,21 +36,30 @@ class DerivativeCheck:
     def fd_grads(self, eps=1.0e-6):
         solver = nonlinear.RecursiveNonlinearEquationSolver(
             self.pmodel,
-            self.initial_state.detach().clone(),
             step_generator=nonlinear.StepGenerator(self.nchunk),
             predictor=nonlinear.PreviousStepsPredictor(),
         )
         res = {}
         with torch.no_grad():
             val0 = torch.norm(
-                nonlinear.solve_adjoint(solver, len(self.forces), self.forces)
+                nonlinear.solve(
+                    solver,
+                    self.initial_state.detach().clone(),
+                    len(self.forces),
+                    self.forces,
+                )
             )
             for n, p in solver.named_parameters():
                 p0 = p.clone()
                 dx = torch.abs(p0) * eps
                 p.data = p0 + dx
                 val1 = torch.norm(
-                    nonlinear.solve_adjoint(solver, len(self.forces), self.forces)
+                    nonlinear.solve(
+                        solver,
+                        self.initial_state.detach().clone(),
+                        len(self.forces),
+                        self.forces,
+                    )
                 )
                 res[n] = (val1 - val0) / dx
                 p.data = p0

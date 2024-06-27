@@ -65,12 +65,11 @@ if __name__ == "__main__":
 
     solver = nonlinear.RecursiveNonlinearEquationSolver(
         pmodel,
-        initial_state,
         step_generator=nonlinear.StepGenerator(10),
         predictor=nonlinear.PreviousStepsPredictor(),
     )
     # Uncomment this line to use non-adjoint
-    res = nonlinear.solve_adjoint(solver, ntime, forces)
+    res = nonlinear.solve_adjoint(solver, initial_state, ntime, forces)
 
     whatever = torch.norm(res)
     whatever.backward()

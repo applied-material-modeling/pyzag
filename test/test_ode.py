@@ -75,12 +75,11 @@ class TestBackwardEulerTimeIntegrationLogistic(unittest.TestCase):
         ]:
             solver = nonlinear.RecursiveNonlinearEquationSolver(
                 self.model,
-                self.y0,
                 step_generator=nonlinear.StepGenerator(nchunk),
                 direct_solve_operator=method,
             )
 
-            nres = solver.solve(self.ntime, self.times)
+            nres = solver.solve(self.y0, self.ntime, self.times)
             eres = self.model.ode.exact(self.times)
 
             self.assertEqual(nres.shape, eres.shape)
@@ -166,12 +165,11 @@ class TestIntegrateLinear(unittest.TestCase):
 
                 solver = nonlinear.RecursiveNonlinearEquationSolver(
                     model,
-                    y0,
                     step_generator=nonlinear.StepGenerator(nchunk, first_block_size=nn),
                     direct_solve_operator=linear_method,
                 )
 
-                nres = solver.solve(self.ntime, times)
+                nres = solver.solve(y0, self.ntime, times)
                 eres = model.ode.exact(times)
 
                 self.assertEqual(nres.shape, eres.shape)
