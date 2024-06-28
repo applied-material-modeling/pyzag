@@ -316,7 +316,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             with torch.enable_grad():
                 grad_result = self.accumulate(grad_result, adjoint, R[1:])
 
-        return grad_result
+        return grad_result, adjoint[-1]
 
     def accumulate(self, grad_result, full_adjoint, R, retain=False):
         """Accumulate the updated gradient values
@@ -329,8 +329,16 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Keyword Args:
             retain (bool): if True, retain the AD graph for a second pass
         """
-        g = torch.autograd.grad(R, self.parameters(), full_adjoint, retain_graph=retain)
-        return tuple(pi + gi for pi, gi in zip(grad_result, g))
+        # This was a design choice.  Right now we don't know if parameters affect the initial conditions *only*
+        # or if they come into the recursive function somehow.  If they only affect the recursive function then
+        # grad will raise an error if you don't set allowed_unused.  If you do set it then you need to
+        # check for Nones in the output.
+        g = torch.autograd.grad(
+            R, self.parameters(), full_adjoint, retain_graph=retain, allow_unused=True
+        )
+        return tuple(
+            pi + gi if gi is not None else pi for pi, gi in zip(grad_result, g)
+        )
 
     def block_update_adjoint(self, J, grads, a_prev):
         """Do the blocked adjoint solve
@@ -386,8 +394,11 @@ class AdjointWrapper(torch.autograd.Function):
     @staticmethod
     def backward(ctx, output_grad):
         with torch.no_grad():
-            grad_res = ctx.solver.rewind(output_grad)
-            return (None, None, None, None, *grad_res)
+            grad_res, adj_last = ctx.solver.rewind(output_grad)
+            if ctx.needs_input_grad[1]:
+                return (None, -adj_last, None, None, *grad_res)
+            else:
+                return (None, None, None, None, *grad_res)
 
 
 def solve(solver, y0, n, *forces):
