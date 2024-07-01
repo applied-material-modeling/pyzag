@@ -6,20 +6,78 @@ import pyro.distributions as dist
 from pyro.distributions import constraints
 
 
+class MapNormal:
+    """A map between a deterministic torch parameter and a two-scale normal distribution
+
+    Args:
+        cov: coefficient of variation used to define the scale priors
+
+    Keyword Args:
+        loc_suffix: suffix to add to parameter name to give the upper-level distribution for the scale
+        scale_suffix: suffix to add to the parameter name to give the lower-level distribution for the scale
+    """
+
+    def __init__(self, cov, loc_suffix="_loc", scale_suffix="_scale"):
+        self.cov = cov
+
+        self.loc_suffix = loc_suffix
+        self.scale_suffix = scale_suffix
+
+    def __call__(self, module, name, value):
+        """Actually do the mapped conversion to a normal distribution
+
+        Args:
+            module (torch.nn.Module): object that owns this parameter
+            name (str): named of parameter in module
+            value (torch.nn.Parameter): value of the parameter
+
+        Returns:
+            list of names of the new top-level parameters
+        """
+        dim = value.dim()
+        mean = value.data.detach().clone()
+        scale = torch.abs(mean) * self.cov
+        setattr(
+            module,
+            name + self.loc_suffix,
+            PyroSample(dist.Normal(mean, scale).to_event(dim)),
+        )
+        setattr(
+            module,
+            name + self.scale_suffix,
+            PyroSample(dist.HalfNormal(scale).to_event(dim)),
+        )
+
+        setattr(
+            module,
+            name,
+            PyroSample(
+                lambda m, name=name, dim=dim: dist.Normal(
+                    getattr(m, name + self.loc_suffix),
+                    getattr(m, name + self.scale_suffix),
+                ).to_event(dim)
+            ),
+        )
+
+        return [name + self.loc_suffix, name + self.scale_suffix]
+
+
 class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
     """Converts a torch model over to being a Pyro-based hierarchical statistical model
 
+    Eventually the plan is to let the user provide a dictionary instead of a single parameter_mapper
+
     Args:
         base (torch.nn.Module):     base torch module
+        parameter_mapper (MapParameter): mapper class describing how to convert from Parameter to Distribution
+        noise_prior (float): scale prior for white noise
     """
 
     def __init__(
         self,
         base,
-        noise_prior=0.1,
-        std_prior=0.1,
-        loc_suffix="_loc",
-        scale_suffix="_scale",
+        parameter_mapper,
+        noise_prior,
     ):
         super().__init__()
 
@@ -27,47 +85,13 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         pyro.nn.module.to_pyro_module_(base)
         self.base = base
 
-        self.loc_suffix = loc_suffix
-        self.scale_suffix = scale_suffix
-
-        # Our approach is going to be to convert each parameter to a two level normal distribution
-        # The mean prior will be the original parameter value and for now the standard deviation
-        # will be the mean * prior_std_factor
-        #
-        # We insert the new pyro distributions at the same locations as the original parameters
-        # We keep the bottom level distribution name the same as the original parameter
-        # and append the _loc and _scale suffixes for the top level
-
-        # We need to save what to sample at the top level
+        # Run through each parameter and apply the map to convert the parameter to a distribution
+        # We also need to save what to sample at the top level
         self.top = []
         for m in self.base.modules():
             for n, val in list(m.named_parameters(recurse=False)):
-                dim = val.dim()
-                mean = val.data.detach().clone()
-                scale = torch.abs(mean) * std_prior
-                setattr(
-                    m,
-                    n + loc_suffix,
-                    PyroSample(dist.Normal(mean, scale).to_event(dim)),
-                )
-                self.top.append((m, n + loc_suffix))
-                setattr(
-                    m,
-                    n + scale_suffix,
-                    PyroSample(dist.HalfNormal(scale).to_event(dim)),
-                )
-
-                setattr(
-                    m,
-                    n,
-                    PyroSample(
-                        lambda m, name=n, dim=dim: dist.Normal(
-                            getattr(m, name + loc_suffix),
-                            getattr(m, name + scale_suffix),
-                        ).to_event(dim)
-                    ),
-                )
-                self.top.append((m, n + scale_suffix))
+                new_names = parameter_mapper(m, n, val)
+                self.top.extend([(m, n) for n in new_names])
 
         # Setup noise
         self.eps = PyroSample(dist.HalfNormal(noise_prior))
@@ -92,7 +116,8 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         if len(shape) != 2:
             raise ValueError("For now we require shape of (ntime, nbatch)")
 
-        # Rather annoying that this is necessary
+        # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
+        # are *not* batched over the number of samples
         vals = self._sample_top()
 
         # Same here
