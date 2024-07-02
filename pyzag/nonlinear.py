@@ -2,6 +2,8 @@
 
 import torch
 
+import pyro
+
 from pyzag import chunktime
 
 
@@ -218,7 +220,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 % self.func.lookback
             )
 
-    def solve(self, y0, n, *args, cache_adjoint=False):
+    def solve(self, y0, n, *args, adjoint_params=None):
         """Solve the recursive equations for n steps
 
         Args:
@@ -227,7 +229,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             *args:      driving forces to pass to the model
 
         Keyword Args:
-            cache_adjoint (bool): if true store results for adjoint pass
+            adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
         """
         # Make sure our shapes are okay
         self._check_shapes(y0, n, args)
@@ -245,10 +247,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             )
 
         # Cache result and driving forces if needed for adjoint pass
-        if cache_adjoint:
+        if adjoint_params:
             self.n = n
             self.forces = [arg.clone() for arg in args]
             self.result = result.clone()
+            self.adjoint_params = adjoint_params
 
         return result
 
@@ -334,7 +337,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         # grad will raise an error if you don't set allowed_unused.  If you do set it then you need to
         # check for Nones in the output.
         g = torch.autograd.grad(
-            R, self.parameters(), full_adjoint, retain_graph=retain, allow_unused=True
+            R, self.adjoint_params, full_adjoint, retain_graph=retain, allow_unused=True
         )
         return tuple(
             pi + gi if gi is not None else pi for pi, gi in zip(grad_result, g)
@@ -387,7 +390,7 @@ class AdjointWrapper(torch.autograd.Function):
     @staticmethod
     def forward(ctx, solver, y0, n, forces, *params):
         with torch.no_grad():
-            y = solver.solve(y0, n, *forces, cache_adjoint=True)
+            y = solver.solve(y0, n, *forces, adjoint_params=params)
             ctx.solver = solver
             return y
 
