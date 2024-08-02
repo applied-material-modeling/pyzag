@@ -2,8 +2,6 @@
 
 import torch
 
-import pyro
-
 from pyzag import chunktime
 
 
@@ -423,9 +421,17 @@ def solve_adjoint(solver, y0, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    all_params = [p for p in solver.parameters()] + [
-        solver.func.ode.c,
-        solver.func.ode.theta0,
-        solver.func.ode.v0,
-    ]
+    # This is very fragile code to accomodate pyroL
+    # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions
+    # 2) We can't rely on a list of values (i.e. tensors) stored in converted_params because we need to
+    # .  grab these *after* pyro samples them
+    # 3) We can't rely on this object having a converted_params method because it might be a basic "unconverted"
+    #    pytorch module.
+    additional_params = []
+    for m in solver.modules():
+        if hasattr(m, "converted_params"):
+            additional_params.extend(getattr(m, p) for p in m.converted_params)
+
+    all_params = [p for p in solver.parameters()] + additional_params
+
     return AdjointWrapper.apply(solver, y0, n, forces, *all_params)

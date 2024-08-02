@@ -93,6 +93,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         self.top = []
         self.bot = []
         for m in self.base.modules():
+            converted_params = []
             for n, val in list(m.named_parameters(recurse=False)):
                 upper_params, lower_param = parameter_mapper(self, n, val)
                 # Isn't this fun
@@ -100,6 +101,11 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                 setattr(m, n, val.data.detach().clone())
                 self.top.extend(upper_params)
                 self.bot.append((m, n, lower_param))
+                converted_params.append(n)
+
+            # This adds a new parameter to the module itself giving the *names* of the original parameters
+            # This is required for the adjoint method to do introspection on what to track
+            m.converted_params = converted_params
 
         # Setup noise
         self.eps = PyroSample(dist.HalfNormal(noise_prior))
@@ -111,8 +117,6 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
     def _sample_bot(self):
         """Sample the lower level parameters and assign to the base module"""
         for mod, orig_name, name in self.bot:
-            # setattr(mod, orig_name, torch.nn.Parameter(getattr(self, name)))
-            # The following is some black magic shit
             setattr(mod, orig_name, getattr(self, name))
 
     def forward(self, *args, results=None):
