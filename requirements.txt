@@ -3,3 +3,4 @@ tqdm
 numpy
 matplotlib
 pyro-ppl
+scipy

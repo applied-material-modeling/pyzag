@@ -3,7 +3,6 @@ import torch
 import pyro
 from pyro.nn import PyroSample
 import pyro.distributions as dist
-from pyro.distributions import constraints
 
 
 class MapNormal:
@@ -64,7 +63,7 @@ class MapNormal:
         return [
             name + self.loc_suffix,
             name + self.scale_suffix,
-        ], [name]
+        ], name
 
 
 class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
@@ -95,9 +94,12 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         self.bot = []
         for m in self.base.modules():
             for n, val in list(m.named_parameters(recurse=False)):
-                upper_params, lower_params = parameter_mapper(self, n, val)
+                upper_params, lower_param = parameter_mapper(self, n, val)
+                # Isn't this fun
+                delattr(m, n)
+                setattr(m, n, val.data.detach().clone())
                 self.top.extend(upper_params)
-                self.bot.extend([(m, n, lp) for lp in lower_params])
+                self.bot.append((m, n, lower_param))
 
         # Setup noise
         self.eps = PyroSample(dist.HalfNormal(noise_prior))
@@ -111,7 +113,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         for mod, orig_name, name in self.bot:
             # setattr(mod, orig_name, torch.nn.Parameter(getattr(self, name)))
             # The following is some black magic shit
-            mod.__dict__[orig_name] = getattr(self, name)
+            setattr(mod, orig_name, getattr(self, name))
 
     def forward(self, *args, results=None):
         """Class the base forward with the appropriate args
