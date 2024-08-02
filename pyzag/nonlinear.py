@@ -284,7 +284,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """
         # Setup storage for result
         grad_result = tuple(
-            torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
+            torch.zeros(p.shape, device=output_grad.device) for p in self.adjoint_params
         )
 
         # Loop backwards through time
@@ -423,4 +423,9 @@ def solve_adjoint(solver, y0, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    return AdjointWrapper.apply(solver, y0, n, forces, *solver.parameters())
+    all_params = [p for p in solver.parameters()] + [
+        solver.func.ode.c,
+        solver.func.ode.theta0,
+        solver.func.ode.v0,
+    ]
+    return AdjointWrapper.apply(solver, y0, n, forces, *all_params)
