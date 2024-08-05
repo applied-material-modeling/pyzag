@@ -91,17 +91,16 @@ class TestAllLinearODEs(unittest.TestCase):
                     nn = ninit
                 solver = nonlinear.RecursiveNonlinearEquationSolver(
                     model,
-                    y0,
                     step_generator=nonlinear.StepGenerator(nchunk, first_block_size=nn),
                 )
 
-                res1 = solver.solve(self.ntime, times)
+                res1 = nonlinear.solve(solver, y0, self.ntime, times)
                 val1 = torch.linalg.norm(res1)
                 val1.backward()
                 derivs1 = [p.grad for p in solver.func.parameters()]
 
                 solver.zero_grad()
-                res2 = nonlinear.solve_adjoint(solver, self.ntime, times)
+                res2 = nonlinear.solve_adjoint(solver, y0, self.ntime, times)
                 val2 = torch.linalg.norm(res2)
                 val2.backward()
                 derivs2 = [p.grad for p in solver.func.parameters()]
@@ -109,6 +108,77 @@ class TestAllLinearODEs(unittest.TestCase):
                 self.assertTrue(torch.isclose(val1, val2))
                 for p1, p2 in zip(derivs1, derivs2):
                     self.assertTrue(torch.allclose(p1, p2))
+
+
+class BernoulliODE(torch.nn.Module):
+    """Linear system of equations"""
+
+    def __init__(self, n, N):
+        super().__init__()
+        self.n = n
+        self.P = torch.nn.Parameter(torch.rand(n) / 100.0)
+        self.Q = torch.nn.Parameter(torch.rand(n) / 100.0)
+        self.N = torch.tensor(N)
+
+    def forward(self, t, y):
+        yd = self.Q * y**self.N - self.P * y
+        Jd = torch.diag_embed(self.Q * self.N * y ** (self.N - 1.0) - self.P)
+
+        return yd, Jd
+
+    def y0(self, nbatch):
+        return torch.outer(torch.linspace(-1, 1, nbatch), torch.linspace(1, 2, self.n))
+
+
+class TestComplexODE(unittest.TestCase):
+    def setUp(self):
+        self.n = [1, 3, 6]
+        self.nbatch = [1, 3, 5]
+        self.nchunk = [1, 2, 5, 7]
+        self.ninit = [None, 2]
+
+        self.ode = [lambda n: BernoulliODE(n, 3.0)]
+        self.method = [ode.BackwardEulerODE]
+
+        self.ntime = 100
+
+        self.ref_time = torch.linspace(0, 1, self.ntime)
+
+    def test_all(self):
+        for n, nbatch, nchunk, code, method, ninit in itertools.product(
+            self.n, self.nbatch, self.nchunk, self.ode, self.method, self.ninit
+        ):
+            with self.subTest(
+                n=n, nbatch=nbatch, nchunk=nchunk, code=code, method=method, ninit=ninit
+            ):
+                times = (
+                    self.ref_time.clone().unsqueeze(-1).expand(-1, nbatch).unsqueeze(-1)
+                )
+                model = method(code(n))
+                y0 = model.ode.y0(nbatch)
+                if ninit is None or ninit <= nchunk:
+                    nn = 0
+                else:
+                    nn = ninit
+                solver = nonlinear.RecursiveNonlinearEquationSolver(
+                    model,
+                    step_generator=nonlinear.StepGenerator(nchunk, first_block_size=nn),
+                )
+
+                res1 = nonlinear.solve(solver, y0, self.ntime, times)
+                val1 = torch.linalg.norm(res1)
+                val1.backward()
+                derivs1 = [p.grad for p in solver.func.parameters()]
+
+                solver.zero_grad()
+                res2 = nonlinear.solve_adjoint(solver, y0, self.ntime, times)
+                val2 = torch.linalg.norm(res2)
+                val2.backward()
+                derivs2 = [p.grad for p in solver.func.parameters()]
+
+                self.assertTrue(torch.isclose(val1, val2))
+                for p1, p2 in zip(derivs1, derivs2):
+                    self.assertTrue(torch.allclose(p1, p2, rtol=1e-4))
 
 
 class GeneralNonlinearEquation(nonlinear.NonlinearRecursiveFunction):
@@ -178,17 +248,16 @@ class TestGeneralFunction(unittest.TestCase):
                     nn = ninit
                 solver = nonlinear.RecursiveNonlinearEquationSolver(
                     model,
-                    y0,
                     step_generator=nonlinear.StepGenerator(nchunk, first_block_size=nn),
                 )
 
-                res1 = solver.solve(self.ntime, times)
+                res1 = nonlinear.solve(solver, y0, self.ntime, times)
                 val1 = torch.linalg.norm(res1)
                 val1.backward()
                 derivs1 = [p.grad for p in solver.func.parameters()]
 
                 solver.zero_grad()
-                res2 = nonlinear.solve_adjoint(solver, self.ntime, times)
+                res2 = nonlinear.solve_adjoint(solver, y0, self.ntime, times)
                 val2 = torch.linalg.norm(res2)
                 val2.backward()
                 derivs2 = [p.grad for p in solver.func.parameters()]

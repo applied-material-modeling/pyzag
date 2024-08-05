@@ -187,7 +187,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
     Args:
         func (nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
-        y0 (torch.tensor):  initial state values with shape (..., nstate)
 
     Keyword Args:
         step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
@@ -198,7 +197,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
     def __init__(
         self,
         func,
-        y0,
         step_generator=StepGenerator(1),
         predictor=ZeroPredictor(),
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
@@ -207,7 +205,6 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         super().__init__()
         # Store basic information
         self.func = func
-        self.y0 = y0
 
         self.direct_solve_operator = direct_solve_operator
         self.step_generator = step_generator
@@ -221,38 +218,38 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 % self.func.lookback
             )
 
-    def solve(self, n, *args, cache_adjoint=False):
+    def solve(self, y0, n, *args, adjoint_params=None):
         """Solve the recursive equations for n steps
 
         Args:
+            y0 (torch.tensor):  initial state values with shape (..., nstate)
             n (int):    number of recursive time steps to solve, step 1 is y0
             *args:      driving forces to pass to the model
 
         Keyword Args:
-            cache_adjoint (bool): if true store results for adjoint pass
+            adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
         """
         # Make sure our shapes are okay
-        self._check_shapes(n, args)
+        self._check_shapes(y0, n, args)
 
         # Setup results and store y0
-        result = torch.empty(
-            n, *self.y0.shape, dtype=self.y0.dtype, device=self.y0.device
-        )
-        result[0] = self.y0
+        result = torch.empty(n, *y0.shape, dtype=y0.dtype, device=y0.device)
+        result[0] = y0
 
         # Actually solve
         for k1, k2 in self.step_generator(n):
             result[k1:k2] = self.block_update(
-                result[k1 - self.func.lookback : k1],
-                self.predictor.predict(result, k1, k2 - k1),
-                [arg[k1 - self.func.lookback : k2] for arg in args],
+                result[k1 - self.func.lookback : k1].clone(),
+                self.predictor.predict(result, k1, k2 - k1).clone(),
+                [arg[k1 - self.func.lookback : k2].clone() for arg in args],
             )
 
         # Cache result and driving forces if needed for adjoint pass
-        if cache_adjoint:
+        if adjoint_params:
             self.n = n
             self.forces = [arg.clone() for arg in args]
             self.result = result.clone()
+            self.adjoint_params = adjoint_params
 
         return result
 
@@ -285,7 +282,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """
         # Setup storage for result
         grad_result = tuple(
-            torch.zeros(p.shape, device=output_grad.device) for p in self.parameters()
+            torch.zeros(p.shape, device=output_grad.device) for p in self.adjoint_params
         )
 
         # Loop backwards through time
@@ -320,7 +317,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             with torch.enable_grad():
                 grad_result = self.accumulate(grad_result, adjoint, R[1:])
 
-        return grad_result
+        return grad_result, adjoint[-1]
 
     def accumulate(self, grad_result, full_adjoint, R, retain=False):
         """Accumulate the updated gradient values
@@ -333,8 +330,16 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Keyword Args:
             retain (bool): if True, retain the AD graph for a second pass
         """
-        g = torch.autograd.grad(R, self.parameters(), full_adjoint, retain_graph=retain)
-        return tuple(pi + gi for pi, gi in zip(grad_result, g))
+        # This was a design choice.  Right now we don't know if parameters affect the initial conditions *only*
+        # or if they come into the recursive function somehow.  If they only affect the recursive function then
+        # grad will raise an error if you don't set allowed_unused.  If you do set it then you need to
+        # check for Nones in the output.
+        g = torch.autograd.grad(
+            R, self.adjoint_params, full_adjoint, retain_graph=retain, allow_unused=True
+        )
+        return tuple(
+            pi + gi if gi is not None else pi for pi, gi in zip(grad_result, g)
+        )
 
     def block_update_adjoint(self, J, grads, a_prev):
         """Do the blocked adjoint solve
@@ -358,14 +363,15 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
         return operator.matvec(rhs)
 
-    def _check_shapes(self, n, forces):
+    def _check_shapes(self, y0, n, forces):
         """Check the shapes of everything before starting the calculation
 
         Args:
+            y0 (torch.tensor):  initial state values with shape (..., nstate)
             n (int):        number of recursive time steps
             forces (list):  list of driving forces
         """
-        correct_force_batch_shape = (n,) + self.y0.shape[:-1]
+        correct_force_batch_shape = (n,) + y0.shape[:-1]
         for f in forces:
             if f.shape[:-1] != correct_force_batch_shape:
                 raise ValueError(
@@ -380,25 +386,52 @@ class AdjointWrapper(torch.autograd.Function):
     """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
 
     @staticmethod
-    def forward(ctx, solver, n, forces, *params):
+    def forward(ctx, solver, y0, n, forces, *params):
         with torch.no_grad():
-            y = solver.solve(n, *forces, cache_adjoint=True)
+            y = solver.solve(y0, n, *forces, adjoint_params=params)
             ctx.solver = solver
             return y
 
     @staticmethod
     def backward(ctx, output_grad):
         with torch.no_grad():
-            grad_res = ctx.solver.rewind(output_grad)
-            return (None, None, None, *grad_res)
+            grad_res, adj_last = ctx.solver.rewind(output_grad)
+            if ctx.needs_input_grad[1]:
+                return (None, -adj_last, None, None, *grad_res)
+            else:
+                return (None, None, None, None, *grad_res)
 
 
-def solve_adjoint(solver, n, *forces):
-    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in a differentiable way
+def solve(solver, y0, n, *forces):
+    """Solve a nonlinear.RecursiveNonlinearEquationSolver for a time history without the adjoint method
 
     Args:
         solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    return AdjointWrapper.apply(solver, n, forces, *solver.parameters())
+    return solver.solve(y0, n, *forces)
+
+
+def solve_adjoint(solver, y0, n, *forces):
+    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in an adjoint differentiable way
+
+    Args:
+        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        n (int): number of recursive steps
+        *forces (*args of tensors): driving forces
+    """
+    # This is very fragile code to accomodate pyroL
+    # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions
+    # 2) We can't rely on a list of values (i.e. tensors) stored in converted_params because we need to
+    # .  grab these *after* pyro samples them
+    # 3) We can't rely on this object having a converted_params method because it might be a basic "unconverted"
+    #    pytorch module.
+    additional_params = []
+    for m in solver.modules():
+        if hasattr(m, "converted_params"):
+            additional_params.extend(getattr(m, p) for p in m.converted_params)
+
+    all_params = [p for p in solver.parameters()] + additional_params
+
+    return AdjointWrapper.apply(solver, y0, n, forces, *all_params)

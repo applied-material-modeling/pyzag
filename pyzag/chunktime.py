@@ -47,14 +47,13 @@ class ChunkNewtonRaphson:
         R, J = fn(x)
 
         nR = torch.norm(R, dim=-1)
-        nR0 = nR
+        nR0 = nR.clone()
         i = 0
 
         while (i < self.miter) and torch.any(
             torch.logical_not(torch.logical_or(nR <= self.atol, nR / nR0 <= self.rtol))
         ):
-            dx = J.inverse().matvec(R)
-            x, R, J, nR = self.step(x, dx, fn, R)
+            x, R, J, nR = self.step(x, J, fn, R)
             i += 1
 
         if i == self.miter:
@@ -66,7 +65,7 @@ class ChunkNewtonRaphson:
 
         return x
 
-    def step(self, x, dx, fn, R0):
+    def step(self, x, J, fn, R):
         """Take a simple Newton step
 
         Args:
@@ -75,7 +74,9 @@ class ChunkNewtonRaphson:
             fn (function): function
             R0 (torch.tensor): current residual
         """
-        x -= dx
+        dx = J.inverse().matvec(R)
+
+        x = x - dx
         R, J = fn(x)
         nR = torch.norm(R, dim=-1)
 
