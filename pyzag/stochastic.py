@@ -23,7 +23,7 @@ class MapNormal:
         self.loc_suffix = loc_suffix
         self.scale_suffix = scale_suffix
 
-    def __call__(self, pyro_module, name, value):
+    def __call__(self, pyro_module, name, value, prefix):
         """Actually do the mapped conversion to a normal distribution
 
         Args:
@@ -31,6 +31,7 @@ class MapNormal:
             mod_name (str): string name of module to help disambiguate
             name (str): named of parameter in module
             value (torch.nn.Parameter): value of the parameter
+            prefix (str): prefix name to append to the parameter name
 
         Returns:
             list of names of the new top-level parameters
@@ -40,30 +41,30 @@ class MapNormal:
         scale = torch.abs(mean) * self.cov
         setattr(
             pyro_module,
-            name + self.loc_suffix,
+            prefix + name + self.loc_suffix,
             PyroSample(dist.Normal(mean, scale).to_event(dim)),
         )
         setattr(
             pyro_module,
-            name + self.scale_suffix,
+            prefix + name + self.scale_suffix,
             PyroSample(dist.HalfNormal(scale).to_event(dim)),
         )
 
         setattr(
             pyro_module,
-            name,
+            prefix + name,
             PyroSample(
                 lambda m, name=name, dim=dim: dist.Normal(
-                    getattr(m, name + self.loc_suffix),
-                    getattr(m, name + self.scale_suffix),
+                    getattr(m, prefix + name + self.loc_suffix),
+                    getattr(m, prefix + name + self.scale_suffix),
                 ).to_event(dim)
             ),
         )
 
         return [
-            name + self.loc_suffix,
-            name + self.scale_suffix,
-        ], name
+            prefix + name + self.loc_suffix,
+            prefix + name + self.scale_suffix,
+        ], prefix + name
 
 
 class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
@@ -92,10 +93,10 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         # We also need to save what to sample at the top level
         self.top = []
         self.bot = []
-        for m in self.base.modules():
+        for nm, m in self.base.named_modules():
             converted_params = []
             for n, val in list(m.named_parameters(recurse=False)):
-                upper_params, lower_param = parameter_mapper(self, n, val)
+                upper_params, lower_param = parameter_mapper(self, n, val, nm + ".")
                 # Isn't this fun
                 delattr(m, n)
                 setattr(m, n, val.data.detach().clone())
