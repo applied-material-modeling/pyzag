@@ -136,6 +136,12 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         if len(shape) != 2:
             raise ValueError("For now we require shape of (ntime, nbatch)")
 
+        if results is not None:
+            if results.dim() != 3:
+                raise ValueError(
+                    "The results tensor should be a dim = 3 tensor, maybe unsqueeze your output?"
+                )
+
         # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
         # are *not* batched over the number of samples
         vals = self._sample_top()
