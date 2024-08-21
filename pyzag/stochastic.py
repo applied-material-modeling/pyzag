@@ -109,7 +109,12 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
             m.converted_params = converted_params
 
         # Setup noise
-        self.eps = PyroSample(dist.HalfNormal(noise_prior))
+        if noise_prior.dim == 0:
+            self.sample_noise_outside = True
+            self.eps = PyroSample(dist.HalfNormal(noise_prior))
+        else:
+            self.sample_noise_outside = False
+            self.eps = PyroSample(dist.HalfNormal(noise_prior).to_event(0).to_event(1))
 
     def _sample_top(self):
         """Sample the top level parameter values"""
@@ -120,7 +125,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         for mod, orig_name, name in self.bot:
             setattr(mod, orig_name, getattr(self, name))
 
-    def forward(self, *args, results=None):
+    def forward(self, *args, results=None, **kwargs):
         """Class the base forward with the appropriate args
 
         Args:
@@ -147,11 +152,15 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         vals = self._sample_top()
 
         # Same here
-        eps = self.eps
+        if self.sample_noise_outside:
+            eps = self.eps
 
         with pyro.plate("samples", shape[-1]):
             self._sample_bot()
-            res = self.base(*args)
+            res = self.base(*args, **kwargs)
+
+            if not self.sample_noise_outside:
+                eps = self.eps
 
             with pyro.plate("time", shape[0]):
                 pyro.sample("obs", dist.Normal(res, eps).to_event(1), obs=results)

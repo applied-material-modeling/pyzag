@@ -25,13 +25,19 @@ class ChunkNewtonRaphson:
         atol (float): nonlinear absolute tolerance
         miter (int): maximum number of iterations
         throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
+        record_failed (bool): if True, store the indices of the bad batches
     """
 
-    def __init__(self, rtol=1e-6, atol=1e-10, miter=200, throw_on_fail=False):
+    def __init__(
+        self, rtol=1e-6, atol=1e-10, miter=200, throw_on_fail=False, record_failed=False
+    ):
         self.rtol = rtol
         self.atol = atol
         self.miter = miter
         self.throw_on_fail = throw_on_fail
+
+        self.record_failed = record_failed
+        self.failed = None
 
     def solve(self, fn, x0):
         """Actually solve the system
@@ -62,6 +68,15 @@ class ChunkNewtonRaphson:
             warnings.warn(
                 "Implicit solve did not succeed.  Results may be inaccurate..."
             )
+            if self.record_failed:
+                failed_this_time = torch.logical_or(
+                    torch.isnan(nR),
+                    torch.logical_and(nR > self.atol, nR / nR0 > self.rtol),
+                )[-1]
+                if self.failed is None:
+                    self.failed = failed_this_time
+                else:
+                    self.failed = torch.logical_or(failed_this_time, self.failed)
 
         return x
 
