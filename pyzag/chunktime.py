@@ -69,10 +69,13 @@ class ChunkNewtonRaphson:
                 "Implicit solve did not succeed.  Results may be inaccurate..."
             )
             if self.record_failed:
-                failed_this_time = torch.logical_or(
-                    torch.isnan(nR),
-                    torch.logical_and(nR > self.atol, nR / nR0 > self.rtol),
-                )[-1]
+                failed_this_time = torch.any(
+                    torch.logical_or(
+                        torch.isnan(nR),
+                        torch.logical_and(nR > self.atol, nR / nR0 > self.rtol),
+                    ),
+                    dim=0,
+                )
                 if self.failed is None:
                     self.failed = failed_this_time
                 else:

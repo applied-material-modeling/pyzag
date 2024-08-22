@@ -180,6 +180,58 @@ class StepGenerator:
         raise StopIteration
 
 
+class InitialOffsetStepGenerator:
+    """Generate chunks of recursive steps to produce at once
+
+    Args:
+        block_size (int):   regular chunk size
+        initial_steps (list of int): initial steps
+    """
+
+    def __init__(self, block_size=1, initial_steps=[]):
+        self.block_size = block_size
+        self.initial_steps = initial_steps
+        self.back = False
+
+    def __call__(self, n):
+        self.back = False
+        self.n = n
+        self.steps = [1]
+        if len(self.initial_steps) > 0:
+            self.steps += [i + 1 for i in self.initial_steps]
+        self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
+
+        self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
+
+        self.i = 0
+
+        return self
+
+    def __iter__(self):
+        return self
+
+    def reverse(self):
+        self.back = True
+        rev = [
+            (self.n - k2, self.n - k1)
+            for k1, k2 in zip(self.steps[:-1], self.steps[1:])
+        ][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
+        self.pairs = rev
+
+        self.i = 0
+
+        return self
+
+    def __next__(self):
+        """Iterate forward through the steps"""
+        self.i += 1
+        if self.i <= len(self.pairs):
+            return self.pairs[self.i - 1]
+        raise StopIteration
+
+
 class RecursiveNonlinearEquationSolver(torch.nn.Module):
     """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
 
