@@ -128,6 +128,27 @@ class PreviousStepsPredictor:
         return results[(k - kinc) : k]
 
 
+class ExtrapolatingPredictor:
+    """Predict by extrapolating the values from the previous steps"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        if k - kinc - 1 < 0:
+            return torch.zeros_like(results[k : k + kinc])
+        elif k - 2 * kinc - 1 < 0:
+            return results[(k - kinc) : k]
+
+        inc = results[(k - kinc) : k] - results[(k - 2 * kinc) : k - kinc]
+
+        return results[(k - kinc) : k] + inc
+
+
 class StepGenerator:
     """Generate chunks of recursive steps to produce at once
 
