@@ -29,7 +29,13 @@ class ChunkNewtonRaphson:
     """
 
     def __init__(
-        self, rtol=1e-6, atol=1e-10, miter=200, throw_on_fail=False, record_failed=False
+        self,
+        rtol=1e-6,
+        atol=1e-10,
+        miter=200,
+        throw_on_fail=False,
+        record_failed=False,
+        ignore_batches=None,
     ):
         self.rtol = rtol
         self.atol = atol
@@ -38,6 +44,8 @@ class ChunkNewtonRaphson:
 
         self.record_failed = record_failed
         self.failed = None
+
+        self.ignore_batches = ignore_batches
 
     def solve(self, fn, x0):
         """Actually solve the system
@@ -58,6 +66,9 @@ class ChunkNewtonRaphson:
 
         while i < self.miter:
             not_converged = self.not_converged(nR, nR0)
+            if self.ignore_batches is not None:
+                not_converged[:, self.ignore_batches] = False
+
             if torch.all(torch.logical_not(not_converged)):
                 break
 
@@ -71,9 +82,10 @@ class ChunkNewtonRaphson:
             warnings.warn(
                 "Implicit solve did not succeed.  Results may be inaccurate..."
             )
-            if self.record_failed:
-                # We took one more newton step since we calculated this
-                self._store_failed(self.not_converged(nR, nR0))
+
+        if self.record_failed:
+            # We took one more newton step since we calculated this
+            self._store_failed(self.not_converged(nR, nR0))
 
         return x
 
