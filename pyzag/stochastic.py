@@ -109,7 +109,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
             m.converted_params = converted_params
 
         # Setup noise
-        if noise_prior.dim == 0:
+        if noise_prior.dim() == 0:
             self.sample_noise_outside = True
             self.eps = PyroSample(dist.HalfNormal(noise_prior))
         else:
