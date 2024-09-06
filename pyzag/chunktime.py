@@ -26,6 +26,7 @@ class ChunkNewtonRaphson:
         miter (int): maximum number of iterations
         throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
         record_failed (bool): if True, store the indices of the bad batches
+        ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
     """
 
     def __init__(

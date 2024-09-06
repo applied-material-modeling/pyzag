@@ -113,7 +113,7 @@ class ZeroPredictor:
 
 
 class PreviousStepsPredictor:
-    """Predict by providing the values from the previous steps"""
+    """Predict by providing the values from the previous chunk of steps steps"""
 
     def predict(self, results, k, kinc):
         """Predict the next steps
@@ -129,7 +129,7 @@ class PreviousStepsPredictor:
 
 
 class LastStepPredictor:
-    """Predict by providing the values from the previous step"""
+    """Predict by providing the values from the previous single step"""
 
     def predict(self, results, k, kinc):
         """Predict the next steps
@@ -146,7 +146,7 @@ class LastStepPredictor:
 
 
 class StepExtrapolatingPredictor:
-    """Predict by providing the values from the previous step"""
+    """Predict by extrapolating using the previous *chunks* of steps"""
 
     def predict(self, results, k, kinc):
         """Predict the next steps
@@ -167,7 +167,7 @@ class StepExtrapolatingPredictor:
 
 
 class ExtrapolatingPredictor:
-    """Predict by extrapolating the values from the previous steps"""
+    """Predict by extrapolating the values from the previous *single* steps"""
 
     def predict(self, results, k, kinc):
         """Predict the next steps
@@ -532,7 +532,7 @@ def solve_adjoint(solver, y0, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    # This is very fragile code to accomodate pyroL
+    # This is very fragile code to accomodate pyro
     # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions
     # 2) We can't rely on a list of values (i.e. tensors) stored in converted_params because we need to
     # .  grab these *after* pyro samples them
