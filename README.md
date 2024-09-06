@@ -5,15 +5,23 @@ pyzag is a library for efficiently training generic models defined with a recurs
 ## Nonlinear recursive functions
 
 A nonlinear recursive function has the form
+
 $$f\left(x_{i-1}, x_i; p\right) =0 \, \forall i \in \left(1,2,\ldots,n \right)$$
+
 with $x$ the model *state* and $p$ the model *parameters*.  Given the model and an *initial condition* $x_o$ we can define a sequence $\mathcal{X} = \left(x_0, x_1, \ldots, x_n \right)$ by recursively solving the nonlinear equation for $x_n$.
 
 While this form seems abstract, it actually practically describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
+
 $$\dot{x} = g\left(x; p \right)$$
+
 $$x(0) = x_0$$
+
 We can convert this into a nonlinear recursive equation by applying a numerical time integration scheme, for example the [backward Euler method](https://en.wikipedia.org/wiki/Backward_Euler_method):
+
 $$x_{i} = x_{i-1} + g(x_i; p) \Delta t_i $$
+
 This algebraic equation has our standard form for a nonlinear recursive model:
+
 $$f\left(x_{i-1}, x_i; p \right) = x_i - x_{i-1} - g(x_i; p) \Delta t_i $$
 
 However, defining our time series with an algebraic equation, rather than a differential equation, provides access to a range of models that cannot be expressed as ODEs, for example difference equations.
