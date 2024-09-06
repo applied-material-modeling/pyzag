@@ -113,7 +113,7 @@ class ZeroPredictor:
 
 
 class PreviousStepsPredictor:
-    """Predict by providing the values from the previous steps"""
+    """Predict by providing the values from the previous chunk of steps steps"""
 
     def predict(self, results, k, kinc):
         """Predict the next steps
@@ -126,6 +126,65 @@ class PreviousStepsPredictor:
         if k - kinc - 1 < 0:
             return torch.zeros_like(results[k : k + kinc])
         return results[(k - kinc) : k]
+
+
+class LastStepPredictor:
+    """Predict by providing the values from the previous single step"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        if k < 1:
+            return torch.zeros_like(results[k : k + kinc])
+
+        return results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
+
+
+class StepExtrapolatingPredictor:
+    """Predict by extrapolating using the previous *chunks* of steps"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        if k < 1:
+            return torch.zeros_like(results[k : k + kinc])
+        elif k < 2:
+            results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
+
+        dinc = (results[k - 1] - results[k - 2]) + results[k - 1]
+
+        return dinc.unsqueeze(0).expand((kinc,) + results.shape[1:])
+
+
+class ExtrapolatingPredictor:
+    """Predict by extrapolating the values from the previous *single* steps"""
+
+    def predict(self, results, k, kinc):
+        """Predict the next steps
+
+        Args:
+            results (torch.tensor): current results tensor, filled up to step k.
+            k (int): start of current chunk
+            kinc (int): next number of steps to predict
+        """
+        if k - kinc - 1 < 0:
+            return torch.zeros_like(results[k : k + kinc])
+        elif k - 2 * kinc - 1 < 0:
+            return results[(k - kinc) : k]
+
+        inc = results[(k - kinc) : k] - results[(k - 2 * kinc) : k - kinc]
+
+        return results[(k - kinc) : k] + inc
 
 
 class StepGenerator:
@@ -147,6 +206,58 @@ class StepGenerator:
         self.steps = [1]
         if self.offset_step > 0:
             self.steps += [self.offset_step + 1]
+        self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
+
+        self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
+
+        self.i = 0
+
+        return self
+
+    def __iter__(self):
+        return self
+
+    def reverse(self):
+        self.back = True
+        rev = [
+            (self.n - k2, self.n - k1)
+            for k1, k2 in zip(self.steps[:-1], self.steps[1:])
+        ][:-1]
+        if rev[-1][0] != 1:
+            rev += [(1, rev[-1][0])]
+        self.pairs = rev
+
+        self.i = 0
+
+        return self
+
+    def __next__(self):
+        """Iterate forward through the steps"""
+        self.i += 1
+        if self.i <= len(self.pairs):
+            return self.pairs[self.i - 1]
+        raise StopIteration
+
+
+class InitialOffsetStepGenerator:
+    """Generate chunks of recursive steps to produce at once
+
+    Args:
+        block_size (int):   regular chunk size
+        initial_steps (list of int): initial steps
+    """
+
+    def __init__(self, block_size=1, initial_steps=[]):
+        self.block_size = block_size
+        self.initial_steps = initial_steps
+        self.back = False
+
+    def __call__(self, n):
+        self.back = False
+        self.n = n
+        self.steps = [1]
+        if len(self.initial_steps) > 0:
+            self.steps += [i + 1 for i in self.initial_steps]
         self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
 
         self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
@@ -421,7 +532,7 @@ def solve_adjoint(solver, y0, n, *forces):
         n (int): number of recursive steps
         *forces (*args of tensors): driving forces
     """
-    # This is very fragile code to accomodate pyroL
+    # This is very fragile code to accomodate pyro
     # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions
     # 2) We can't rely on a list of values (i.e. tensors) stored in converted_params because we need to
     # .  grab these *after* pyro samples them

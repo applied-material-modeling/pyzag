@@ -25,13 +25,28 @@ class ChunkNewtonRaphson:
         atol (float): nonlinear absolute tolerance
         miter (int): maximum number of iterations
         throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
+        record_failed (bool): if True, store the indices of the bad batches
+        ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
     """
 
-    def __init__(self, rtol=1e-6, atol=1e-10, miter=200, throw_on_fail=False):
+    def __init__(
+        self,
+        rtol=1e-6,
+        atol=1e-10,
+        miter=200,
+        throw_on_fail=False,
+        record_failed=False,
+        ignore_batches=None,
+    ):
         self.rtol = rtol
         self.atol = atol
         self.miter = miter
         self.throw_on_fail = throw_on_fail
+
+        self.record_failed = record_failed
+        self.failed = None
+
+        self.ignore_batches = ignore_batches
 
     def solve(self, fn, x0):
         """Actually solve the system
@@ -50,10 +65,16 @@ class ChunkNewtonRaphson:
         nR0 = nR.clone()
         i = 0
 
-        while (i < self.miter) and torch.any(
-            torch.logical_not(torch.logical_or(nR <= self.atol, nR / nR0 <= self.rtol))
-        ):
-            x, R, J, nR = self.step(x, J, fn, R)
+        while i < self.miter:
+            not_converged = self.not_converged(nR, nR0)
+            if self.ignore_batches is not None:
+                not_converged[:, self.ignore_batches] = False
+
+            if torch.all(torch.logical_not(not_converged)):
+                break
+
+            x, R, J, nR = self.step(x, J, fn, R, not_converged)
+
             i += 1
 
         if i == self.miter:
@@ -63,9 +84,36 @@ class ChunkNewtonRaphson:
                 "Implicit solve did not succeed.  Results may be inaccurate..."
             )
 
+        if self.record_failed:
+            # We took one more newton step since we calculated this
+            self._store_failed(self.not_converged(nR, nR0))
+
         return x
 
-    def step(self, x, J, fn, R):
+    def not_converged(self, nR, nR0):
+        """The logical to determine if we've converged in a particular time/batch
+
+        Args:
+            nR (torch.tensor): current residual
+            nR0 (torch.tensor): original residual
+        """
+        return torch.logical_or(
+            torch.logical_and(nR > self.atol, nR / nR0 > self.rtol), torch.isnan(nR)
+        )
+
+    def _store_failed(self, not_converged):
+        """Store which batches did not converge
+
+        Args:
+            not_converged (torch.tensor of bool): which entries did not converge
+        """
+        failed_this_time = torch.any(not_converged, dim=0)
+        if self.failed is None:
+            self.failed = failed_this_time
+        else:
+            self.failed = torch.logical_or(failed_this_time, self.failed)
+
+    def step(self, x, J, fn, R, take_step):
         """Take a simple Newton step
 
         Args:
@@ -73,10 +121,13 @@ class ChunkNewtonRaphson:
             dx (torch.tensor): newton increment
             fn (function): function
             R0 (torch.tensor): current residual
+            take_step (torch.tensor): which entries to take a step with
         """
+        final_steps = torch.any(take_step, dim=0)
+
         dx = J.inverse().matvec(R)
 
-        x = x - dx
+        x[:, final_steps] = x[:, final_steps] - dx[:, final_steps]
         R, J = fn(x)
         nR = torch.norm(R, dim=-1)
 
