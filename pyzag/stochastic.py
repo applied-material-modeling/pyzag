@@ -1,3 +1,5 @@
+"""Tools for converting deterministc models implemented in pytorch to stochastic models"""
+
 import torch
 
 import pyro
@@ -149,7 +151,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
 
         # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
         # are *not* batched over the number of samples
-        vals = self._sample_top()
+        _ = self._sample_top()
 
         # Same here
         if self.sample_noise_outside:

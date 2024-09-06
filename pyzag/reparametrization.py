@@ -1,3 +1,5 @@
+"""Helper methods for reparameterizing modules, for example to scale parameter values and gradients"""
+
 import torch
 import torch.nn.utils.parametrize as parametrize
 
@@ -79,9 +81,7 @@ class Reparameterizer:
                 if full_name not in self.map_dict:
                     if self.error_not_provided:
                         raise ValueError(
-                            "Parameter {} is not in the remapping dictionary".format(
-                                pname
-                            )
+                            "Parameter {pname} is not in the remapping dictionary"
                         )
                     continue
 

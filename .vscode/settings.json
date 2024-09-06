@@ -4,5 +4,8 @@
     "[moose]": {
         "outline.showProperties": false,
         "outline.showStrings": false
-    }
+    },
+    "pylint.path": [
+        "/home/messner/.local/bin/pylint"
+    ]
 }
