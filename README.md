@@ -1,5 +1,7 @@
 # pyzag
 
+[![Testing](https://github.com/reverendbedford/pyzag/actions/workflows/run_tests.yml/badge.svg)](https://github.com/reverendbedford/pyzag/actions/workflows/run_tests.yml) [![Code formatting](https://github.com/reverendbedford/pyzag/actions/workflows/formatting_check.yml/badge.svg)](https://github.com/reverendbedford/pyzag/actions/workflows/formatting_check.yml)
+
 pyzag is a library for efficiently training generic models defined with a recursive nonlinear function.
 
 ## Nonlinear recursive functions
