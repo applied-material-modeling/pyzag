@@ -1,7 +1,7 @@
 """Helper methods for reparameterizing modules, for example to scale parameter values and gradients"""
 
 import torch
-import torch.nn.utils.parametrize as parametrize
+from torch.nn.utils import parametrize
 
 
 class RangeRescale(torch.nn.Module):

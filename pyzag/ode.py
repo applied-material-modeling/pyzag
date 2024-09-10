@@ -6,6 +6,7 @@ from pyzag import nonlinear
 
 
 class IntegrateODE(nonlinear.NonlinearRecursiveFunction):
+    # pylint: disable=W0223
     """Maps an ODE to a nonlinear function with some numerical integration scheme
 
     The input is a torch Module which defines the rate form of the ODE.  The forward function must
