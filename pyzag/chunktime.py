@@ -394,6 +394,7 @@ class BidiagonalPCRFactorization(LUFactorization):
 
 # Cheater wrapper
 def BidiagonalHybridFactorization(min_size=1):
+    """Apply the hybrid factorization with a given min_size"""
     return lambda A, B, min_size=min_size: BidiagonalHybridFactorizationImpl(
         A, B, min_size=min_size
     )

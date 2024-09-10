@@ -1,0 +1,4 @@
+nbdime
+pylint==2.15.5
+black==22.3.0
+pytest

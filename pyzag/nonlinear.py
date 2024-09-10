@@ -6,6 +6,7 @@ from pyzag import chunktime
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
+    # pylint: disable=W0223,W0246
     """Basic structure of a nonlinear recursive function
 
     This class has two basic responsibilities, to define the residual and Jacobian of the function itself and second
@@ -88,6 +89,7 @@ class FullTrajectoryPredictor:
         self.history = history
 
     def predict(self, results, k, kinc):
+        # pylint: disable=W0613
         """Predict the next steps
 
         Args:
@@ -158,8 +160,8 @@ class StepExtrapolatingPredictor:
         """
         if k < 1:
             return torch.zeros_like(results[k : k + kinc])
-        elif k < 2:
-            results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
+
+        results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
 
         dinc = (results[k - 1] - results[k - 2]) + results[k - 1]
 
@@ -179,7 +181,7 @@ class ExtrapolatingPredictor:
         """
         if k - kinc - 1 < 0:
             return torch.zeros_like(results[k : k + kinc])
-        elif k - 2 * kinc - 1 < 0:
+        if k - 2 * kinc - 1 < 0:
             return results[(k - kinc) : k]
 
         inc = results[(k - kinc) : k] - results[(k - 2 * kinc) : k - kinc]
@@ -200,7 +202,17 @@ class StepGenerator:
         self.offset_step = first_block_size
         self.back = False
 
+        self.n = 0
+        self.steps = []
+        self.pairs = []
+        self.i = 0
+
     def __call__(self, n):
+        """Generate n steps of chunks
+
+        Args:
+            n (int): number of steps
+        """
         self.back = False
         self.n = n
         self.steps = [1]
@@ -208,7 +220,7 @@ class StepGenerator:
             self.steps += [self.offset_step + 1]
         self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
 
-        self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
+        self.pairs = list(zip(self.steps[:-1], self.steps[1:]))
 
         self.i = 0
 
@@ -218,6 +230,7 @@ class StepGenerator:
         return self
 
     def reverse(self):
+        """Reverse the iterator to yield chunks starting from the end"""
         self.back = True
         rev = [
             (self.n - k2, self.n - k1)
@@ -239,20 +252,31 @@ class StepGenerator:
         raise StopIteration
 
 
-class InitialOffsetStepGenerator:
+class InitialOffsetStepGenerator(StepGenerator):
     """Generate chunks of recursive steps to produce at once
+
+    The user can provide a list of initial chunks to use, after which the object
+    goes back to chunks of block_size
 
     Args:
         block_size (int):   regular chunk size
         initial_steps (list of int): initial steps
     """
 
-    def __init__(self, block_size=1, initial_steps=[]):
-        self.block_size = block_size
-        self.initial_steps = initial_steps
-        self.back = False
+    def __init__(self, *args, initial_steps=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if initial_steps is None:
+            self.initial_steps = []
+        else:
+            self.initial_steps = initial_steps
 
     def __call__(self, n):
+        """Generate n steps of chunks
+
+        Args:
+            n (int): number of steps
+        """
         self.back = False
         self.n = n
         self.steps = [1]
@@ -260,35 +284,11 @@ class InitialOffsetStepGenerator:
             self.steps += [i + 1 for i in self.initial_steps]
         self.steps += list(range(self.steps[-1], n, self.block_size))[1:] + [n]
 
-        self.pairs = [(k1, k2) for k1, k2 in zip(self.steps[:-1], self.steps[1:])]
+        self.pairs = list(zip(self.steps[:-1], self.steps[1:]))
 
         self.i = 0
 
         return self
-
-    def __iter__(self):
-        return self
-
-    def reverse(self):
-        self.back = True
-        rev = [
-            (self.n - k2, self.n - k1)
-            for k1, k2 in zip(self.steps[:-1], self.steps[1:])
-        ][:-1]
-        if rev[-1][0] != 1:
-            rev += [(1, rev[-1][0])]
-        self.pairs = rev
-
-        self.i = 0
-
-        return self
-
-    def __next__(self):
-        """Iterate forward through the steps"""
-        self.i += 1
-        if self.i <= len(self.pairs):
-            return self.pairs[self.i - 1]
-        raise StopIteration
 
 
 class RecursiveNonlinearEquationSolver(torch.nn.Module):
@@ -322,12 +322,30 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         self.predictor = predictor
         self.nonlinear_solver = nonlinear_solver
 
+        # Backward cache
+        self.n = 0
+        self.forces = []
+        self.result = None
+        self.adjoint_params = []
+
         # For the moment we only accept lookback = 1
         if self.func.lookback != 1:
             raise ValueError(
-                "The RecursiveNonlinearFunction has lookback = %i, but the current solver only handles lookback = 1!"
-                % self.func.lookback
+                f"The RecursiveNonlinearFunction has lookback = {self.func.lookback}, but the current solver only handles lookback = 1!"
             )
+
+    def forward(self, *args, **kwargs):
+        """Alias for solve
+
+        Args:
+            y0 (torch.tensor):  initial state values with shape (..., nstate)
+            n (int):    number of recursive time steps to solve, step 1 is y0
+            *args:      driving forces to pass to the model
+
+        Keyword Args:
+            adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
+        """
+        return self.solve(*args, **kwargs)
 
     def solve(self, y0, n, *args, adjoint_params=None):
         """Solve the recursive equations for n steps
@@ -494,6 +512,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
 
 class AdjointWrapper(torch.autograd.Function):
+    # pylint: disable=all
     """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
 
     @staticmethod
@@ -509,8 +528,7 @@ class AdjointWrapper(torch.autograd.Function):
             grad_res, adj_last = ctx.solver.rewind(output_grad)
             if ctx.needs_input_grad[1]:
                 return (None, -adj_last, None, None, *grad_res)
-            else:
-                return (None, None, None, None, *grad_res)
+            return (None, None, None, None, *grad_res)
 
 
 def solve(solver, y0, n, *forces):
@@ -543,6 +561,6 @@ def solve_adjoint(solver, y0, n, *forces):
         if hasattr(m, "converted_params"):
             additional_params.extend(getattr(m, p) for p in m.converted_params)
 
-    all_params = [p for p in solver.parameters()] + additional_params
+    all_params = list(solver.parameters()) + additional_params
 
     return AdjointWrapper.apply(solver, y0, n, forces, *all_params)
