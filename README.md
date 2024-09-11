@@ -10,7 +10,7 @@ A nonlinear recursive function has the form
 
 $$f\left(x_{i-1}, x_i; p\right) =0 \, \forall i \in \left(1,2,\ldots,n \right)$$
 
-with $x$ the model *state* and $p$ the model *parameters*.  Given the model and an *initial condition* $x_o$ we can define a sequence $\mathcal{X} = \left(x_0, x_1, \ldots, x_n \right)$ by recursively solving the nonlinear equation for $x_n$.
+with $x$ the model *state* (the unknowns to solve for) and $p$ the model *parameters*.  Given the model and an *initial condition* $x_0$ we can define a sequence $\mathcal{X} = \left(x_0, x_1, \ldots, x_n \right)$ by recursively solving the nonlinear equation for $x_n$.
 
 While this form seems abstract, it actually practically describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
 
@@ -38,7 +38,7 @@ pyzag provides a few building block methods for efficiently generating sequences
 2. pyzag implements the parameter gradient calculation with the adjoint method.  For long sequences this approach is much more memory efficient compared to automatic differentiation and is also generally more computationally efficient.
 3. pyzag also provides several methods for solving the resulting batched, time-chunked nonlinear and linear equations and predictors for starting the nonlinear solves based on previously simulated pieces of the sequence.
 
-## Detrministic and stochastic models
+## Deterministic and stochastic models
 
 pyzag is built on top of [PyTorch](https://pytorch.org/), integrating the adjoint calculation into PyTorch AD.  Users can seemlessly define and train deterministic models using PyTorch primitives.
 
