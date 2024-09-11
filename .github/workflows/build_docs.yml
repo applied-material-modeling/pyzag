@@ -37,7 +37,6 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pip install -r docs/requirements.txt
       - run: cd docs && make html
-      - run: touch docs/_build/html/.nojekyll
       - name: Preview GitHub Pages
         if: ${{ github.event_name == 'pull_request' }}
         uses: rossjrw/pr-preview-action@v1
