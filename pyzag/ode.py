@@ -57,8 +57,7 @@ class BackwardEulerODE(IntegrateODE):
             t (torch.tensor):   (nchunk+self.n,...,) tensor of times as driving forces
 
         Returns:
-            R (torch.tensor):   (nchunk,...,nstate ) tensor giving the nonlinear residual
-            J (torch.tensor):   (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
+            (R,J) tuple(torch.tensor, torch.tensor):   tuple giving R the (nchunk,...,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
 
         """
         dt = torch.diff(t, dim=0)
@@ -110,8 +109,7 @@ class ForwardEulerODE(IntegrateODE):
             t (torch.tensor):   (nchunk+self.n,...,) tensor of times as driving forces
 
         Returns:
-            R (torch.tensor):   (nchunk,...,nstate ) tensor giving the nonlinear residual
-            J (torch.tensor):   (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
+            (R,J) tuple(torch.tensor, torch.tensor):   tuple giving R the (nchunk,...,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
 
         """
         dt = torch.diff(t, dim=0)

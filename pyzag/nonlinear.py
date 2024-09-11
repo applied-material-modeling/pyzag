@@ -294,15 +294,15 @@ class InitialOffsetStepGenerator(StepGenerator):
 class RecursiveNonlinearEquationSolver(torch.nn.Module):
     """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
 
-    The series is generated in a batched manner, generating `block_size` steps at a time.
+    The series is generated in a batched manner, generating ``block_size`` steps at a time.
 
     Args:
-        func (nonlinear.NonlinearRecursiveFunction):   defines the nonlinear system
+        func (:py:class:`pyzag.nonlinear.NonlinearRecursiveFunction`):   defines the nonlinear system
 
     Keyword Args:
-        step_generator (nonlinear.StepGenerator): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
-        predictor (nonlinear.Predictor): how to generate guesses for the nonlinear solve.  Default uses all zeros
-        direct_solve_operator (chunktime.LUFactorization):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
+        step_generator (:py:class:`pyzag.nonlinear.StepGenerator`): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
+        predictor (:py:class:`pyzag.nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
+        direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
     """
 
     def __init__(
@@ -338,9 +338,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """Alias for solve
 
         Args:
-            y0 (torch.tensor):  initial state values with shape (..., nstate)
+            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
             n (int):    number of recursive time steps to solve, step 1 is y0
-            *args:      driving forces to pass to the model
+            ``*args``:      driving forces to pass to the model
 
         Keyword Args:
             adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
@@ -351,9 +351,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """Solve the recursive equations for n steps
 
         Args:
-            y0 (torch.tensor):  initial state values with shape (..., nstate)
+            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
             n (int):    number of recursive time steps to solve, step 1 is y0
-            *args:      driving forces to pass to the model
+            ``*args``:      driving forces to pass to the model
 
         Keyword Args:
             adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
@@ -388,7 +388,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         Args:
             prev_solution (tensor): previous lookback steps of solution
             solution (tensor): guess at nchunk steps of solution
-            forces (list of tensors): driving forces for next chunk plus lookback, to be passed as *args
+            forces (list of tensors): driving forces for next chunk plus lookback, to be passed as ``*args``
         """
 
         def RJ(y):
@@ -496,7 +496,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         """Check the shapes of everything before starting the calculation
 
         Args:
-            y0 (torch.tensor):  initial state values with shape (..., nstate)
+            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
             n (int):        number of recursive time steps
             forces (list):  list of driving forces
         """
@@ -532,23 +532,23 @@ class AdjointWrapper(torch.autograd.Function):
 
 
 def solve(solver, y0, n, *forces):
-    """Solve a nonlinear.RecursiveNonlinearEquationSolver for a time history without the adjoint method
+    """Solve a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` for a time history without the adjoint method
 
     Args:
-        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        solver (py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
         n (int): number of recursive steps
-        *forces (*args of tensors): driving forces
+        ``*forces`` (``*args`` of tensors): driving forces
     """
     return solver.solve(y0, n, *forces)
 
 
 def solve_adjoint(solver, y0, n, *forces):
-    """Apply a nonlinear.RecursiveNonlinearEquationSolver to solve for a time history in an adjoint differentiable way
+    """Apply a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` to solve for a time history in an adjoint differentiable way
 
     Args:
-        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        solver (:py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
         n (int): number of recursive steps
-        *forces (*args of tensors): driving forces
+        ``*forces`` (``*args`` of tensors): driving forces
     """
     # This is very fragile code to accomodate pyro
     # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions

@@ -1,0 +1,53 @@
+name: Documentation
+
+on:
+  # Triggers the workflow on push or pull request
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed # This is important for the ghpage preview to clean up after itself
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Newer commits should cancel old runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: sudo apt install pandoc texlive-latex-recommended texlive-latex-extra dvipng
+      - run: pip install -r requirements.txt
+      - run: pip install -r docs/requirements.txt
+      - run: cd docs && make html
+      - run: touch docs/_build/html/.nojekyll
+      - name: Preview GitHub Pages
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: docs/_build/html
+      - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'push' }}
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        with:
+          branch: gh-pages
+          folder: docs/_build/html
+          clean-exclude: pr-preview/
+          force: false
