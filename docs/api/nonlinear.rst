@@ -1,5 +1,5 @@
-nonlinear module
-================
+pyzag.nonlinear
+===============
 
 .. automodule:: pyzag.nonlinear
     :members:

@@ -9,3 +9,7 @@ This page collects the API documentation for pyzag, split up by module.
    :caption: Modules:
 
    nonlinear
+   chunktime
+   ode
+   reparametrization
+   stochastic

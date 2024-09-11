@@ -301,8 +301,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
     Keyword Args:
         step_generator (:py:class:`pyzag.nonlinear.StepGenerator`): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
-        predictor (:py:class:`nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
-        direct_solve_operator (:py:class:`chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
+        predictor (:py:class:`pyzag.nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
+        direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
     """
 
     def __init__(
@@ -535,7 +535,7 @@ def solve(solver, y0, n, *forces):
     """Solve a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` for a time history without the adjoint method
 
     Args:
-        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        solver (py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
         n (int): number of recursive steps
         ``*forces`` (``*args`` of tensors): driving forces
     """
@@ -546,7 +546,7 @@ def solve_adjoint(solver, y0, n, *forces):
     """Apply a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` to solve for a time history in an adjoint differentiable way
 
     Args:
-        solver (`nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
+        solver (:py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
         n (int): number of recursive steps
         ``*forces`` (``*args`` of tensors): driving forces
     """
