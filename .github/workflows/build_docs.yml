@@ -37,12 +37,12 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: doc/_build/html
+          source-dir: docs/_build/html
       - name: Deploy to GitHub Pages
         if: ${{ github.event_name == 'push' }}
         uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: gh-pages
-          folder: doc/_build/html
+          folder: docs/_build/html
           clean-exclude: pr-preview/
           force: false
