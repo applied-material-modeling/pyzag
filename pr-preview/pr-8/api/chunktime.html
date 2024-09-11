@@ -148,16 +148,53 @@
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalForwardOperator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalForwardOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator=&lt;class</span> <span class="pre">'pyzag.chunktime.BidiagonalThomasFactorization'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalForwardOperator" title="Link to this definition"></a></dt>
 <dd><p>A batched block banded matrix of the form:</p>
-<div class="math">
-<p><span class="math">\begin{bmatrix}
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\begin{bmatrix}
 A_1 &amp; 0 &amp; 0 &amp; 0 &amp; \cdots  &amp; 0\\
 B_1 &amp; A_2 &amp; 0 &amp; 0 &amp; \cdots &amp; 0\\
 0 &amp; B_2 &amp; A_3 &amp; 0 &amp; \cdots &amp; 0\\
 \vdots &amp; \vdots &amp; \ddots &amp; \ddots &amp; \ddots  &amp; \vdots \\
 0 &amp; 0 &amp; 0 &amp; B_{n-2} &amp; A_{n-1} &amp; 0\\
 0 &amp; 0 &amp; 0 &amp; 0 &amp; B_{n-1} &amp; A_n
-\end{bmatrix}</span></p>
-</div><p>that is, a blocked banded system with the main
+\end{bmatrix}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2021-11-15&gt; patch level 1
+L3 programming layer &lt;2022-01-21&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2021/10/04 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>that is, a blocked banded system with the main
 diagonal and first lower block diagonal filled</p>
 <dl class="simple">
 <dt>We use the following sizes:</dt><dd><ul class="simple">
@@ -180,7 +217,46 @@ storing the nblk-1 off diagonal blocks</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalForwardOperator.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalForwardOperator.forward" title="Link to this definition"></a></dt>
-<dd><p><span class="math">A \cdot v</span> in an efficient manner</p>
+<dd><p><aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">A \cdot v</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2021-11-15&gt; patch level 1
+L3 programming layer &lt;2022-01-21&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2021/10/04 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+ in an efficient manner</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>v</strong> (<em>torch.tensor</em>) – batch of vectors</p>
@@ -244,16 +320,53 @@ to Thomas.</p>
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator" title="Link to this definition"></a></dt>
 <dd><p>An object working with a Batched block diagonal operator of the type</p>
-<div class="math">
-<p><span class="math">\begin{bmatrix}
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\begin{bmatrix}
 A_1 &amp; 0 &amp; 0 &amp; 0 &amp; \cdots  &amp; 0\\
 B_1 &amp; A_2 &amp; 0 &amp; 0 &amp; \cdots &amp; 0\\
 0 &amp; B_2 &amp; A_3 &amp; 0 &amp; \cdots &amp; 0\\
 \vdots &amp; \vdots &amp; \ddots &amp; \ddots &amp; \ddots  &amp; \vdots \\
 0 &amp; 0 &amp; 0 &amp; B_{n-2} &amp; A_{n-1} &amp; 0\\
 0 &amp; 0 &amp; 0 &amp; 0 &amp; B_{n-1} &amp; A_n
-\end{bmatrix}</span></p>
-</div><p>that is, a blocked banded system with the main
+\end{bmatrix}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2021-11-15&gt; patch level 1
+L3 programming layer &lt;2022-01-21&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2021/10/04 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>that is, a blocked banded system with the main
 diagonal and the first lower diagonal filled</p>
 <dl class="simple">
 <dt>We use the following sizes:</dt><dd><ul class="simple">
@@ -449,14 +562,51 @@ with the number of blocks and block size squeezed</p>
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">SquareBatchedBlockDiagonalMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diags</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix" title="Link to this definition"></a></dt>
 <dd><p>A batched block diagonal matrix of the type</p>
-<div class="math">
-<p><span class="math">\begin{bmatrix}
+<aside class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<span class="docutils literal">\begin{bmatrix}
 A_1 &amp; B_1 &amp; 0 &amp; 0\\
 C_1 &amp; A_2 &amp; B_2 &amp; 0 \\
 0 &amp; C_2 &amp; A_3 &amp; B_3\\
 0 &amp; 0 &amp; C_3 &amp; A_4
-\end{bmatrix}</span></p>
-</div><p>where the matrix has diagonal blocks of non-zeros and
+\end{bmatrix}</span>)</p>
+<p>latex exited with error
+[stdout]
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./math.tex
+LaTeX2e &lt;2021-11-15&gt; patch level 1
+L3 programming layer &lt;2022-01-21&gt;
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2021/10/04 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+
+! LaTeX Error: File `anyfontsize.sty' not found.
+
+Type X to quit or &lt;RETURN&gt; to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+&lt;read *&gt; 
+         
+l.8 \usepackage
+               {bm}^^M
+No pages of output.
+Transcript written on math.log.
+</p>
+</aside>
+<p>where the matrix has diagonal blocks of non-zeros and
 can have arbitrary numbers of filled diagonals</p>
 <p>Additionally, this matrix is batched.</p>
 <dl class="simple">
