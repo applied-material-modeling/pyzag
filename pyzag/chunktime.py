@@ -88,16 +88,30 @@ class ChunkNewtonRaphson:
         nR = torch.norm(R, dim=-1)
         nR0 = nR.clone()
         i = 0
+        print(i, torch.max(nR))
 
         while i < self.miter:
-            not_converged = self.not_converged(nR, nR0)
+            # There is no reason to thunk on nans
+            not_converged = torch.logical_and(
+                self.not_converged(nR, nR0), torch.logical_not(torch.isnan(nR))
+            )
             if self.ignore_batches is not None:
                 not_converged[:, self.ignore_batches] = False
 
             if torch.all(torch.logical_not(not_converged)):
                 break
 
-            x, R, J, nR = self.step(x, J, fn, R, not_converged)
+            x, R, J, nR = self.step_damp(x, J, fn, R, not_converged)
+            print(
+                i + 1,
+                torch.max(
+                    nR[
+                        torch.logical_and(
+                            not_converged, torch.logical_not(torch.isnan(nR))
+                        )
+                    ]
+                ),
+            )
 
             i += 1
 
@@ -110,20 +124,20 @@ class ChunkNewtonRaphson:
 
         if self.record_failed:
             # We took one more newton step since we calculated this
-            self._store_failed(self.not_converged(nR, nR0))
+            self._store_failed(
+                torch.logical_or(self.not_converged(nR, nR0), torch.isnan(nR))
+            )
 
         return x
 
-    def not_converged(self, nR, nR0):
+    def not_converged(self, nR, nR0, with_nan=False):
         """The logical to determine if we've converged in a particular time/batch
 
         Args:
             nR (torch.tensor): current residual
             nR0 (torch.tensor): original residual
         """
-        return torch.logical_or(
-            torch.logical_and(nR > self.atol, nR / nR0 > self.rtol), torch.isnan(nR)
-        )
+        return torch.logical_and(nR > self.atol, nR / nR0 > self.rtol)
 
     def _store_failed(self, not_converged):
         """Store which batches did not converge
@@ -154,6 +168,44 @@ class ChunkNewtonRaphson:
         x[:, final_steps] = x[:, final_steps] - dx[:, final_steps]
         R, J = fn(x)
         nR = torch.norm(R, dim=-1)
+
+        return x, R, J, nR
+
+    def step_damp(self, x, J, fn, R0, take_step, fs=[0.5, 0.25, 0.1]):
+        """Take a simple Newton step
+
+        Args:
+            x (torch.tensor): current solution
+            dx (torch.tensor): newton increment
+            fn (function): function
+            R0 (torch.tensor): current residual
+            take_step (torch.tensor): which entries to take a step with
+        """
+        # Need to map into the full x
+        final_steps = torch.any(take_step, dim=0)
+
+        dx = J.inverse().matvec(R0)
+        x_newton = x[:, final_steps] - dx[:, final_steps]
+        x_previous = torch.cat([x[:1, final_steps], x[:-1, final_steps]], dim=0)
+
+        x_trials = [x_newton * f + x_previous * (1 - f) for f in fs]
+        R_trials = [fn(xi)[0] for xi in x_trials]
+        nR_trials = [torch.norm(Ri, dim=-1) for Ri in R_trials]
+
+        xv = x_trials[0]
+        nRv = nR_trials[0]
+        for i in range(1, len(x_trials)):
+            cond = nR_trials[i] < nRv
+            xv = torch.where(cond.unsqueeze(-1), x_trials[i], xv)
+            nRv = torch.where(cond, nR_trials[i], nRv)
+
+        x[:, final_steps] = xv
+        R, J = fn(x)
+        nR = torch.norm(R, dim=-1)
+
+        print(x.shape)
+        print(R.shape)
+        print(nR.shape)
 
         return x, R, J, nR
 
