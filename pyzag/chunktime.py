@@ -51,6 +51,7 @@ class ChunkNewtonRaphson:
         throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
         record_failed (bool): if True, store the indices of the bad batches
         ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
+        restart_iters (None or int): if not None, restart the solve ever restart_iters iterations with unconverged timesteps taking the value of the previous, converged time step
     """
 
     def __init__(
@@ -61,6 +62,7 @@ class ChunkNewtonRaphson:
         throw_on_fail=False,
         record_failed=False,
         ignore_batches=None,
+        restart_iters=None,
     ):
         self.rtol = rtol
         self.atol = atol
@@ -71,6 +73,8 @@ class ChunkNewtonRaphson:
         self.failed = None
 
         self.ignore_batches = ignore_batches
+
+        self.restart_iters = restart_iters
 
     def solve(self, fn, x0):
         """Actually solve the system
@@ -91,6 +95,9 @@ class ChunkNewtonRaphson:
         print(i, torch.max(nR))
 
         while i < self.miter:
+            if self.restart_iters is not None and ((i + 1) % self.restart_iters) == 0:
+                x = self.restart_x(nR, nR0, x)
+
             # There is no reason to thunk on nans
             not_converged = torch.logical_and(
                 self.not_converged(nR, nR0), torch.logical_not(torch.isnan(nR))
@@ -101,7 +108,7 @@ class ChunkNewtonRaphson:
             if torch.all(torch.logical_not(not_converged)):
                 break
 
-            x, R, J, nR = self.step_damp(x, J, fn, R, not_converged)
+            x, R, J, nR = self.step(x, J, fn, R, not_converged)
             print(
                 i + 1,
                 torch.max(
@@ -130,7 +137,31 @@ class ChunkNewtonRaphson:
 
         return x
 
-    def not_converged(self, nR, nR0, with_nan=False):
+    def restart_x(self, nR, nR0, x):
+        """Restart the NR iterations by looking back to the last time step where the method converged
+
+        Args:
+            nR (torch.tensor): current norm of the residual
+            nR0 (torch.tensor): original norm of the residual
+            x (torch.tensor): current value of x
+        """
+        new_x = x.clone()
+        bad = self.not_converged(nR, nR0)
+        # Fixme later
+        for i in range(nR.shape[1]):
+            for j in range(1, nR.shape[0]):
+                if bad[j, i]:
+                    for k in range(j - 1, 0, -1):
+                        if not bad[k, i]:
+                            kk = k
+                            break
+                    else:
+                        kk = 0
+                    new_x[j, i] = x[kk, i]
+
+        return new_x
+
+    def not_converged(self, nR, nR0):
         """The logical to determine if we've converged in a particular time/batch
 
         Args:
@@ -171,7 +202,27 @@ class ChunkNewtonRaphson:
 
         return x, R, J, nR
 
-    def step_damp(self, x, J, fn, R0, take_step, fs=[0.5, 0.25, 0.1]):
+
+class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
+    """Newton Raphson with backtracking line search
+
+    Keyword Args:
+        rtol (float): nonlinear relative tolerance
+        atol (float): nonlinear absolute tolerance
+        miter (int): maximum number of iterations
+        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
+        record_failed (bool): if True, store the indices of the bad batches
+        ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
+        alpha (float): line search cutback
+        linesearch_iter (int): maximum number of line search iterations
+    """
+
+    def __init__(self, *args, alpha=0.5, linesearch_iter=3, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.alpha = alpha
+        self.linesearch_iter = linesearch_iter
+
+    def step(self, x, J, fn, R0, take_step):
         """Take a simple Newton step
 
         Args:
@@ -184,28 +235,23 @@ class ChunkNewtonRaphson:
         # Need to map into the full x
         final_steps = torch.any(take_step, dim=0)
 
-        dx = J.inverse().matvec(R0)
-        x_newton = x[:, final_steps] - dx[:, final_steps]
-        x_previous = torch.cat([x[:1, final_steps], x[:-1, final_steps]], dim=0)
+        nR0 = torch.norm(R0, dim=-1)[:, final_steps]
+        dx = J.inverse().matvec(R0)[:, final_steps]
+        x0 = x[:, final_steps].clone()
+        f = torch.ones_like(nR0)
 
-        x_trials = [x_newton * f + x_previous * (1 - f) for f in fs]
-        R_trials = [fn(xi)[0] for xi in x_trials]
-        nR_trials = [torch.norm(Ri, dim=-1) for Ri in R_trials]
+        for i in range(self.linesearch_iter):
+            x[:, final_steps] = x0 - f.unsqueeze(-1) * dx
 
-        xv = x_trials[0]
-        nRv = nR_trials[0]
-        for i in range(1, len(x_trials)):
-            cond = nR_trials[i] < nRv
-            xv = torch.where(cond.unsqueeze(-1), x_trials[i], xv)
-            nRv = torch.where(cond, nR_trials[i], nRv)
+            R, J = fn(x)
+            nR = torch.norm(R, dim=-1)
 
-        x[:, final_steps] = xv
-        R, J = fn(x)
-        nR = torch.norm(R, dim=-1)
+            decreasing = nR[:, final_steps] < nR0
 
-        print(x.shape)
-        print(R.shape)
-        print(nR.shape)
+            if torch.all(decreasing):
+                break
+
+            f = torch.where(decreasing, f, f * self.alpha)
 
         return x, R, J, nR
 
