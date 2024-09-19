@@ -138,3 +138,17 @@ class TestBackwardEulerChunkTimeOperator(unittest.TestCase):
             two = self.A(self.b)
 
             self.assertTrue(torch.allclose(one, two))
+
+    def test_vec_mat(self):
+        for self.nblk in range(1, self.max_nblk):
+            self._gen_operators()
+            one = self._transform_soln(
+                self.A.to_diag()
+                .to_dense()
+                .transpose(-1, -2)
+                .matmul(self._transform_rhs(self.b).unsqueeze(-1))
+                .squeeze(-1)
+            )
+            two = self.A.vecmat(self.b)
+
+            self.assertTrue(torch.allclose(one, two))

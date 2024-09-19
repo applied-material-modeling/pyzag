@@ -196,7 +196,7 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
         self.linesearch_iter = linesearch_iter
 
     def step(self, x, J, fn, R0, take_step):
-        """Take a simple Newton step
+        """Take a Newton step with backtracking line search
 
         Args:
             x (torch.tensor): current solution
@@ -229,198 +229,6 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
             f = torch.where(decreasing, f, f * self.alpha)
 
         return x, R, J, nR
-
-
-class ChunkNewtonRaphsonTrustRegion(ChunkNewtonRaphson):
-    """Newton Raphson with backtracking line search
-
-    Keyword Args:
-        rtol (float): nonlinear relative tolerance
-        atol (float): nonlinear absolute tolerance
-        miter (int): maximum number of iterations
-        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
-        record_failed (bool): if True, store the indices of the bad batches
-        ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
-    """
-
-    def __init__(
-        self,
-        *args,
-        delta_0=1.0,
-        delta_max=10.0,
-        reduce_criteria=0.25,
-        expand_criteria=0.75,
-        reduce_factor=0.25,
-        expand_factor=2.0,
-        accept_criteria=0.1,
-        subproblem_rel_tol=1.0e-3,
-        subproblem_abs_tol=1.0e-4,
-        subproblem_miter=25,
-        **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.delta_0 = delta_0
-        self.delta_max = delta_max
-        self.reduce_criteria = reduce_criteria
-        self.expand_criteria = expand_criteria
-        self.reduce_factor = reduce_factor
-        self.expand_factor = expand_factor
-        self.accept_criteria = accept_criteria
-        self.subproblem_rel_tol = subproblem_rel_tol
-        self.subproblem_abs_tol = subproblem_abs_tol
-        self.subproblem_miter = subproblem_miter
-
-    def setup(self, x):
-        self.delta = torch.ones(x.shape[:-1], device=x.device) * self.delta_0
-
-    def step(self, x, J, fn, R0, take_step):
-        """Take a simple Newton step
-
-        Args:
-            x (torch.tensor): current solution
-            dx (torch.tensor): newton increment
-            fn (function): function
-            R0 (torch.tensor): current residual
-            take_step (torch.tensor): which entries to take a step with
-        """
-        # Solve for the direction
-        p = self.direction(x, J, R0)
-
-        # Predicted reduction
-        nR = torch.norm(R0, dim=-1)
-        red_b = self.merit_function_reduction(p, J, R0)
-
-        # Actual reduction
-        xp = x + p
-        Rp, Jp = fn(xp)
-        nRp = torch.norm(Rp, dim=-1)
-        red_a = 0.5 * nR**2.0 - 0.5 * nRp**2.0
-
-        # Evaluate the quality of the subproblem
-        rho = red_a / red_b
-
-        # Adjust the trust region
-        self.delta = torch.where(
-            rho < self.reduce_criteria, self.reduce_factor * self.delta, self.delta
-        )
-        self.delta = torch.where(
-            rho > self.expand_criteria, self.expand_factor * self.delta, self.delta
-        )
-        self.delta = torch.clamp(self.delta, max=self.delta_max)
-
-        accept = rho > self.accept_criteria
-        accept_with_no_step = torch.logical_and(accept, take_step)
-
-        x = torch.where(accept_with_no_step.unsqueeze(-1), xp, x)
-        # This is not necessary
-        R, J = fn(x)
-        nR = torch.norm(R, dim=-1)
-
-        return x, R, J, nR
-
-    def merit_function_reduction(self, p, J, R):
-        """Predicted reduction per quadratic model
-
-        Args:
-            p (torch.tensor): direction
-            J (torch.tensor): Jacobian
-        """
-        Jp = torch.einsum("...ij,...j", J.A, p)
-        return -torch.einsum("...i,...i", R, Jp) - 0.5 * torch.einsum(
-            "...i,...i", Jp, Jp
-        )
-
-    def direction(self, x, J, R):
-        """Solve for the step direction
-
-        Args:
-            x (torch.tensor): current solution
-            J (torch.tensor): block jacobian
-            R (torch.tensor): residual
-        """
-        p_newton = -J.inverse().matvec(R)
-
-        tr_problem = TRSubproblem(J, R, self.delta)
-        tr_solver = TRSubproblemSolver(
-            tr_problem,
-            rtol=self.subproblem_rel_tol,
-            atol=self.subproblem_abs_tol,
-            miter=self.subproblem_miter,
-        )
-
-        s_guess = torch.zeros_like(self.delta)
-        s = torch.clamp(tr_solver.solve(s_guess), 0.0)
-        p_trust = -tr_problem.solve_direction(s, tr_problem.JR)
-
-        newton_inside = torch.norm(p_newton, dim=-1) <= torch.sqrt(2.0 * self.delta)
-
-        return torch.where(newton_inside.unsqueeze(-1), p_newton, p_trust)
-
-
-class TRSubproblem(torch.nn.Module):
-    def __init__(self, J, R, delta):
-        super().__init__()
-
-        self.JR = torch.einsum("...ij,...j", J.A, R)
-        self.JJ = torch.einsum("...ik,...kj", J.A.transpose(-1, -2), J.A)
-
-        self.delta = delta
-
-    def forward(self, s):
-        p = -self.solve_direction(s, self.JR)
-        pp = torch.einsum("...i,...i", p, p)
-
-        ppp = torch.einsum("...i,...i", p, self.solve_direction(s, p))
-
-        return (
-            1.0 / torch.sqrt(pp) - 1.0 / torch.sqrt(2.0 * self.delta),
-            ppp / torch.sqrt(pp) ** 3.0,
-        )
-
-    def solve_direction(self, s, p):
-        """Solve for the direction
-
-        Args:
-            s (torch.tensor): line search solution
-            p (torch.tensor): vector RHS
-        """
-        return torch.linalg.solve_ex(
-            self.JJ
-            + torch.eye(self.JJ.shape[-1], device=self.JJ.device)
-            * s.unsqueeze(-1).unsqueeze(-1),
-            p,
-        )[0]
-
-
-class TRSubproblemSolver:
-    def __init__(self, problem, rtol=1.0e-3, atol=1.0e-4, miter=25):
-        self.problem = problem
-        self.rtol = rtol
-        self.atol = atol
-        self.miter = miter
-
-    def solve(self, s):
-        """Solve for the trust region size
-
-        Args:
-            s (torch.tensor): guess at the step length
-        """
-        R, J = self.problem(s)
-        R0 = torch.abs(R)
-
-        for i in range(self.miter):
-            if torch.all(
-                torch.logical_or(
-                    torch.abs(R) < self.atol, torch.abs(R) / R0 < self.rtol
-                )
-            ):
-                break
-            s = s - R / J
-            R, J = self.problem(s)
-        else:
-            print("Exceeded TR iterations")
-
-        return s
 
 
 class BidiagonalOperator(torch.nn.Module):
@@ -822,6 +630,15 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         Args:
             v (torch.tensor):   batch of vectors
         """
+        return self.matvec(v)
+
+    def matvec(self, v):
+        """
+        :math:`A \\cdot v` in an efficient manner
+
+        Args:
+            v (torch.tensor):   batch of vectors
+        """
         # Reshaped v
         vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-1)
 
@@ -832,6 +649,25 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         )
 
         return b.squeeze(-1).view(self.nblk, self.sbat, self.sblk)
+
+    def vecmat(self, v):
+        """
+        :math:`v \\cdot A` in an efficient manner
+
+        Args:
+            v (torch.tensor):   batch of vectors
+        """
+        # Reshaped v
+        vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-2)
+
+        # Diagonal term
+        b = torch.bmm(vp, self.A.view(-1, self.sblk, self.sblk))
+        # Off diagonal term
+        b[: -self.sbat] += torch.bmm(
+            vp[self.sbat :], self.B.view(-1, self.sblk, self.sblk)
+        )
+
+        return b.squeeze(-2).view(self.nblk, self.sbat, self.sblk)
 
     def inverse(self):
         """
