@@ -105,7 +105,7 @@ class Reparameterizer:
                 if full_name not in self.map_dict:
                     if self.error_not_provided:
                         raise ValueError(
-                            "Parameter {pname} is not in the remapping dictionary"
+                            f"Parameter {pname} is not in the remapping dictionary"
                         )
                     continue
 
