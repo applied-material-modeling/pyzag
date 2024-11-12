@@ -92,7 +92,6 @@ class ChunkNewtonRaphson:
         nR = torch.norm(R, dim=-1)
         nR0 = nR.clone()
         i = 0
-        print(i, torch.max(nR))
 
         while i < self.miter:
             # There is no reason to thunk on nans
@@ -106,16 +105,6 @@ class ChunkNewtonRaphson:
                 break
 
             x, R, J, nR = self.step(x, J, fn, R, not_converged)
-            print(
-                i + 1,
-                torch.max(
-                    nR[
-                        torch.logical_and(
-                            not_converged, torch.logical_not(torch.isnan(nR))
-                        )
-                    ]
-                ),
-            )
 
             i += 1
 
