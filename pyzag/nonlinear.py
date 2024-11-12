@@ -303,6 +303,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         step_generator (:py:class:`pyzag.nonlinear.StepGenerator`): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
         predictor (:py:class:`pyzag.nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
         direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
+        nonlinear_solver (:py:class:`pyzag.chunktim.ChunkNewtonRaphson`): how to solve the nonlinear system, default is plain Newton-Raphson
+        callbacks (None or list of functions): callback functions to apply after a successful step
     """
 
     def __init__(
@@ -312,6 +314,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         predictor=ZeroPredictor(),
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
         nonlinear_solver=chunktime.ChunkNewtonRaphson(),
+        callbacks=None,
     ):
         super().__init__()
         # Store basic information
@@ -333,6 +336,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             raise ValueError(
                 f"The RecursiveNonlinearFunction has lookback = {self.func.lookback}, but the current solver only handles lookback = 1!"
             )
+
+        self.callbacks = callbacks
 
     def forward(self, *args, **kwargs):
         """Alias for solve
@@ -372,6 +377,9 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 self.predictor.predict(result, k1, k2 - k1).clone(),
                 [arg[k1 - self.func.lookback : k2].clone() for arg in args],
             )
+            if self.callbacks is not None:
+                for fn in self.callbacks:
+                    result[k1:k2] = fn(result[k1:k2])
 
         # Cache result and driving forces if needed for adjoint pass
         if adjoint_params:
