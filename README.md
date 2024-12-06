@@ -1,6 +1,7 @@
 # pyzag
 
-[![Testing](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml/badge.svg)](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml) [![Code formatting](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml/badge.svg)](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml)
+
+[![Documentation](https://github.com/applied-material-modeling/pyzag/actions/workflows/build_docs.yml/badge.svg?branch=main)](https://applied-material-modeling.github.io/pyzag/) [![Testing](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml/badge.svg?branch=main)](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml) [![Code formatting](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml/badge.svg?branch=main)](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml)
 
 pyzag is a library for efficiently training generic models defined with a recursive nonlinear function.  Full documentation is available [here](https://applied-material-modeling.github.io/pyzag/).
 
@@ -14,7 +15,7 @@ $$f\left(x_{i-1}, x_i; p\right) =0 \, \forall i \in \left(1,2,\ldots,n \right)$$
 
 with $x$ the model *state* (the unknowns to solve for) and $p$ the model *parameters*.  Given the model and an *initial condition* $x_0$ we can define a sequence $\mathcal{X} = \left(x_0, x_1, \ldots, x_n \right)$ by recursively solving the nonlinear equation for $x_n$.
 
-While this form seems abstract, it actually practically describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
+While this form seems abstract, it actually describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
 
 $$\dot{x} = g\left(x; p \right)$$
 
