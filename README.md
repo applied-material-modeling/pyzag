@@ -1,6 +1,7 @@
 # pyzag
 
-[![Testing](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml/badge.svg)](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml) [![Code formatting](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml/badge.svg)](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml)
+
+[![Documentation](https://github.com/applied-material-modeling/pyzag/actions/workflows/build_docs.yml/badge.svg?branch=main)](https://applied-material-modeling.github.io/pyzag/) [![Testing](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml/badge.svg?branch=main)](https://github.com/applied-material-modeling/pyzag/actions/workflows/run_tests.yml) [![Code formatting](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml/badge.svg?branch=main)](https://github.com/applied-material-modeling/pyzag/actions/workflows/formatting_check.yml)
 
 pyzag is a library for efficiently training generic models defined with a recursive nonlinear function.  Full documentation is available [here](https://applied-material-modeling.github.io/pyzag/).
 
