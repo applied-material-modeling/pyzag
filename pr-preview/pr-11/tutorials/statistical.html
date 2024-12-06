@@ -1,0 +1,666 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learning from cannon trajectories: Statistical example &mdash; pyzag 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Learning from cannon trajectories: Statistical example with parameter scaling" href="statistical_scaling.html" />
+    <link rel="prev" title="Learning from cannon trajectories: Deterministic example" href="deterministic.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            pyzag
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Additional topics:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="deterministic.html">Learning from cannon trajectories: Deterministic example</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Learning from cannon trajectories: Statistical example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#First-grab-the-packages-we-need">First grab the packages we need</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Define-the-model">Define the model</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Rate-form">Rate form</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Discrete-equation">Discrete equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Solving-the-model">Solving the model</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Simulating-trajectories">Simulating trajectories</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Simulating-more-trajectories">Simulating more trajectories</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Inference">Inference</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Guide">Guide</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Let's-see-how-well-we-did">Let’s see how well we did</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="statistical_scaling.html">Learning from cannon trajectories: Statistical example with parameter scaling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/api.html">API documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pyzag</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">Learning from cannon trajectories: Statistical example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/statistical.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Learning-from-cannon-trajectories:-Statistical-example">
+<h1>Learning from cannon trajectories: Statistical example<a class="headerlink" href="#Learning-from-cannon-trajectories:-Statistical-example" title="Link to this heading"></a></h1>
+<p><em>Note: this example is the same as the deterministic case until you get to the inference section below. If you ran through that example you can safely skip to that part of the notebook.</em></p>
+<p>One day for no particular reason you take your cannon and go to the park to shoot off some cannonballs. You can control the launch angle, <img class="math" src="../_images/math/f46492e68dd8199d38eddbd4f66987ece6188ca5.png" alt="\theta_0"/> and the launch velocity, <img class="math" src="../_images/math/91e551639dfda1ea649fe070c9e5a1bb4b667b79.png" alt="v_0"/> of each shot. On top of that, the wind is blowing and your shots will be affected by wind resistance. But, your cannon is very unsteady and wobbles constantly, randomly varying the initial velocity and angle of each shot. Plus because the wind is randomly blowing, wind resistance varies each time you shoot
+a new cannonball.</p>
+<p>Your friend is standing (well downrange!) and can measure the trajectory of each shot – it’s vertical and horizontal distance traveled at each point in time. Because of the random variation affecting the cannon each time you fire, each trajectory will be slightly different.</p>
+<p><em>Can your friend infer the statistical distributions of the launch angle, velocity, and the wind resistance by observing enough shots?</em></p>
+<p><img alt="cannon.png" src="data:image/png;base64,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" /></p>
+<section id="First-grab-the-packages-we-need">
+<h2>First grab the packages we need<a class="headerlink" href="#First-grab-the-packages-we-need" title="Link to this heading"></a></h2>
+<p>We’ll also set a default tensor type.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Setup what we need</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;../..&#39;</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">tqdm</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">ss</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">62</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">set_default_dtype</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">pyzag</span> <span class="kn">import</span> <span class="n">ode</span><span class="p">,</span> <span class="n">nonlinear</span><span class="p">,</span> <span class="n">stochastic</span>
+
+<span class="kn">import</span> <span class="nn">pyro</span>
+<span class="kn">from</span> <span class="nn">pyro.infer</span> <span class="kn">import</span> <span class="n">SVI</span><span class="p">,</span> <span class="n">Trace_ELBO</span><span class="p">,</span> <span class="n">Predictive</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Define-the-model">
+<h2>Define the model<a class="headerlink" href="#Define-the-model" title="Link to this heading"></a></h2>
+<p>Our model can be defined as a system of ordinary differential equations of the form</p>
+<div class="math">
+<p><img src="../_images/math/7aa7ad51cfd1680ca30c976ebcd751049b37707a.png" alt="\dot{v} = h - c v"/></p>
+</div><p>and</p>
+<div class="math">
+<p><img src="../_images/math/89261680a862c2c8b5b059247b4065f6f3737403.png" alt="\dot{z} = v"/></p>
+</div><p>where <img class="math" src="../_images/math/449be7e90e02ad3308b15feb5a449d6d49d72898.png" alt="v"/> is a vector of two components containing the x and y velocity of the cannonball, <img class="math" src="../_images/math/3a9644032c543d0d0d13f785b1cfb951017c36cf.png" alt="z"/> is a vector giving the position of the ball, <img class="math" src="../_images/math/6812f60ee0bbc5176d56bbb9297cb71f9ce4a050.png" alt="h"/> is a vector defining graviational acceleration, and <img class="math" src="../_images/math/5487e351659216f89e7e34e85045c55eee14e1b8.png" alt="c"/> is a constant related to the wind resistance experienced by the ball in flight. We can expand this vector description into explicit equations for the <img class="math" src="../_images/math/dc7c3cda5993d9796ded25227057f413793ccb94.png" alt="x"/> and <img class="math" src="../_images/math/75a0fd83371dd49172af7d5fab893538b36f6d4c.png" alt="y"/> components of the velocity:</p>
+<div class="math">
+<p><img src="../_images/math/f6ba15bff5448af372bcc79305619cff22de905e.png" alt="\begin{bmatrix}
+\dot{v}_x\\
+\dot{v}_y
+\end{bmatrix}
+=
+\begin{bmatrix}
+0 \\
+-g
+\end{bmatrix}
+-
+c
+\begin{bmatrix}
+v_x \\
+v_y
+\end{bmatrix}"/></p>
+</div><p>where <img class="math" src="../_images/math/bad1956b4a2023e65199dedaf35963daea9ffed9.png" alt="g"/> is now the regular scalar gravitational acceleration.</p>
+<p>We can trivially do this for the position as well:</p>
+<div class="math">
+<p><img src="../_images/math/13060c1200045c4d6f60ab9e56ae26c862a88994.png" alt="\begin{bmatrix}
+\dot{z}_x\\
+\dot{z}_y
+\end{bmatrix}
+=
+\begin{bmatrix}
+v_x \\
+v_y
+\end{bmatrix}"/></p>
+</div><p>In addition, we need initial conditions for the velocities, which we can define as:</p>
+<div class="math">
+<p><img src="../_images/math/7e1ab03ae8a2ab3aeda030d308f1d6a9524fd211.png" alt="\begin{bmatrix}
+v_x \\
+v_y
+\end{bmatrix} =
+ \begin{bmatrix}
+v_0 \cos \theta_0 \\
+v_0 \sin \theta_0
+\end{bmatrix}"/></p>
+</div><p>where <img class="math" src="../_images/math/f46492e68dd8199d38eddbd4f66987ece6188ca5.png" alt="\theta_0"/> is the cannon launch angle and <img class="math" src="../_images/math/91e551639dfda1ea649fe070c9e5a1bb4b667b79.png" alt="v_0"/> is the magnitude of the scalar launch velocity. We will let the position of the cannon be zero, i.e. <img class="math" src="../_images/math/e08fb651d6f4e579953412a7068f181885bab344.png" alt="z(0) = 0"/>.</p>
+<section id="Rate-form">
+<h3>Rate form<a class="headerlink" href="#Rate-form" title="Link to this heading"></a></h3>
+<p>In pyzag we can split the definition of the model into a couple of parts. The first is just the mathematical definition of the ODE. We need to define this as the full system of four ODEs, two equations each for the velocity and the position. We’ll call this full system of equations <img class="math" src="../_images/math/03643a0bab7b9634f31d4543ea00f39525be8135.png" alt="\dot{s}"/> where <img class="math" src="../_images/math/08c35d0e44c93cb39501caeaa865ff7c55044fbc.png" alt="s"/> is a vector given by</p>
+<div class="math">
+<p><img src="../_images/math/da21d54f4c3a30c937b9833623ac39f9c742fed9.png" alt="s =
+\begin{bmatrix}
+v_x \\
+v_y \\
+z_x \\
+z_y
+\end{bmatrix}"/></p>
+</div><p>In addition to implementing the rate form of the equations we defined above, we also need to define the Jacobian, given by</p>
+<div class="math">
+<p><img src="../_images/math/56e326720ae6ca45555b37f0df6d425a6021bce8.png" alt="J = \frac{d \dot{s}}{d s}"/></p>
+</div><p>and return this value, along with the actual equations, as part of the <code class="docutils literal notranslate"><span class="pre">forward</span></code> operator. The reason we need the Jacobian is explained in the next cell.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the rate form of the model</span>
+<span class="k">class</span> <span class="nc">CannonRateForm</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ODE equations defining the canon trajectories&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">theta0</span><span class="p">,</span> <span class="n">v0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theta0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">theta0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">v0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rate form and Jacobian of the model</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            t (torch.tensor): time (not actually used in this example!)</span>
+<span class="sd">            s (torch.tensor): concatenated velocity and position vectors</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            s_dot (torch.tensor): the state rate, i.e. the rate of change of velocity and position</span>
+<span class="sd">            J (torch.tensor): the derivative of the state rate with respect to the state, i.e. the velocity and position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># Define the rate form</span>
+        <span class="n">v_dot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">*</span> <span class="n">v</span>
+        <span class="n">s_dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">v_dot</span><span class="p">,</span> <span class="n">v</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Define the Jacobian</span>
+        <span class="n">I</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">2</span><span class="p">,))</span>
+        <span class="n">zero</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">I</span><span class="p">)</span>
+        <span class="n">Jvv</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">I</span>
+        <span class="n">Jzv</span> <span class="o">=</span> <span class="n">I</span>
+
+        <span class="n">J</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">Jvv</span><span class="p">,</span> <span class="n">zero</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">Jzv</span><span class="p">,</span> <span class="n">zero</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">s_dot</span><span class="p">,</span> <span class="n">J</span>
+
+    <span class="k">def</span> <span class="nf">y0</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tshape</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Define the model initial conditions&quot;&quot;&quot;</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theta0</span><span class="p">)</span>
+        <span class="n">y0</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">v0</span>
+            <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theta0</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theta0</span><span class="p">),</span> <span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">tshape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">4</span><span class="p">,))</span>
+        <span class="k">return</span> <span class="n">y0</span>
+</pre></div>
+</div>
+</div>
+<p>We will be changing these values a lot below, but let’s define the model with some reasonable values for the parameters <img class="math" src="../_images/math/5487e351659216f89e7e34e85045c55eee14e1b8.png" alt="c"/>, <img class="math" src="../_images/math/f46492e68dd8199d38eddbd4f66987ece6188ca5.png" alt="\theta_0"/>, and <img class="math" src="../_images/math/91e551639dfda1ea649fe070c9e5a1bb4b667b79.png" alt="v_0"/> and give a value for the gravitational acceleration:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">c</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">])</span>
+<span class="n">g</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">])</span>
+<span class="n">theta0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">])</span>
+<span class="n">v0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">])</span>
+<span class="n">rate_model</span> <span class="o">=</span> <span class="n">CannonRateForm</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">theta0</span><span class="p">,</span> <span class="n">v0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Discrete-equation">
+<h3>Discrete equation<a class="headerlink" href="#Discrete-equation" title="Link to this heading"></a></h3>
+<p>Next we need to apply a numerical time integration scheme to this ODE so that we end up with a discrete (generally) nonlinear system of equations. We’ll use the Backward Euler scheme here, which will transform the ODE into an implicit system of algebraic equations we need to solve to find the next set of velocities and positions as we march through the trajectory in time. Specifically, the Backward Euler scheme will give us the equations:</p>
+<div class="math">
+<p><img src="../_images/math/3de96f0b4914e02ecb6e8a6498f5e934f6bb0998.png" alt="0 = s_{n+1} - s_n - \dot{s}_{n+1} \Delta t_{n+1}"/></p>
+</div><p>where <img class="math" src="../_images/math/8d0d64109897d5b443651df3dc9931daa2ca9aba.png" alt="n+1"/> means the next time step, <img class="math" src="../_images/math/13517bb4b83c5ecfea9ab902d49a91941f1e10b6.png" alt="n"/> means the previous time step, <img class="math" src="../_images/math/bf9d1f991d2c58023d6e92db98e3c37171939ae9.png" alt="\dot{s}_{n+1}"/> means we have to evaluate the change in velocity using the velocities for the <em>next</em> step, making this an implicit equation, and <img class="math" src="../_images/math/6787c6c163c19dad52701d46aa623b4053974b0d.png" alt="\Delta t_{n+1}"/> is the change in time from step <img class="math" src="../_images/math/13517bb4b83c5ecfea9ab902d49a91941f1e10b6.png" alt="n"/> to <img class="math" src="../_images/math/8d0d64109897d5b443651df3dc9931daa2ca9aba.png" alt="n+1"/>.</p>
+<p>This equation has the form of a nonlinear recursive equation, as it is a residual equation relating the previous and next state of the canonball.</p>
+<p>We can solve this implicit equation, for the general, nonlinear case, with Newton’s method provided we know the derivative of <img class="math" src="../_images/math/03643a0bab7b9634f31d4543ea00f39525be8135.png" alt="\dot{s}"/> with respect to the state <img class="math" src="../_images/math/575c4344bd22f89d5360febaaff2928be761987d.png" alt="s_{n+1}"/>. This is the Jacobian we make you provide!</p>
+<p>Luckily you don’t need to do anything here as pyzag comes with predefined models for applying numerical time integration.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">discrete_model</span> <span class="o">=</span> <span class="n">ode</span><span class="o">.</span><span class="n">BackwardEulerODE</span><span class="p">(</span><span class="n">rate_model</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Solving-the-model">
+<h3>Solving the model<a class="headerlink" href="#Solving-the-model" title="Link to this heading"></a></h3>
+<p>Finally we need to define an object that will actually numerically solve our discrete equations. The inputs to this function will be the times at which we want solutions, the output will be the actual cannonball trajectories. This is often on you, the user, to define because you might want to do some postprocessing before you pass back the series of results. In our example the only postprocessing we’ll do is to return only the cannonball trajectories and not the velocity.</p>
+<p>To solve the discrete equations we’ll use the <code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver</span></code> class provided in the <code class="docutils literal notranslate"><span class="pre">pyzag.nonlinear</span></code> module. This object solves for the discrete trajectories in a way that allows us to vectorize some of the time integration cost by looking to integrate <code class="docutils literal notranslate"><span class="pre">nchunk</span></code> time steps at once. Additionally, this object takes other numerical hyperparameters related to how to numerically solve for the trajectories. The default values of these parameters are fine for this examp</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Trajectory</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">discrete_equations</span><span class="p">,</span> <span class="n">nchunk</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">discrete_equations</span> <span class="o">=</span> <span class="n">discrete_equations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solver</span> <span class="o">=</span> <span class="n">nonlinear</span><span class="o">.</span><span class="n">RecursiveNonlinearEquationSolver</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">discrete_equations</span><span class="p">,</span> <span class="n">step_generator</span> <span class="o">=</span> <span class="n">nonlinear</span><span class="o">.</span><span class="n">StepGenerator</span><span class="p">(</span><span class="n">nchunk</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+        <span class="n">full_trajectory</span> <span class="o">=</span> <span class="n">nonlinear</span><span class="o">.</span><span class="n">solve_adjoint</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">solver</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">y0</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="n">n</span><span class="p">,</span> <span class="n">t</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">full_trajectory</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nchunk</span> <span class="o">=</span> <span class="mi">25</span> <span class="c1"># Best value will depend on your system</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Trajectory</span><span class="p">(</span><span class="n">discrete_model</span><span class="p">,</span> <span class="n">nchunk</span> <span class="o">=</span> <span class="n">nchunk</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="Simulating-trajectories">
+<h2>Simulating trajectories<a class="headerlink" href="#Simulating-trajectories" title="Link to this heading"></a></h2>
+<p>Alright, let’s simulate some trajectories. Right now things are boring and all we can do is run a single trajectory. But let’s see what that looks like.</p>
+<p>We have a couple more parameters to define, the time to consider and the number of time steps.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stop_time</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">ntime</span> <span class="o">=</span> <span class="mi">100</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># The unsqueeze here are for two reasons:</span>
+<span class="c1"># 1) We&#39;ve decided that even scalar inputs need to have a shape of (1,)</span>
+<span class="c1"># 2) Our batch shape is (1,)</span>
+<span class="c1"># So the shape of times should be (ntime,1,1)</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">stop_time</span><span class="p">,</span> <span class="n">ntime</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="c1"># Run the model</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">first_result</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">first_result</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">(),</span> <span class="n">first_result</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_15_0.png" src="../_images/tutorials_statistical_15_0.png" />
+</div>
+</div>
+<section id="Simulating-more-trajectories">
+<h3>Simulating more trajectories<a class="headerlink" href="#Simulating-more-trajectories" title="Link to this heading"></a></h3>
+<p>Okay, now let’s generate some “data” to use in training the model. We’ll define a normal distribution for the launch angles, launch velocity, and constant “c” defining the wind resistance. We can change the shape of the model parameters and the input times to quickly sample a whole bunch of trajectories, after first sample the parameters.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Number of samples we want to generate</span>
+<span class="n">nsamples</span> <span class="o">=</span> <span class="mi">150</span>
+
+<span class="c1"># Normal distribution parameters</span>
+<span class="n">c_loc</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">c_scale</span> <span class="o">=</span> <span class="n">c_loc</span> <span class="o">/</span> <span class="mf">20.0</span>
+<span class="n">theta0_loc</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span>
+<span class="n">theta0_scale</span> <span class="o">=</span> <span class="n">theta0_loc</span> <span class="o">/</span> <span class="mf">20.0</span>
+<span class="n">v0_loc</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">v0_scale</span> <span class="o">=</span> <span class="n">v0_loc</span> <span class="o">/</span> <span class="mf">20.0</span>
+
+<span class="c1"># Actually sample the parameters</span>
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">c_loc</span><span class="p">,</span> <span class="n">c_scale</span><span class="p">,</span> <span class="p">(</span><span class="n">nsamples</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">theta0</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">theta0_loc</span><span class="p">,</span> <span class="n">theta0_scale</span><span class="p">,</span> <span class="p">(</span><span class="n">nsamples</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">v0</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">v0_loc</span><span class="p">,</span> <span class="n">v0_scale</span><span class="p">,</span> <span class="p">(</span><span class="n">nsamples</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+
+<span class="c1"># We need times consistent with the batch size</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">stop_time</span><span class="p">,</span> <span class="n">ntime</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">((</span><span class="n">ntime</span><span class="p">,</span> <span class="n">nsamples</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="c1"># Go ahead and sample</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">data_results</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+
+<span class="c1"># This time we&#39;ll add some noise to the observations</span>
+<span class="n">noise</span> <span class="o">=</span> <span class="mf">0.001</span>
+<span class="n">data_results</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">data_results</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">data_results</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">data_results</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_17_0.png" src="../_images/tutorials_statistical_17_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Inference">
+<h2>Inference<a class="headerlink" href="#Inference" title="Link to this heading"></a></h2>
+<p>Now let’s try to infer the distribution of the initial shot angle and velocity and the wind resistance just from the observed trajectorijes. To do this we will use a Bayesian inference process called Stochastic Variational Inference and a hierachical statistical model.</p>
+<p>The first thing to do is define the statistical model. A hierarchical model means that the actual values of our parameters <img class="math" src="../_images/math/91e551639dfda1ea649fe070c9e5a1bb4b667b79.png" alt="v_0"/>, <img class="math" src="../_images/math/f46492e68dd8199d38eddbd4f66987ece6188ca5.png" alt="\theta_0"/>, and <img class="math" src="../_images/math/5487e351659216f89e7e34e85045c55eee14e1b8.png" alt="c"/> will be selected randomly for each trajectory we observed (and we’re simulating to compare to these observations). But these values are not independently random, instead they are in turn sampled from higher level statistical distributions that provide values common to all the trajectories.</p>
+<p>To make this a bit more clear, consider the values of <img class="math" src="../_images/math/91e551639dfda1ea649fe070c9e5a1bb4b667b79.png" alt="v_0"/> used in simulating the trajectories for a single step in the inference process. To determine what these values will be in a hierarchical model we first sample from a statistical distribution (here a normal distribution) one time to determine a mean value. We sample from a separate distribution (here a half normal distribution) one time to determine a standard deviation. We then sample from a (here normal) distribution with the
+previously sampled mean and standard deviation a number of times, with independent samples, to determine the initial velocity for each trajectory we are trying to simulate.</p>
+<p>pyzag has wrapper objects that will take a deterministic torch model and automatically convert it to a hierarchical statistical model. This class converts the model using mapping objects specifying how to convert each determininistic torch parameter to a distribution. In this case we use a standard object targeting a normal distribution for the final, trajectory-specific distributions. This inputs here is just the coefficient of variation to use to define the scale of the distributions – the
+object takes the prior for the mean from the intitial value of the torch parameter.</p>
+<p>We also need to provide a prior for the level of white noise in the data.</p>
+<p>Again we need to reset the parameter values to be scalars. By default these values will also determine the mean of the priors for the statistical model so we’ll generate them randomly.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Reset parameter values</span>
+<span class="n">v0_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">((</span><span class="mi">1</span><span class="p">,))</span> <span class="o">*</span> <span class="mf">2.0</span>
+<span class="n">theta0_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">((</span><span class="mi">1</span><span class="p">,))</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.0</span>
+<span class="n">c_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">((</span><span class="mi">1</span><span class="p">,))</span> <span class="o">*</span> <span class="mf">2.0</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">c_prior</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">theta0</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">theta0_prior</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+<span class="n">model</span><span class="o">.</span><span class="n">discrete_equations</span><span class="o">.</span><span class="n">ode</span><span class="o">.</span><span class="n">v0</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">v0_prior</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+<span class="n">cov_prior</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">mapper</span> <span class="o">=</span> <span class="n">stochastic</span><span class="o">.</span><span class="n">MapNormal</span><span class="p">(</span><span class="n">cov_prior</span><span class="p">)</span>
+<span class="n">noise_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<span class="n">hsmodel</span> <span class="o">=</span> <span class="n">stochastic</span><span class="o">.</span><span class="n">HierarchicalStatisticalModel</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mapper</span><span class="p">,</span> <span class="n">noise_prior</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Guide">
+<h3>Guide<a class="headerlink" href="#Guide" title="Link to this heading"></a></h3>
+<p>We also need to provide a guide – an analytic, parameterized statistical distribution that will end up representing the true posterior distribution of the statistical model. Luckily pyro provides built in methods for automatically creating guides. Here we will use the <code class="docutils literal notranslate"><span class="pre">AutoDelta</span></code> distribution that will provides a maximum a posteriori (MAP) estimation for the location and scale of each parameter distribution</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">guide</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">autoguide</span><span class="o">.</span><span class="n">guides</span><span class="o">.</span><span class="n">AutoDelta</span><span class="p">(</span><span class="n">hsmodel</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>As with the deterministic case we need to provide some training hyperparameters and setup the model and the optimizer</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">lr</span> <span class="o">=</span> <span class="mf">5.0e-3</span>
+<span class="n">niter</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="n">num_samples</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">ClippedAdam</span><span class="p">({</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="n">lr</span><span class="p">})</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">Trace_ELBO</span><span class="p">(</span><span class="n">num_particles</span><span class="o">=</span><span class="n">num_samples</span><span class="p">)</span>
+<span class="n">svi</span> <span class="o">=</span> <span class="n">SVI</span><span class="p">(</span><span class="n">hsmodel</span><span class="p">,</span> <span class="n">guide</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>And now we can run the training loop</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">titer</span> <span class="o">=</span> <span class="n">tqdm</span><span class="o">.</span><span class="n">tqdm</span><span class="p">(</span>
+    <span class="nb">range</span><span class="p">(</span><span class="n">niter</span><span class="p">),</span>
+    <span class="n">bar_format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{desc}</span><span class="s2">: </span><span class="si">{percentage:3.0f}</span><span class="s2">%|</span><span class="si">{bar}</span><span class="s2">|</span><span class="si">{n_fmt}</span><span class="s2">/</span><span class="si">{total_fmt}{postfix}</span><span class="s2">&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">titer</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="s2">&quot;Loss:&quot;</span><span class="p">)</span>
+<span class="n">loss_history</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">titer</span><span class="p">:</span>
+    <span class="n">closs</span> <span class="o">=</span> <span class="n">svi</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">results</span> <span class="o">=</span> <span class="n">data_results</span><span class="p">)</span>
+    <span class="n">loss_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">closs</span><span class="p">)</span>
+    <span class="n">titer</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="s2">&quot;Loss: </span><span class="si">%3.2e</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">closs</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">semilogx</span><span class="p">(</span><span class="n">loss_history</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Training&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Iteration&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;ELBO&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;best&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+Loss: -1.57e+05: : 100%|██████████|500/500
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_25_1.png" src="../_images/tutorials_statistical_25_1.png" />
+</div>
+</div>
+</section>
+<section id="Let's-see-how-well-we-did">
+<h3>Let’s see how well we did<a class="headerlink" href="#Let's-see-how-well-we-did" title="Link to this heading"></a></h3>
+<p>By comparing the upper-level normal distributions (i.e. the distribution of the parameters overall) to the values we infered.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;v0&quot;</span><span class="p">:</span> <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.v0_loc&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.v0_scale&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="p">(</span><span class="n">v0_prior</span><span class="p">,</span> <span class="n">v0_prior</span> <span class="o">*</span> <span class="n">cov_prior</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">v0_loc</span><span class="p">,</span> <span class="n">v0_scale</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="s2">&quot;theta0&quot;</span><span class="p">:</span> <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.theta0_loc&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.theta0_scale&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="p">(</span><span class="n">theta0_prior</span><span class="p">,</span> <span class="n">theta0_prior</span> <span class="o">*</span> <span class="n">cov_prior</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">theta0_loc</span><span class="p">,</span> <span class="n">theta0_scale</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.c_loc&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AutoDelta.discrete_equations.ode.c_scale&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="p">(</span><span class="n">c_prior</span><span class="p">,</span> <span class="n">c_prior</span> <span class="o">*</span> <span class="n">cov_prior</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">c_loc</span><span class="p">,</span> <span class="n">c_scale</span><span class="p">),</span>
+    <span class="p">),</span>
+<span class="p">}</span>
+
+<span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">2.0</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">((</span><span class="n">train_loc</span><span class="p">,</span> <span class="n">train_scale</span><span class="p">),</span> <span class="p">(</span><span class="n">prior_loc</span><span class="p">,</span> <span class="n">prior_scale</span><span class="p">),</span> <span class="p">(</span><span class="n">act_loc</span><span class="p">,</span> <span class="n">act_scale</span><span class="p">))</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">train_loc</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="n">train_loc</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+    <span class="n">train_scale</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="n">train_scale</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">train_loc</span><span class="p">,</span> <span class="n">train_scale</span><span class="p">),</span> <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;Trained&quot;</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">prior_loc</span><span class="p">,</span> <span class="n">prior_scale</span><span class="p">),</span> <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;Prior&quot;</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">act_loc</span><span class="p">,</span> <span class="n">act_scale</span><span class="p">),</span> <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;Actual posterior&quot;</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;best&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_27_0.png" src="../_images/tutorials_statistical_27_0.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_27_1.png" src="../_images/tutorials_statistical_27_1.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_27_2.png" src="../_images/tutorials_statistical_27_2.png" />
+</div>
+</div>
+<p>We can also see how well we captured the observed trajectories by plotting a prediction interval (calculated by sampling the final, trained statistical model) versus the collection of trajectories.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">predict</span> <span class="o">=</span> <span class="n">Predictive</span><span class="p">(</span><span class="n">hsmodel</span><span class="p">,</span> <span class="n">guide</span> <span class="o">=</span> <span class="n">guide</span><span class="p">,</span> <span class="n">return_sites</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">,),</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">predict</span><span class="p">(</span><span class="n">times</span><span class="p">)[</span><span class="s2">&quot;obs&quot;</span><span class="p">]</span>
+
+<span class="n">pred</span> <span class="o">=</span> <span class="mf">0.05</span>
+<span class="n">samples</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">ntime</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">k_lb</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">pred</span><span class="p">)</span>
+<span class="n">k_ub</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">pred</span><span class="p">))</span>
+
+<span class="n">x_lb</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">kthvalue</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">k_lb</span><span class="p">,</span> <span class="n">dim</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">x_ub</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">kthvalue</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">k_ub</span><span class="p">,</span> <span class="n">dim</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">data_results</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;k-&#39;</span><span class="p">,</span> <span class="n">lw</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">times</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">x_lb</span><span class="p">,</span> <span class="n">x_ub</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;X&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="n">y_lb</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">kthvalue</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">k_lb</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">y_ub</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">kthvalue</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">k_ub</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">data_results</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;k-&quot;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">times</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">y_lb</span><span class="p">,</span> <span class="n">y_ub</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Y&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_29_0.png" src="../_images/tutorials_statistical_29_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_statistical_29_1.png" src="../_images/tutorials_statistical_29_1.png" />
+</div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="deterministic.html" class="btn btn-neutral float-left" title="Learning from cannon trajectories: Deterministic example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="statistical_scaling.html" class="btn btn-neutral float-right" title="Learning from cannon trajectories: Statistical example with parameter scaling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Argonne National Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
