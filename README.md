@@ -14,7 +14,7 @@ $$f\left(x_{i-1}, x_i; p\right) =0 \, \forall i \in \left(1,2,\ldots,n \right)$$
 
 with $x$ the model *state* (the unknowns to solve for) and $p$ the model *parameters*.  Given the model and an *initial condition* $x_0$ we can define a sequence $\mathcal{X} = \left(x_0, x_1, \ldots, x_n \right)$ by recursively solving the nonlinear equation for $x_n$.
 
-While this form seems abstract, it actually practically describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
+While this form seems abstract, it actually describes a large number of interesting and useful models.  For example, consider the ordinary differential equation defined by
 
 $$\dot{x} = g\left(x; p \right)$$
 
