@@ -1,0 +1,44 @@
+name: Python package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types:
+      - published
+
+# Newer commits should cancel old runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+  sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SDist
+        run: pipx run build --sdist
+      - name: Upload SDist
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'release' && github.event.action == 'published'
+        with:
+          name: package-sdist
+          path: dist/*.tar.gz
+
+  PyPI:
+    needs: sdist
+    environment: pypi
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-sdist
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyzag"
+version = "1.0.0"
+authors = [
+  { name="Mark Messner", email="messner@anl.gov" },
+]
+description = "A Python package for efficiently solving and taking derivatives of systems of recursive nonlinear equations"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.urls]
+Homepage = "https://github.com/applied-material-modeling/pyzag"
+Issues = "https://github.com/applied-material-modeling/pyzag/issues"
