@@ -327,7 +327,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         step_generator (:py:class:`pyzag.nonlinear.StepGenerator`): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
         predictor (:py:class:`pyzag.nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
         direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
-        nonlinear_solver (:py:class:`pyzag.chunktim.ChunkNewtonRaphson`): how to solve the nonlinear system, default is plain Newton-Raphson
+        nonlinear_solver (:py:class:`pyzag.chunktime.ChunkNewtonRaphson`): how to solve the nonlinear system, default is plain Newton-Raphson
         callbacks (None or list of functions): callback functions to apply after a successful step
     """
 

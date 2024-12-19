@@ -73,7 +73,7 @@ class ChunkNewtonRaphson:
         self.ignore_batches = ignore_batches
 
     def setup(self, x):
-        pass
+        """Do any initialization required before solving"""
 
     def solve(self, fn, x0):
         """Actually solve the system
@@ -144,7 +144,7 @@ class ChunkNewtonRaphson:
         else:
             self.failed = torch.logical_or(failed_this_time, self.failed)
 
-    def step(self, x, J, fn, R, take_step):
+    def step(self, x, J, fn, R0, take_step):
         """Take a simple Newton step
 
         Args:
@@ -156,7 +156,7 @@ class ChunkNewtonRaphson:
         """
         final_steps = torch.any(take_step, dim=0)
 
-        dx = J.inverse().matvec(R)
+        dx = J.inverse().matvec(R0)
 
         x[:, final_steps] = x[:, final_steps] - dx[:, final_steps]
         R, J = fn(x)
@@ -203,7 +203,7 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
         f = torch.ones_like(nR0)
 
-        for i in range(self.linesearch_iter):
+        for _ in range(self.linesearch_iter):
             x[:, final_steps] = x0 - f.unsqueeze(-1).unsqueeze(0) * dx
 
             R, J = fn(x)
