@@ -79,6 +79,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.chunktime.ChunkNewtonRaphson"><code class="docutils literal notranslate"><span class="pre">ChunkNewtonRaphson</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.chunktime.ChunkNewtonRaphson.not_converged"><code class="docutils literal notranslate"><span class="pre">ChunkNewtonRaphson.not_converged()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.chunktime.ChunkNewtonRaphson.setup"><code class="docutils literal notranslate"><span class="pre">ChunkNewtonRaphson.setup()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.chunktime.ChunkNewtonRaphson.solve"><code class="docutils literal notranslate"><span class="pre">ChunkNewtonRaphson.solve()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.chunktime.ChunkNewtonRaphson.step"><code class="docutils literal notranslate"><span class="pre">ChunkNewtonRaphson.step()</span></code></a></li>
 </ul>
@@ -407,6 +408,12 @@ factorization</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="pyzag.chunktime.ChunkNewtonRaphson.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson.setup" title="Link to this definition"></a></dt>
+<dd><p>Do any initialization required before solving</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pyzag.chunktime.ChunkNewtonRaphson.solve">
 <span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson.solve" title="Link to this definition"></a></dt>
 <dd><p>Actually solve the system</p>
@@ -428,7 +435,7 @@ factorization</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.chunktime.ChunkNewtonRaphson.step">
-<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">J</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">take_step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson.step" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">J</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">take_step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson.step" title="Link to this definition"></a></dt>
 <dd><p>Take a simple Newton step</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
