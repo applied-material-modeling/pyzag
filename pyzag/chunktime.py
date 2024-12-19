@@ -72,6 +72,9 @@ class ChunkNewtonRaphson:
 
         self.ignore_batches = ignore_batches
 
+    def setup(self, x):
+        """Do any initialization required before solving"""
+
     def solve(self, fn, x0):
         """Actually solve the system
 
@@ -82,6 +85,7 @@ class ChunkNewtonRaphson:
         Returns:
             torch.tensor:   solution
         """
+        self.setup(x0)
         x = x0
         R, J = fn(x)
 
@@ -90,7 +94,10 @@ class ChunkNewtonRaphson:
         i = 0
 
         while i < self.miter:
-            not_converged = self.not_converged(nR, nR0)
+            # There is no reason to thunk on nans
+            not_converged = torch.logical_and(
+                self.not_converged(nR, nR0), torch.logical_not(torch.isnan(nR))
+            )
             if self.ignore_batches is not None:
                 not_converged[:, self.ignore_batches] = False
 
@@ -110,7 +117,9 @@ class ChunkNewtonRaphson:
 
         if self.record_failed:
             # We took one more newton step since we calculated this
-            self._store_failed(self.not_converged(nR, nR0))
+            self._store_failed(
+                torch.logical_or(self.not_converged(nR, nR0), torch.isnan(nR))
+            )
 
         return x
 
@@ -121,9 +130,7 @@ class ChunkNewtonRaphson:
             nR (torch.tensor): current residual
             nR0 (torch.tensor): original residual
         """
-        return torch.logical_or(
-            torch.logical_and(nR > self.atol, nR / nR0 > self.rtol), torch.isnan(nR)
-        )
+        return torch.logical_and(nR > self.atol, nR / nR0 > self.rtol)
 
     def _store_failed(self, not_converged):
         """Store which batches did not converge
@@ -137,7 +144,7 @@ class ChunkNewtonRaphson:
         else:
             self.failed = torch.logical_or(failed_this_time, self.failed)
 
-    def step(self, x, J, fn, R, take_step):
+    def step(self, x, J, fn, R0, take_step):
         """Take a simple Newton step
 
         Args:
@@ -149,11 +156,66 @@ class ChunkNewtonRaphson:
         """
         final_steps = torch.any(take_step, dim=0)
 
-        dx = J.inverse().matvec(R)
+        dx = J.inverse().matvec(R0)
 
         x[:, final_steps] = x[:, final_steps] - dx[:, final_steps]
         R, J = fn(x)
         nR = torch.norm(R, dim=-1)
+
+        return x, R, J, nR
+
+
+class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
+    """Newton Raphson with backtracking line search
+
+    Keyword Args:
+        rtol (float): nonlinear relative tolerance
+        atol (float): nonlinear absolute tolerance
+        miter (int): maximum number of iterations
+        throw_on_fail (bool): if True, throw an exception on a failed solve.  If False just issue a warning.
+        record_failed (bool): if True, store the indices of the bad batches
+        ignore_batches (list of indices): if provided, don't check these batches in evaluating the stopping criteria
+        alpha (float): line search cutback
+        linesearch_iter (int): maximum number of line search iterations
+    """
+
+    def __init__(self, *args, alpha=0.5, linesearch_iter=3, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.alpha = alpha
+        self.linesearch_iter = linesearch_iter
+
+    def step(self, x, J, fn, R0, take_step):
+        """Take a Newton step with backtracking line search
+
+        Args:
+            x (torch.tensor): current solution
+            dx (torch.tensor): newton increment
+            fn (function): function
+            R0 (torch.tensor): current residual
+            take_step (torch.tensor): which entries to take a step with
+        """
+        # Need to map into the full x
+        final_steps = torch.any(take_step, dim=0)
+
+        nR0 = torch.norm(R0.transpose(0, 1).flatten(1), dim=-1)[final_steps]
+        dx = J.inverse().matvec(R0)[:, final_steps]
+        x0 = x[:, final_steps].clone()
+
+        f = torch.ones_like(nR0)
+
+        for _ in range(self.linesearch_iter):
+            x[:, final_steps] = x0 - f.unsqueeze(-1).unsqueeze(0) * dx
+
+            R, J = fn(x)
+            nR = torch.norm(R, dim=-1)
+            nRR = torch.norm(R.transpose(0, 1).flatten(1), dim=-1)[final_steps]
+
+            decreasing = nRR < nR0
+
+            if torch.all(decreasing):
+                break
+
+            f = torch.where(decreasing, f, f * self.alpha)
 
         return x, R, J, nR
 
@@ -557,6 +619,15 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         Args:
             v (torch.tensor):   batch of vectors
         """
+        return self.matvec(v)
+
+    def matvec(self, v):
+        """
+        :math:`A \\cdot v` in an efficient manner
+
+        Args:
+            v (torch.tensor):   batch of vectors
+        """
         # Reshaped v
         vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-1)
 
@@ -567,6 +638,25 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         )
 
         return b.squeeze(-1).view(self.nblk, self.sbat, self.sblk)
+
+    def vecmat(self, v):
+        """
+        :math:`v \\cdot A` in an efficient manner
+
+        Args:
+            v (torch.tensor):   batch of vectors
+        """
+        # Reshaped v
+        vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-2)
+
+        # Diagonal term
+        b = torch.bmm(vp, self.A.view(-1, self.sblk, self.sblk))
+        # Off diagonal term
+        b[: -self.sbat] += torch.bmm(
+            vp[self.sbat :], self.B.view(-1, self.sblk, self.sblk)
+        )
+
+        return b.squeeze(-2).view(self.nblk, self.sbat, self.sblk)
 
     def inverse(self):
         """
