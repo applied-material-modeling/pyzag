@@ -151,11 +151,15 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         for mod, orig_name, name in self.bot:
             setattr(mod, orig_name, getattr(self, name))
 
-    def forward(self, *args, results=None, **kwargs):
+    def forward(self, *args, results=None, weights=None, **kwargs):
         """Class the base forward with the appropriate args
 
         Args:
             *args: whatever arguments the underlying model needs.  But at least one must be a tensor so we can infer the correct batch shapes!
+
+        Keyword Args:
+            results (torch.tensor or None): results to condition on
+            weights (torch.tensor or None): weights on the results, default all ones
 
         """
         if len(args) == 0:
@@ -173,6 +177,9 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                     "The results tensor should be a dim = 3 tensor, maybe unsqueeze your output?"
                 )
 
+        if weights is None:
+            weights = torch.ones(shape[-1], device=self.eps.device)
+
         # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
         # are *not* batched over the number of samples
         _ = self._sample_top()
@@ -181,7 +188,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         if self.sample_noise_outside:
             eps = self.eps
 
-        with pyro.plate("samples", shape[-1]):
+        with pyro.plate("samples", shape[-1]), pyro.poutine.scale(scale=weights):
             self._sample_bot()
             res = self.base(*args, **kwargs)
 
