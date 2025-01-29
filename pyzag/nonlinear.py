@@ -329,6 +329,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
         nonlinear_solver (:py:class:`pyzag.chunktime.ChunkNewtonRaphson`): how to solve the nonlinear system, default is plain Newton-Raphson
         callbacks (None or list of functions): callback functions to apply after a successful step
+        convert_nan_gradients (bool): if True, convert NaN gradients to zero
     """
 
     def __init__(
@@ -339,6 +340,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
         nonlinear_solver=chunktime.ChunkNewtonRaphson(),
         callbacks=None,
+        convert_nan_gradients=True,
     ):
         super().__init__()
         # Store basic information
@@ -362,6 +364,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             )
 
         self.callbacks = callbacks
+        self.convert_nan_gradients = convert_nan_gradients
 
     def forward(self, *args, **kwargs):
         """Alias for solve
@@ -477,6 +480,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             # And accumulate
             with torch.enable_grad():
                 grad_result = self.accumulate(grad_result, adjoint, R[1:])
+
+        if self.convert_nan_gradients:
+            return tuple(torch.nan_to_num(g) for g in grad_result), torch.nan_to_num(
+                adjoint[-1]
+            )
 
         return grad_result, adjoint[-1]
 
