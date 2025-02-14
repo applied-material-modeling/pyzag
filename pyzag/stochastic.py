@@ -102,14 +102,12 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         base (torch.nn.Module):     base torch module
         parameter_mapper (MapParameter): mapper class describing how to convert from Parameter to Distribution
         noise_prior (float): scale prior for white noise
+
+    Keyword Args:
+        update_mask (bool): if True, update the mask to remove samples that are not valid
     """
 
-    def __init__(
-        self,
-        base,
-        parameter_mapper,
-        noise_prior,
-    ):
+    def __init__(self, base, parameter_mapper, noise_prior, update_mask=False):
         super().__init__()
 
         # Convert over and make a submodule
@@ -142,6 +140,9 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
             self.sample_noise_outside = False
             self.eps = PyroSample(dist.HalfNormal(noise_prior).to_event(0).to_event(1))
 
+        self.update_mask = update_mask
+        self.mask = True
+
     def _sample_top(self):
         """Sample the top level parameter values"""
         return [getattr(self, n) for n in self.top]
@@ -151,11 +152,15 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         for mod, orig_name, name in self.bot:
             setattr(mod, orig_name, getattr(self, name))
 
-    def forward(self, *args, results=None, **kwargs):
+    def forward(self, *args, results=None, weights=None, **kwargs):
         """Class the base forward with the appropriate args
 
         Args:
             *args: whatever arguments the underlying model needs.  But at least one must be a tensor so we can infer the correct batch shapes!
+
+        Keyword Args:
+            results (torch.tensor or None): results to condition on
+            weights (torch.tensor or None): weights on the results, default all ones
 
         """
         if len(args) == 0:
@@ -173,6 +178,9 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                     "The results tensor should be a dim = 3 tensor, maybe unsqueeze your output?"
                 )
 
+        if weights is None:
+            weights = torch.ones(shape[-1], device=self.eps.device)
+
         # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
         # are *not* batched over the number of samples
         _ = self._sample_top()
@@ -181,9 +189,22 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         if self.sample_noise_outside:
             eps = self.eps
 
-        with pyro.plate("samples", shape[-1]):
+        # Stupid way to write this, but pylint has trouble with scale and mask
+        with pyro.plate(
+            "samples", shape[-1]
+        ), pyro.poutine.scale_messenger.ScaleMessenger(
+            scale=weights
+        ), pyro.poutine.mask_messenger.MaskMessenger(
+            mask=self.mask
+        ):
             self._sample_bot()
             res = self.base(*args, **kwargs)
+
+            if self.update_mask:
+                self.mask = self.mask & torch.logical_not(
+                    torch.any(torch.isnan(res).squeeze(-1), dim=0)
+                )
+                res = torch.nan_to_num(res)
 
             if not self.sample_noise_outside:
                 eps = self.eps
