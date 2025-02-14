@@ -1,6 +1,6 @@
 torch
 tqdm
-numpy
+numpy<2
 matplotlib
 pyro-ppl
 scipy
