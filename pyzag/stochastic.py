@@ -189,9 +189,14 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         if self.sample_noise_outside:
             eps = self.eps
 
-        with pyro.plate("samples", shape[-1]), pyro.poutine.scale(
+        # Stupid way to write this, but pylint has trouble with scale and mask
+        with pyro.plate(
+            "samples", shape[-1]
+        ), pyro.poutine.scale_messenger.ScaleMessenger(
             scale=weights
-        ), pyro.poutine.mask(mask=self.mask):
+        ), pyro.poutine.mask_messenger.MaskMessenger(
+            mask=self.mask
+        ):
             self._sample_bot()
             res = self.base(*args, **kwargs)
 
