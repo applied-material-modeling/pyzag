@@ -1,0 +1,225 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pyzag.ode &mdash; pyzag 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pyzag.reparametrization" href="reparametrization.html" />
+    <link rel="prev" title="pyzag.chunktime" href="chunktime.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            pyzag
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Additional topics:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.ode</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE.forward"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE.forward()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE.forward"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE.forward()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.IntegrateODE"><code class="docutils literal notranslate"><span class="pre">IntegrateODE</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stochastic.html">pyzag.stochastic</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pyzag</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="api.html">API documentation</a></li>
+      <li class="breadcrumb-item active">pyzag.ode</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/ode.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-pyzag.ode">
+<span id="pyzag-ode"></span><h1>pyzag.ode<a class="headerlink" href="#module-pyzag.ode" title="Link to this heading"></a></h1>
+<p>Module for solving ordinary differential equations using numerical integration</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">BackwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE" title="Link to this definition"></a></dt>
+<dd><p>Applies a backward Euler time integration scheme to an ODE</p>
+<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
+return both the time rate of change of the state and the derivative of the rate of change with
+respect to the state as a function of time and the current state.</p>
+<p>The input and output for the underlying ODE must meet our global batch convention, where the first
+dimension of the input is used to vectorize time/step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE.forward" title="Link to this definition"></a></dt>
+<dd><p>Provide the blocked residual and Jacobian for the time integration scheme</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,nstate) tensor.  As always, the first batch dimension
+is used to vectorize over steps (for an ODE, time steps).  Then the operator
+must accept arbitrary batch dimensions.  The final dimension is the problem
+state size.</p></li>
+<li><p><strong>t</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,) tensor of times as driving forces</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple giving R the (nchunk,…,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,…,nstate,nstate) tensor giving the Jacobians</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(R,J) tuple(torch.tensor, torch.tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">ForwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE" title="Link to this definition"></a></dt>
+<dd><p>Applies a forward Euler time integration scheme to an ODE</p>
+<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
+return both the time rate of change of the state and the derivative of the rate of change with
+respect to the state as a function of time and the current state.</p>
+<p>The input and output for the underlying ODE must meet our global batch convention, where the first
+dimension of the input is used to vectorize time/step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE.forward" title="Link to this definition"></a></dt>
+<dd><p>Provide the blocked residual and Jacobian for the time integration scheme</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,nstate) tensor.  As always, the first batch dimension
+is used to vectorize over steps (for an ODE, time steps).  Then the operator
+must accept arbitrary batch dimensions.  The final dimension is the problem
+state size.</p></li>
+<li><p><strong>t</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,) tensor of times as driving forces</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple giving R the (nchunk,…,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,…,nstate,nstate) tensor giving the Jacobians</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(R,J) tuple(torch.tensor, torch.tensor)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.ode.IntegrateODE">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">IntegrateODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ode</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.IntegrateODE" title="Link to this definition"></a></dt>
+<dd><p>Maps an ODE to a nonlinear function with some numerical integration scheme</p>
+<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
+return both the time rate of change of the state and the derivative of the rate of change with
+respect to the state as a function of time and the current state.</p>
+<p>The input and output for the underlying ODE must meet our global batch convention, where the first
+dimension of the input is used to vectorize time/step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="chunktime.html" class="btn btn-neutral float-left" title="pyzag.chunktime" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="reparametrization.html" class="btn btn-neutral float-right" title="pyzag.reparametrization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Argonne National Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
