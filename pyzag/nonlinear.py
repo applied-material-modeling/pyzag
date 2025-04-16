@@ -151,8 +151,8 @@ class PreviousStepsPredictor:
         """
         if k - kinc < 0:
             res = torch.zeros_like(results[k : k + kinc])
-            res[kinc-k:] = results[0:k]
-            res[:kinc-k] = results[0]
+            res[kinc - k :] = results[0:k]
+            res[: kinc - k] = results[0]
             return res
 
         return results[(k - kinc) : k]
@@ -209,8 +209,8 @@ class ExtrapolatingPredictor:
         """
         if k - kinc < 0:
             res = torch.zeros_like(results[k : k + kinc])
-            res[kinc-k:] = results[0:k]
-            res[:kinc-k] = results[0]
+            res[kinc - k :] = results[0:k]
+            res[: kinc - k] = results[0]
             return res
         if k - 2 * kinc - 1 < 0:
             return results[(k - kinc) : k]

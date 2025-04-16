@@ -96,8 +96,8 @@ class TestPreviousStepsPredictor(BasePredictor):
         dk = 10
 
         pred = torch.zeros((dk, self.nbatch, self.nstate))
-        pred[dk-k:] = self.data[:k]
-        pred[:dk-k] = self.data[0]
+        pred[dk - k :] = self.data[:k]
+        pred[: dk - k] = self.data[0]
 
         self.assertTrue(
             torch.allclose(
