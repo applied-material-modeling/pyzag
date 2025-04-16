@@ -149,8 +149,12 @@ class PreviousStepsPredictor:
             k (int): start of current chunk
             kinc (int): next number of steps to predict
         """
-        if k - kinc - 1 < 0:
-            return torch.zeros_like(results[k : k + kinc])
+        if k - kinc < 0:
+            res = torch.zeros_like(results[k : k + kinc])
+            res[kinc-k:] = results[0:k]
+            res[:kinc-k] = results[0]
+            return res
+
         return results[(k - kinc) : k]
 
 
@@ -203,8 +207,11 @@ class ExtrapolatingPredictor:
             k (int): start of current chunk
             kinc (int): next number of steps to predict
         """
-        if k - kinc - 1 < 0:
-            return torch.zeros_like(results[k : k + kinc])
+        if k - kinc < 0:
+            res = torch.zeros_like(results[k : k + kinc])
+            res[kinc-k:] = results[0:k]
+            res[:kinc-k] = results[0]
+            return res
         if k - 2 * kinc - 1 < 0:
             return results[(k - kinc) : k]
 
