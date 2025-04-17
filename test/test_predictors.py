@@ -94,9 +94,14 @@ class TestPreviousStepsPredictor(BasePredictor):
     def test_prediction_not_enough_steps(self):
         k = 5
         dk = 10
+
+        pred = torch.zeros((dk, self.nbatch, self.nstate))
+        pred[dk - k :] = self.data[:k]
+        pred[: dk - k] = self.data[0]
+
         self.assertTrue(
             torch.allclose(
                 self.predictor.predict(self.data, k, dk),
-                torch.zeros((dk, self.nbatch, self.nstate)),
+                pred,
             )
         )
