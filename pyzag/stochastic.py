@@ -27,8 +27,13 @@
 import torch
 
 import pyro
+import pyro.nn.module
 from pyro.nn import PyroSample
 import pyro.distributions as dist
+import pyro.poutine.scale_messenger
+import pyro.poutine.mask_messenger
+
+from typing import cast
 
 
 class MapNormal:
@@ -179,13 +184,14 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                 )
 
         if weights is None:
-            weights = torch.ones(shape[-1], device=self.eps.device)
+            weights = torch.ones(shape[-1], device=cast(torch.Tensor, self.eps).device)
 
         # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
         # are *not* batched over the number of samples
         _ = self._sample_top()
 
         # Same here
+        eps = None
         if self.sample_noise_outside:
             eps = self.eps
 
@@ -195,7 +201,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         ), pyro.poutine.scale_messenger.ScaleMessenger(
             scale=weights
         ), pyro.poutine.mask_messenger.MaskMessenger(
-            mask=self.mask
+            mask=torch.BoolTensor(self.mask)
         ):
             self._sample_bot()
             res = self.base(*args, **kwargs)
