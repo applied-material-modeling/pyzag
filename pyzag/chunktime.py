@@ -25,12 +25,12 @@
 # pylint: disable=abstract-method
 
 """
-    Functions and objects to help with blocked/chunked time integration.
+Functions and objects to help with blocked/chunked time integration.
 
-    These include:
-        1. Sparse matrix classes for banded systems
-        2. General sparse matrix classes
-        3. Specialized solver routines working with banded systems
+These include:
+    1. Sparse matrix classes for banded systems
+    2. General sparse matrix classes
+    3. Specialized solver routines working with banded systems
 """
 
 import warnings
@@ -40,8 +40,18 @@ import torch
 from torch.nn.functional import pad
 import numpy as np
 
+from abc import ABC, abstractmethod
 
-class ChunkNewtonRaphson:
+
+class NonlinearSolver(ABC):
+    """Base class for nonlinear solvers working with chunked operators"""
+
+    @abstractmethod
+    def solve(self, fn, x0) -> torch.Tensor:
+        pass
+
+
+class ChunkNewtonRaphson(NonlinearSolver):
     """Solve a nonlinear system with Newton's method where the residual and Jacobian are presented as chunked operators
 
     Keyword Args:
@@ -203,6 +213,8 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
         f = torch.ones_like(nR0)
 
+        R, nR = None, None
+
         for _ in range(self.linesearch_iter):
             x[:, final_steps] = x0 - f.unsqueeze(-1).unsqueeze(0) * dx
 
@@ -217,6 +229,7 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
             f = torch.where(decreasing, f, f * self.alpha)
 
+        assert R is not None and nR is not None
         return x, R, J, nR
 
 
@@ -285,6 +298,10 @@ class BidiagonalOperator(torch.nn.Module):
         Logical shape of the dense array
         """
         return (self.sbat, self.n, self.n)
+
+    @abstractmethod
+    def matvec(self, v) -> torch.Tensor:
+        pass
 
 
 class LUFactorization(BidiagonalOperator):
@@ -601,7 +618,12 @@ class BidiagonalForwardOperator(BidiagonalOperator):
             storing the nblk-1 off diagonal blocks
     """
 
-    def __init__(self, *args, inverse_operator=BidiagonalThomasFactorization, **kwargs):
+    def __init__(
+        self,
+        *args,
+        inverse_operator: type[BidiagonalOperator] = BidiagonalThomasFactorization,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.inverse_operator = inverse_operator
 
@@ -621,7 +643,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         """
         return self.matvec(v)
 
-    def matvec(self, v):
+    def matvec(self, v) -> torch.Tensor:
         """
         :math:`A \\cdot v` in an efficient manner
 

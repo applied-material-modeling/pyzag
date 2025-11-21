@@ -27,6 +27,7 @@
 import torch
 
 from pyzag import chunktime
+from abc import ABC, abstractmethod
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
@@ -124,7 +125,15 @@ class FullTrajectoryPredictor:
         return self.history[k : k + kinc]
 
 
-class ZeroPredictor:
+class Predictor(ABC):
+    """Base class for predictors"""
+
+    @abstractmethod
+    def predict(self, results, k, kinc) -> torch.Tensor:
+        pass
+
+
+class ZeroPredictor(Predictor):
     """Predict steps just using zeros"""
 
     def predict(self, results, k, kinc):
@@ -138,7 +147,7 @@ class ZeroPredictor:
         return torch.zeros_like(results[k : k + kinc])
 
 
-class PreviousStepsPredictor:
+class PreviousStepsPredictor(Predictor):
     """Predict by providing the values from the previous chunk of steps steps"""
 
     def predict(self, results, k, kinc):
@@ -158,7 +167,7 @@ class PreviousStepsPredictor:
         return results[(k - kinc) : k]
 
 
-class LastStepPredictor:
+class LastStepPredictor(Predictor):
     """Predict by providing the values from the previous single step"""
 
     def predict(self, results, k, kinc):
@@ -175,7 +184,7 @@ class LastStepPredictor:
         return results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
 
 
-class StepExtrapolatingPredictor:
+class StepExtrapolatingPredictor(Predictor):
     """Predict by extrapolating using the previous *chunks* of steps"""
 
     def predict(self, results, k, kinc):
@@ -196,7 +205,7 @@ class StepExtrapolatingPredictor:
         return dinc.unsqueeze(0).expand((kinc,) + results.shape[1:])
 
 
-class ExtrapolatingPredictor:
+class ExtrapolatingPredictor(Predictor):
     """Predict by extrapolating the values from the previous *single* steps"""
 
     def predict(self, results, k, kinc):
@@ -342,10 +351,12 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
     def __init__(
         self,
         func,
-        step_generator=StepGenerator(1),
-        predictor=ZeroPredictor(),
-        direct_solve_operator=chunktime.BidiagonalThomasFactorization,
-        nonlinear_solver=chunktime.ChunkNewtonRaphson(),
+        step_generator: StepGenerator = StepGenerator(1),
+        predictor: Predictor = ZeroPredictor(),
+        direct_solve_operator: type[
+            chunktime.BidiagonalOperator
+        ] = chunktime.BidiagonalThomasFactorization,
+        nonlinear_solver: chunktime.NonlinearSolver = chunktime.ChunkNewtonRaphson(),
         callbacks=None,
         convert_nan_gradients=True,
     ):
@@ -457,6 +468,10 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         )
 
         # Loop backwards through time
+        if self.result is None:
+            raise ValueError("No cached result found for adjoint rewind")
+
+        adjoint = None
         for k1, k2 in self.step_generator(len(self.result)).reverse():
             # Get our block of the results
             with torch.enable_grad():
@@ -479,6 +494,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                         grad_result, adjoint, R[:1], retain=True
                     )
 
+            if adjoint is None:
+                raise NotImplementedError(
+                    "Currently only supports adjoint rewind for a single block"
+                )
+
             # Do the block adjoint update
             adjoint = self.block_update_adjoint(
                 J, output_grad[k1:k2].flip(0), adjoint[-1]
@@ -488,6 +508,8 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             with torch.enable_grad():
                 grad_result = self.accumulate(grad_result, adjoint, R[1:])
 
+        if adjoint is None:
+            raise ValueError("No adjoint values calculated during rewind")
         if self.convert_nan_gradients:
             return tuple(torch.nan_to_num(g) for g in grad_result), torch.nan_to_num(
                 adjoint[-1]
@@ -570,7 +592,7 @@ class AdjointWrapper(torch.autograd.Function):
             return y
 
     @staticmethod
-    def backward(ctx, output_grad):
+    def backward(ctx, *output_grad):
         with torch.no_grad():
             grad_res, adj_last = ctx.solver.rewind(output_grad)
             if ctx.needs_input_grad[1]:
