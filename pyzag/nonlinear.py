@@ -563,11 +563,14 @@ class AdjointWrapper(torch.autograd.Function):
     """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
 
     @staticmethod
-    def forward(ctx, solver, y0, n, forces, *params):
+    def forward(solver, y0, n, forces, *params):
         with torch.no_grad():
             y = solver.solve(y0, n, *forces, adjoint_params=params)
-            ctx.solver = solver
             return y
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        ctx.solver = inputs[0]
 
     @staticmethod
     def backward(ctx, output_grad):
