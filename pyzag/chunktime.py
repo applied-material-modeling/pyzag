@@ -267,34 +267,42 @@ class BidiagonalOperator(torch.nn.Module):
 
     @property
     def dtype(self):
+        '''dtype'''
         return self.A.dtype
 
     @property
     def device(self):
+        '''device'''
         return self.A.device
 
     @property
     def batch_size(self):
+        '''batch size'''
         return self.A.batch_size
 
     @property
     def block_shape(self):
+        '''block shape'''
         return self.A.block_shape
 
     @property
     def sblk(self):
+        '''size of each block'''
         return self.block_shape[-1]
 
     @property
     def sbat(self):
+        '''batch size'''
         return self.batch_size
 
     @property
     def n(self):
+        '''size of the full matrix'''
         return self.nblk * self.sblk
 
     @property
     def shape(self):
+        '''shape of the full matrix'''
         return (self.sbat, self.n, self.n)
 
 
@@ -302,14 +310,13 @@ class LUFactorization(BidiagonalOperator):
     """A factorization that uses the LU decomposition of A
     """
 
-    def __init__(self, A, B, *args, **kwargs):
-        super().__init__(A, B, *args, **kwargs)
-
     def forward(self, v):
+        '''Apply the factorization to a vector v'''
         return self.matvec(v)
 
 
 def thomas_solve(A, B, v):
+    '''Generic Thomas solve'''
     return A.solve_lower_bidiagonal(B, v)
 
 class BidiagonalThomasFactorization(LUFactorization):
@@ -478,11 +485,17 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         self.min_size = min_size + 1
 
     def matvec(self, v):
+        '''Apply the factorization to a vector v'''
         if self._dense_pcr:
             return self._matvec_dense_hybrid(v)
         return self._matvec_generic_hybrid(v)
 
     def _matvec_dense_hybrid(self, v):
+        '''
+        Apply the hybrid factorization to a vector v, 
+        but since we're dense we can just do the PCR part 
+        and then solve the reduced system with Thomas
+        '''
         B = pad(self.B.data, (0, 0, 0, 0, 0, 0, 1, 0))
         v_work = v.clone()
 
@@ -493,15 +506,12 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
                 self.A.lu[s:e], self.A.pivots[s:e], B[s:e], v_work[s:e]
             )
 
-        # critical fix: remove the leading padded zero block
         B = B[1:]
 
-        # solve the already-reduced front part directly
         v_work[:last] = torch.linalg.lu_solve(
             self.A.lu[:last], self.A.pivots[:last], v_work[:last].unsqueeze(-1)
         ).squeeze(-1)
 
-        # Thomas continuation on the remaining tail
         for i in range(last, self.nblk):
             v_work[i] = torch.linalg.lu_solve(
                 self.A.lu[i],
@@ -513,6 +523,7 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         return v_work
 
     def _matvec_generic_hybrid(self, v):
+        '''Perform a hybrid matrix-vector'''
         A = self.A
         B = self.B
         rhs = v
@@ -530,6 +541,7 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         return x
 
     def _pcr_blocks(self):
+        '''Determine which blocks to solve with PCR vs Thomas in the dense case'''
         start, end = self._pow2(self.nblk)
         blk_size = [e - s for e, s in zip(end, start)]
         if blk_size[0] < self.min_size:
@@ -586,9 +598,11 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         self.inverse_operator = inverse_operator
 
     def forward(self, v):
+        '''Apply the operator to a vector v'''
         return self.matvec(v)
 
     def matvec(self, v):
+        '''Apply the operator to a vector v'''
         out = self.A.matvec(v)
         if self.nblk > 1:
             tail = out[1:] + self.B.matvec(v[:-1])
@@ -596,6 +610,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         return out
 
     def vecmat(self, v):
+        '''Apply the transpose of the operator to a vector v'''
         out = self.A.t_matvec(v)
         if self.nblk > 1:
             head = out[:-1] + self.B.t_matvec(v[1:])

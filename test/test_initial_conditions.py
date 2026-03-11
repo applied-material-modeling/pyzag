@@ -30,7 +30,6 @@ import itertools
 
 import torch
 
-# Ensure test consistency
 torch.manual_seed(42)
 
 import unittest
