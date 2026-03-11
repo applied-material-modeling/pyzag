@@ -25,7 +25,8 @@
 from .base import BlockOperator, SolvableBlockOperator, BlockOperatorBuilder
 import torch
 
-# override 
+
+# override
 def batch_lu_solve(lu, pivots, rhs):
     return torch.linalg.lu_solve(lu, pivots, rhs)
 
@@ -160,7 +161,9 @@ class DenseBlockOperator(BlockOperator):
 
     def empty_like(self, nblk):
         shape = (nblk,) + self.data.shape[1:]
-        return DenseBlockOperator(torch.empty(shape, dtype=self.dtype, device=self.device))
+        return DenseBlockOperator(
+            torch.empty(shape, dtype=self.dtype, device=self.device)
+        )
 
     def inv_compose(self, other):
         return DenseBlockOperator(torch.linalg.solve(self.data, other.data))
@@ -242,9 +245,9 @@ class DenseBlockLUFactorizedOperator(SolvableBlockOperator):
     def solve(self, rhs):
         if rhs.ndim != 3:
             raise ValueError("solve expects rhs with shape (nblk, sbat, sblk).")
-        return torch.linalg.lu_solve(
-            self.lu, self.pivots, rhs.unsqueeze(-1)
-        ).squeeze(-1)
+        return torch.linalg.lu_solve(self.lu, self.pivots, rhs.unsqueeze(-1)).squeeze(
+            -1
+        )
 
     def t_solve(self, rhs):
         if rhs.ndim != 3:
@@ -298,9 +301,7 @@ class DenseBlockLUFactorizedOperator(SolvableBlockOperator):
 
     def t_inv_compose(self, other):
         self._ensure_transpose_lu()
-        return DenseBlockOperator(
-            batch_lu_solve(self.t_lu, self.t_pivots, other.data)
-        )
+        return DenseBlockOperator(batch_lu_solve(self.t_lu, self.t_pivots, other.data))
 
     def solve_lower_bidiagonal(self, B, rhs):
         if not isinstance(B, DenseBlockOperator):

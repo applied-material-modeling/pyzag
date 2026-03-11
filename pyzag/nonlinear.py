@@ -360,13 +360,13 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         self.step_generator = step_generator
         self.predictor = predictor
         self.nonlinear_solver = nonlinear_solver
-        
+
         # this is to make sure it is backward compatible
         self.block_operator_builder = (
             DenseBlockOperatorBuilder()
             if block_operator_builder is None
             else block_operator_builder
-        ) 
+        )
 
         # Backward cache
         self.n = 0

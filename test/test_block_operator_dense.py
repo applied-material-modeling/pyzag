@@ -74,7 +74,9 @@ class _DensePackedOperatorTestMixin:
         self.assertTrue(torch.allclose(one, two))
 
     def test_t_matvec(self):
-        one = torch.matmul(self.A_data.transpose(-1, -2), self.x.unsqueeze(-1)).squeeze(-1)
+        one = torch.matmul(self.A_data.transpose(-1, -2), self.x.unsqueeze(-1)).squeeze(
+            -1
+        )
         two = self.A.t_matvec(self.x)
         self.assertTrue(torch.allclose(one, two))
 
@@ -96,8 +98,12 @@ class _DensePackedOperatorTestMixin:
         self.assertTrue(torch.allclose(two, self.x))
 
     def test_t_solve(self):
-        b = torch.matmul(self.A_data.transpose(-1, -2), self.x.unsqueeze(-1)).squeeze(-1)
-        one = torch.linalg.solve(self.A_data.transpose(-1, -2), b.unsqueeze(-1)).squeeze(-1)
+        b = torch.matmul(self.A_data.transpose(-1, -2), self.x.unsqueeze(-1)).squeeze(
+            -1
+        )
+        one = torch.linalg.solve(
+            self.A_data.transpose(-1, -2), b.unsqueeze(-1)
+        ).squeeze(-1)
         two = self.A.t_solve(b)
         self.assertTrue(torch.allclose(one, two))
         self.assertTrue(torch.allclose(two, self.x))
@@ -174,7 +180,9 @@ class TestDenseBlockOperator(_DensePackedOperatorTestMixin, unittest.TestCase):
     operator_cls = DenseBlockOperator
 
 
-class TestDenseBlockLUFactorizedOperator(_DensePackedOperatorTestMixin, unittest.TestCase):
+class TestDenseBlockLUFactorizedOperator(
+    _DensePackedOperatorTestMixin, unittest.TestCase
+):
     operator_cls = DenseBlockLUFactorizedOperator
 
 

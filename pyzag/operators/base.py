@@ -24,6 +24,7 @@
 
 from abc import ABC, abstractmethod
 
+
 class BlockOperator(ABC):
     """Abstract packed block-operator interface.
     dimensions should be (nblk , ...) where nblk is the number of blocks
@@ -74,7 +75,7 @@ class BlockOperator(ABC):
     def matmat(self, X):
         """A B X"""
         pass
-    
+
     @abstractmethod
     def t_matmat(self, X):
         """A^T B X"""
@@ -117,7 +118,7 @@ class BlockOperator(ABC):
 
     def __len__(self):
         return self.nblk
-    
+
     # for a generic approach, should be overriden
     def solve_lower_bidiagonal(self, B, rhs):
         out = [self.slice_blocks(0, 1).solve(rhs[0:1])[0]]
@@ -125,7 +126,7 @@ class BlockOperator(ABC):
         for i in range(1, self.nblk):
             Bi = B.slice_blocks(i - 1, i)
             Ai = self.slice_blocks(i, i + 1)
-            ri = rhs[i:i + 1] - Bi.matvec(out[i - 1].unsqueeze(0))
+            ri = rhs[i : i + 1] - Bi.matvec(out[i - 1].unsqueeze(0))
             out.append(Ai.solve(ri)[0])
 
         return __import__("torch").stack(out, dim=0)
@@ -139,15 +140,14 @@ class BlockOperator(ABC):
         for i in range(n - 2, -1, -1):
             Ai = self.slice_blocks(i, i + 1)
             Bi = B.slice_blocks(i, i + 1)
-            ri = rhs[i:i + 1] - Bi.t_matvec(out[i + 1].unsqueeze(0))
+            ri = rhs[i : i + 1] - Bi.t_matvec(out[i + 1].unsqueeze(0))
             out[i] = Ai.t_solve(ri)[0]
 
         return out
 
 
 class SolvableBlockOperator(BlockOperator):
-    """Abstract block operator that supports linear solves.
-    """
+    """Abstract block operator that supports linear solves."""
 
     @abstractmethod
     def solve(self, rhs):
@@ -178,6 +178,7 @@ class SolvableBlockOperator(BlockOperator):
     def t_inv_compose(self, other):
         """Return the operator A^{-T} @ other."""
         pass
+
 
 class BlockOperatorBuilder(ABC):
     """Convert a model/Jacobian representation into block operators.
