@@ -28,6 +28,8 @@ import torch
 
 from pyzag import chunktime
 
+from pyzag.operators.dense import DenseBlockOperatorBuilder
+
 
 class NonlinearRecursiveFunction(torch.nn.Module):
     # pylint: disable=W0223,W0246
@@ -348,6 +350,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         nonlinear_solver=chunktime.ChunkNewtonRaphson(),
         callbacks=None,
         convert_nan_gradients=True,
+        block_operator_builder=None,
     ):
         super().__init__()
         # Store basic information
@@ -357,6 +360,13 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         self.step_generator = step_generator
         self.predictor = predictor
         self.nonlinear_solver = nonlinear_solver
+        
+        # this is to make sure it is backward compatible
+        self.block_operator_builder = (
+            DenseBlockOperatorBuilder()
+            if block_operator_builder is None
+            else block_operator_builder
+        ) 
 
         # Backward cache
         self.n = 0
@@ -439,8 +449,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 torch.cat([prev_solution, y]),
                 *forces,
             )
+
+            A_ops, B_ops = self.block_operator_builder.make_forward_blocks(J)
+
             return R, chunktime.BidiagonalForwardOperator(
-                J[1], J[0, 1:], inverse_operator=self.direct_solve_operator
+                A_ops, B_ops, inverse_operator=self.direct_solve_operator
             )
 
         return self.nonlinear_solver.solve(RJ, solution)
@@ -529,10 +542,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
             adjoint_block (torch.tensor): next block of updated adjoint values
         """
         # Remember to transpose
-        operator = self.direct_solve_operator(
-            J[1, 1:].transpose(-1, -2), J[0, 1:-1].transpose(-1, -2)
-        )
-        rhs = -grads
+        A_ops, B_ops = self.block_operator_builder.make_adjoint_blocks(J)
+
+        operator = self.direct_solve_operator(A_ops, B_ops)
+
+        rhs = -grads.clone()
         rhs[0] -= torch.matmul(J[0, 0].transpose(-1, -2), a_prev.unsqueeze(-1)).squeeze(
             -1
         )
