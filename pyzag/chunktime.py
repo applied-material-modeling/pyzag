@@ -40,7 +40,7 @@ import torch
 from torch.nn.functional import pad
 import numpy as np
 
-from pyzag.operators.base import BlockOperator, SolvableBlockOperator
+from pyzag.operators.base import BlockOperator
 # this is to ensure backward compatibility
 from pyzag.operators.dense import DenseBlockOperator, DenseBlockLUFactorizedOperator
 
@@ -330,6 +330,7 @@ class BidiagonalThomasFactorization(LUFactorization):
         super().__init__(A, B, *args, **kwargs)
 
     def matvec(self, v):
+        '''call the thomas_solve'''
         return thomas_solve(self.A, self.B, v)
 
 
@@ -348,6 +349,8 @@ class BidiagonalPCRFactorization(LUFactorization):
         )
 
     def matvec(self, v):
+        '''two paths, one for dense where we can do the PCR part with dense linear algebra,
+        and one for the generic case where we have to do it with matvecs'''
         if self._dense_pcr:
             return self._matvec_dense(v)
         return self._matvec_generic(v)
@@ -492,8 +495,8 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
 
     def _matvec_dense_hybrid(self, v):
         '''
-        Apply the hybrid factorization to a vector v, 
-        but since we're dense we can just do the PCR part 
+        Apply the hybrid factorization to a vector v,
+        but since we're dense we can just do the PCR part
         and then solve the reduced system with Thomas
         '''
         B = pad(self.B.data, (0, 0, 0, 0, 0, 0, 1, 0))
