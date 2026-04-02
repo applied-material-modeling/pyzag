@@ -22,7 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Packed block operators with dense tensor storage and direct linear algebra implementations."""
+"""
+Packed block operators with dense tensor storage and direct linear algebra implementations.
+"""
 
 from math import prod
 
@@ -31,7 +33,7 @@ from torch.nn.functional import pad
 
 from .base import (
     BlockOperatorBuilder,
-    PCRBlockViewOps,
+    BlockViewOps,
     PCRFactorizedDiagonalOps,
     SolvableBlockOperator,
 )
@@ -42,36 +44,6 @@ def batch_lu_solve(lu, pivots, rhs):
     Batched version of torch.linalg.lu_solve that accepts separate LU and pivot tensors.
     """
     return torch.linalg.lu_solve(lu, pivots, rhs)
-
-
-def dense_thomas_solve(lu, pivots, B, rhs):
-    """
-    Dense Thomas algorithm that accepts separate LU and pivot tensors.
-    """
-    x0 = batch_lu_solve(lu[0], pivots[0], rhs[0].clone().unsqueeze(-1)).squeeze(-1)
-    out = [x0]
-
-    for i in range(1, lu.shape[0]):
-        ri = rhs[i].unsqueeze(-1) - torch.bmm(B[i - 1], out[i - 1].unsqueeze(-1))
-        xi = batch_lu_solve(lu[i], pivots[i], ri).squeeze(-1)
-        out.append(xi)
-
-    return torch.stack(out, dim=0)
-
-
-def dense_thomas_solve_dense(A, B, rhs):
-    """
-    Dense Thomas algorithm that accepts dense tensors.
-    """
-    x0 = torch.linalg.solve(A[0], rhs[0].clone().unsqueeze(-1)).squeeze(-1)
-    out = [x0]
-
-    for i in range(1, A.shape[0]):
-        ri = rhs[i].unsqueeze(-1) - torch.bmm(B[i - 1], out[i - 1].unsqueeze(-1))
-        xi = torch.linalg.solve(A[i], ri).squeeze(-1)
-        out.append(xi)
-
-    return torch.stack(out, dim=0)
 
 
 def _dense_pcr_cyclic_shift(A, level):
@@ -91,7 +63,7 @@ def _dense_pcr_cyclic_shift(A, level):
     )
 
 
-class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
+class DenseBlockOperator(SolvableBlockOperator, BlockViewOps):
     """Dense tensor-backed packed block operator.
 
     Args:
@@ -155,7 +127,15 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
         """Return a safe copy of the operator."""
         return DenseBlockOperator(self.data.clone())
 
-    def pcr_pad_front(self, n=1):
+    def block(self, i):
+        """Return logical block i as an operator with nblk == 1."""
+        return DenseBlockOperator(self.data[i : i + 1])
+
+    def window(self, start, end):
+        """Return logical block window [start:end)."""
+        return DenseBlockOperator(self.data[start:end])
+
+    def pad_front(self, n=1):
         """Return an operator with `n` leading dummy logical blocks."""
         if n < 0:
             raise ValueError("n must be nonnegative.")
@@ -164,27 +144,19 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
         data = pad(self.data, (0, 0, 0, 0, 0, 0, n, 0))
         return DenseBlockOperator(data)
 
-    def pcr_trim_front(self, n=1):
+    def trim_front(self, n=1):
         """Return an operator with the first `n` logical blocks removed."""
         if n < 0:
             raise ValueError("n must be nonnegative.")
         return DenseBlockOperator(self.data[n:])
 
-    def pcr_window(self, start, end):
-        """Return a logical block window `[start:end)`."""
-        return DenseBlockOperator(self.data[start:end])
-
-    def pcr_update_window(self, start, end, other):
+    def update_window(self, start, end, other):
         """Overwrite logical block window `[start:end)` with `other`."""
 
         if not isinstance(other, DenseBlockOperator):
             raise TypeError("other must be DenseBlockOperator.")
         self.data[start:end].copy_(other.data)
         return self
-
-    def solve_lower_bidiagonal(self, B, rhs):
-        """Solve the lower bidiagonal system with this operator as the diagonal blocks."""
-        return dense_thomas_solve_dense(self.data, B.data, rhs)
 
 
 class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
@@ -267,11 +239,23 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
             self.pivots.clone(),
         )
 
-    def solve_lower_bidiagonal(self, B, rhs):
-        """Solve the lower bidiagonal system with this operator as the diagonal blocks."""
-        return dense_thomas_solve(self.lu, self.pivots, B.data, rhs)
+    def block(self, i):
+        """Return logical block i as an operator with nblk == 1."""
+        return DenseBlockLUFactorizedOperator.from_factored(
+            self.data[i : i + 1],
+            self.lu[i : i + 1],
+            self.pivots[i : i + 1],
+        )
 
-    def pcr_pad_front(self, n=1):
+    def window(self, start, end):
+        """Return logical block window [start:end)."""
+        return DenseBlockLUFactorizedOperator.from_factored(
+            self.data[start:end],
+            self.lu[start:end],
+            self.pivots[start:end],
+        )
+
+    def pad_front(self, n=1):
         """Return an operator with `n` leading dummy logical blocks."""
 
         if n != 0:
@@ -280,7 +264,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
             )
         return self.clone()
 
-    def pcr_trim_front(self, n=1):
+    def trim_front(self, n=1):
         """Return an operator with the first `n` logical blocks removed."""
         if n != 0:
             raise NotImplementedError(
@@ -288,15 +272,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
             )
         return self.clone()
 
-    def pcr_window(self, start, end):
-        """Return a logical block window `[start:end)`."""
-        return DenseBlockLUFactorizedOperator.from_factored(
-            self.data[start:end],
-            self.lu[start:end],
-            self.pivots[start:end],
-        )
-
-    def pcr_update_window(self, start, end, other):
+    def update_window(self, start, end, other):
         """Overwrite logical block window `[start:end)` with `other`."""
         if not isinstance(other, DenseBlockLUFactorizedOperator):
             raise TypeError("other must be DenseBlockLUFactorizedOperator.")
@@ -305,7 +281,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         self.pivots[start:end].copy_(other.pivots)
         return self
 
-    def pcr_reduce_block(self, B, rhs):
+    def reduce_block(self, B, rhs):
         """
         Dense PCR reduction kernel that preserves the original tensor working layout.
 

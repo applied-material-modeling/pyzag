@@ -22,15 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from abc import ABC, abstractmethod
-
 """
 Abstract block operator interfaces.
 """
 
+from abc import ABC, abstractmethod
+
 
 class BlockOperator(ABC):
-    """Abstract interface for a logical packed block operator.
+    """
+    Abstract interface for a logical packed block operator.
 
     This interface defines the solver-facing contract for a block operator.
     It does not require any particular internal storage layout.
@@ -141,51 +142,30 @@ class SolvableBlockOperator(BlockOperator):
         Returns a solution with the same leading block convention.
         """
 
-    @abstractmethod
-    def solve_lower_bidiagonal(self, B, rhs):
-        """
-        Solve a lower block-bidiagonal system.
 
-        Here `self` represents the diagonal blocks and `B` represents the
-        lower off-diagonal blocks.
-
-        Expected logical structure
-        --------------------------
-        - `self.nblk == rhs.shape[0]`
-        - `B.nblk == self.nblk - 1`
-        - `rhs[i]` is the right-hand side for logical block `i`
-        - `B[i]` couples logical block `i` into logical block `i + 1`
-        """
-
-
-class PCRBlockViewOps(ABC):
-    """Logical window/update contract required by the PCR solver.
+class BlockViewOps(ABC):
+    """Logical window/update contract required by the PCR and Thomas solver.
 
     PCR does not assume dense storage. It only assumes that a backend can
     expose and update contiguous logical block windows in solver order.
-
-    Required semantics
-    ------------------
-    - `pcr_window(start, end)` returns the logical block range `[start:end)`
-    - `pcr_update_window(start, end, other)` writes `other` into that same
-      logical range
-    - `pcr_pad_front(n)` inserts `n` leading dummy logical blocks so the PCR
-      driver can align windows exactly as required
-    - `pcr_trim_front(n)` removes `n` leading logical blocks
 
     These methods may return views or copies.
     """
 
     @abstractmethod
-    def pcr_pad_front(self, n=1):
+    def block(self, i):
+        """Return logical block i as an operator with nblk == 1."""
+
+    @abstractmethod
+    def pad_front(self, n=1):
         """Return an operator with `n` leading dummy logical blocks."""
 
     @abstractmethod
-    def pcr_trim_front(self, n=1):
+    def trim_front(self, n=1):
         """Return an operator with the first `n` logical blocks removed."""
 
     @abstractmethod
-    def pcr_window(self, start, end):
+    def window(self, start, end):
         """Return logical block window `[start:end)`.
 
         The returned operator must preserve the original logical block order.
@@ -194,25 +174,25 @@ class PCRBlockViewOps(ABC):
         """
 
     @abstractmethod
-    def pcr_update_window(self, start, end, other):
+    def update_window(self, start, end, other):
         """Overwrite logical block window `[start:end)` with `other`.
 
         Required compatibility:
             other.nblk == end - start
 
         The update must affect the same logical block range that would be
-        returned by `pcr_window(start, end)`.
+        returned by `window(start, end)`.
         """
 
 
-class PCRFactorizedDiagonalOps(SolvableBlockOperator, PCRBlockViewOps):
+class PCRFactorizedDiagonalOps(SolvableBlockOperator, BlockViewOps):
     """Diagonal-block contract for fast PCR solves.
     This interface is for the diagonal operator used by PCR-based bidiagonal
     solves.
     """
 
     @abstractmethod
-    def pcr_reduce_block(self, B, rhs):
+    def reduce_block(self, B, rhs):
         """Perform one backend-native PCR reduction on a contiguous block window.
 
         Let `m = self.nblk` for the current PCR window. The solver expects:

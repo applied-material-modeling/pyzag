@@ -41,7 +41,8 @@ import numpy as np
 
 from pyzag.operators.base import (
     BlockOperator,
-    PCRBlockViewOps,
+    SolvableBlockOperator,
+    BlockViewOps,
     PCRFactorizedDiagonalOps,
 )
 
@@ -296,8 +297,26 @@ class LUFactorization(BidiagonalOperator):
 
 
 def thomas_solve(A, B, v):
-    """Generic Thomas solve"""
-    return A.solve_lower_bidiagonal(B, v)
+    """Generic solver-owned Thomas solve over block views."""
+    if v.ndim != 3:
+        raise ValueError("v must have shape (nblk, sbat, sblk).")
+    if A.nblk != v.shape[0]:
+        raise ValueError("A.nblk must match v.shape[0].")
+    if B.nblk != A.nblk - 1:
+        raise ValueError("B.nblk must equal A.nblk - 1.")
+
+    v_work = v.clone()
+
+    v_work[0:1] = A.block(0).solve(v_work[0:1])
+
+    for i in range(1, A.nblk):
+        Ai = A.block(i)
+        Bi = B.block(i - 1)
+
+        ri = v_work[i : i + 1] - Bi.matvec(v_work[i - 1 : i].clone())
+        v_work[i : i + 1] = Ai.solve(ri)
+
+    return v_work
 
 
 class BidiagonalThomasFactorization(LUFactorization):
@@ -306,8 +325,17 @@ class BidiagonalThomasFactorization(LUFactorization):
     factorization
     """
 
+    def __init__(self, A, B, *args, **kwargs):
+        super().__init__(A, B, *args, **kwargs)
+
+        if not isinstance(self.A, SolvableBlockOperator):
+            raise TypeError("A must implement SolvableBlockOperator.")
+        if not isinstance(self.A, BlockViewOps):
+            raise TypeError("A must implement BlockViewOps.")
+        if not isinstance(self.B, BlockViewOps):
+            raise TypeError("B must implement BlockViewOps.")
+
     def matvec(self, v):
-        """call the thomas_solve"""
         return thomas_solve(self.A, self.B, v)
 
 
@@ -322,8 +350,8 @@ class BidiagonalPCRFactorization(LUFactorization):
 
         if not isinstance(self.A, PCRFactorizedDiagonalOps):
             raise TypeError("A must implement PCRFactorizedDiagonalOps.")
-        if not isinstance(self.B, PCRBlockViewOps):
-            raise TypeError("B must implement PCRBlockViewOps.")
+        if not isinstance(self.B, BlockViewOps):
+            raise TypeError("B must implement BlockViewOps.")
 
     def matvec(self, v):
         """
@@ -333,14 +361,14 @@ class BidiagonalPCRFactorization(LUFactorization):
         - reduce each power-of-two window independently
         - solve with the original A ordering
         """
-        B = self.B.pcr_pad_front(1)
+        B = self.B.pad_front(1)
         v_work = v.clone()
 
         for s, e in zip(*self._pow2(self.nblk)):
-            A_blk = self.A.pcr_window(s, e)
-            B_blk = B.pcr_window(s, e)
+            A_blk = self.A.window(s, e)
+            B_blk = B.window(s, e)
 
-            B_red, v_red = A_blk.pcr_reduce_block(B_blk, v_work[s:e])
+            B_red, v_red = A_blk.reduce_block(B_blk, v_work[s:e])
 
             expected = e - s - 1
             if B_red.nblk != expected:
@@ -352,7 +380,7 @@ class BidiagonalPCRFactorization(LUFactorization):
                     f"PCR backend returned wrong rhs size: got {v_red.shape[0]}, expected {expected}"
                 )
 
-            B.pcr_update_window(s + 1, e, B_red)
+            B.update_window(s + 1, e, B_red)
             v_work[s + 1 : e] = v_red
 
         return self.A.solve(v_work)
@@ -395,26 +423,26 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         - solve the first reduced prefix directly
         - finish the remaining blocks with Thomas in original ordering
         """
-        B = self.B.pcr_pad_front(1)
+        B = self.B.pad_front(1)
         v_work = v.clone()
 
         start, end, last = self._pcr_blocks()
         self._apply_pcr_windows(B, v_work, start, end)
 
-        B = B.pcr_trim_front(1)
+        B = B.trim_front(1)
         self._solve_hybrid_tail(B, v_work, last)
 
         return v_work
 
     def _apply_pcr_windows(self, B, v_work, start, end):
         for s, e in zip(start, end):
-            A_blk = self.A.pcr_window(s, e)
-            B_blk = B.pcr_window(s, e)
+            A_blk = self.A.window(s, e)
+            B_blk = B.window(s, e)
 
-            B_red, v_red = A_blk.pcr_reduce_block(B_blk, v_work[s:e])
+            B_red, v_red = A_blk.reduce_block(B_blk, v_work[s:e])
             self._check_pcr_reduce_result(B_red, v_red, s, e)
 
-            B.pcr_update_window(s + 1, e, B_red)
+            B.update_window(s + 1, e, B_red)
             v_work[s + 1 : e] = v_red
 
     @staticmethod
@@ -431,11 +459,11 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
 
     def _solve_hybrid_tail(self, B, v_work, last):
         if last > 0:
-            v_work[:last] = self.A.pcr_window(0, last).solve(v_work[:last])
+            v_work[:last] = self.A.window(0, last).solve(v_work[:last])
 
         for i in range(last, self.nblk):
-            Ai = self.A.pcr_window(i, i + 1)
-            Bi = B.pcr_window(i - 1, i)
+            Ai = self.A.window(i, i + 1)
+            Bi = B.window(i - 1, i)
             ri = v_work[i : i + 1] - Bi.matvec(v_work[i - 1 : i])
             v_work[i : i + 1] = Ai.solve(ri)
 
