@@ -336,6 +336,9 @@ class BidiagonalThomasFactorization(LUFactorization):
             raise TypeError("B must implement BlockViewOps.")
 
     def matvec(self, v):
+        """
+        call thomas_solve
+        """
         return thomas_solve(self.A, self.B, v)
 
 
