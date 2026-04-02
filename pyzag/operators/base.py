@@ -26,9 +26,37 @@ from abc import ABC, abstractmethod
 
 
 class BlockOperator(ABC):
-    """Abstract packed block-operator interface.
-    dimensions should be (nblk , ...) where nblk is the number of blocks
-    and the remaining dimensions are the block shape.
+    """Abstract interface for a logical packed block operator.
+
+    This interface defines the solver-facing contract for a block operator.
+    It does not require any particular internal storage layout.
+
+    Logical conventions
+    -------------------
+    The operator consists of `nblk` logical blocks. The solver treats vectors
+    passed to this operator as block-major: axis 0 indexes logical blocks in
+    solver order.
+
+    For the current bidiagonal solvers, vector inputs are expected to satisfy
+
+        x.shape[0] == self.nblk
+
+    and are typically shaped
+
+        (nblk, batch_size, block_vec_size)
+
+    where:
+        - axis 0 is the logical block / time index
+        - axis 1 is the batch index
+        - axis 2 is the local vector entries for one block
+
+    Backend freedom
+    ---------------
+    A backend may store its blocks in any representation it wants
+    (dense, structured dense, factored, sparse-like packed, etc.) as long as:
+        - `nblk` reports the correct logical number of blocks
+        - `batch_size` and `block_shape` describe the logical block action
+        - all methods below preserve the same logical block ordering
     """
 
     @property
@@ -46,59 +74,45 @@ class BlockOperator(ABC):
     @property
     @abstractmethod
     def nblk(self):
-        """Number of packed blocks."""
+        """Number of logical blocks in this operator."""
         pass
 
     @property
     @abstractmethod
     def batch_size(self):
-        """Batch size of each packed block."""
+        """Logical batch size expected in block-major vector inputs."""
         pass
 
     @property
     @abstractmethod
     def block_shape(self):
-        """Per-block operator shape. (ignoring the first dimensions)"""
+        """Logical shape of one operator block.
+        This is the mathematical shape of a single block.
+        """
         pass
 
     @abstractmethod
     def matvec(self, x):
-        """A x"""
+        """Apply the operator to a block-major vector `x`.
+
+        Required solver-side convention:
+            x.shape[0] == self.nblk
+
+        The backend must interpret `x[i]` as the vector for logical block `i`
+        and return the result in the same logical block order.
+        """
         pass
 
     @abstractmethod
     def t_matvec(self, x):
-        """A^T x"""
-        pass
+        """Apply the transpose of the operator to a block-major vector `x`.
 
-    @abstractmethod
-    def matmat(self, X):
-        """A B X"""
-        pass
+        Required solver-side convention:
+            x.shape[0] == self.nblk
 
-    @abstractmethod
-    def t_matmat(self, X):
-        """A^T B X"""
-        pass
-
-    @abstractmethod
-    def compose(self, other):
-        """Return the operator self @ other."""
-        pass
-
-    @abstractmethod
-    def add(self, other):
-        """Return self + other."""
-        pass
-
-    @abstractmethod
-    def sub(self, other):
-        """Return self - other."""
-        pass
-
-    @abstractmethod
-    def neg(self):
-        """Return -self."""
+        The backend must interpret `x[i]` as the vector for logical block `i`
+        and return the result in the same logical block order.
+        """
         pass
 
     @abstractmethod
@@ -106,115 +120,118 @@ class BlockOperator(ABC):
         """Return a safe copy of the operator."""
         pass
 
-    @abstractmethod
-    def slice_blocks(self, start=None, end=None, step=None):
-        """Return a packed view/copy of a subset of blocks."""
-        pass
-
-    @abstractmethod
-    def empty_like(self, nlbk):
-        """Return an empty operator with the same block shape and batch size."""
-        pass
-
     def __len__(self):
         return self.nblk
 
 
 class SolvableBlockOperator(BlockOperator):
-    """Abstract block operator that supports linear solves."""
+    """Block operator supporting direct block solves.
+
+    The `solve` and `solve_lower_bidiagonal` methods are solver-facing
+    contracts. They operate on block-major right-hand sides whose leading
+    dimension is the logical block index.
+    """
 
     @abstractmethod
     def solve(self, rhs):
-        """Solve A x = rhs."""
+        """Solve the block system `A x = rhs`.
+
+        Required solver-side convention:
+            rhs.shape[0] == self.nblk
+
+        For the current bidiagonal solvers, `rhs` is typically shaped
+            (nblk, batch_size, block_vec_size)
+
+        Returns a solution with the same leading block convention.
+        """
         pass
 
     @abstractmethod
-    def t_solve(self, rhs):
-        """Solve A^T x = rhs."""
-        pass
-
-    @abstractmethod
-    def solve_mat(self, rhs):
-        """Solve A X = rhs for multiple rhs columns."""
-        pass
-
-    @abstractmethod
-    def t_solve_mat(self, rhs):
-        """Solve A^T X = rhs for multiple rhs columns."""
-        pass
-
-    @abstractmethod
-    def inv_compose(self, other):
-        """Return the operator A^{-1} @ other."""
-        pass
-
-    @abstractmethod
-    def t_inv_compose(self, other):
-        """Return the operator A^{-T} @ other."""
-        pass
-
-    # for a generic approach, should be overriden
     def solve_lower_bidiagonal(self, B, rhs):
-        out = [self.slice_blocks(0, 1).solve(rhs[0:1])[0]]
+        """
+        Solve a lower block-bidiagonal system.
 
-        for i in range(1, self.nblk):
-            Bi = B.slice_blocks(i - 1, i)
-            Ai = self.slice_blocks(i, i + 1)
-            ri = rhs[i : i + 1] - Bi.matvec(out[i - 1].unsqueeze(0))
-            out.append(Ai.solve(ri)[0])
+        Here `self` represents the diagonal blocks and `B` represents the
+        lower off-diagonal blocks.
 
-        return __import__("torch").stack(out, dim=0)
-
-    # for a generic approach, should be overriden
-    def solve_lower_bidiagonal_transpose(self, B, rhs):
-        out = rhs.clone()
-        n = self.nblk
-
-        out[-1] = self.slice_blocks(n - 1, n).t_solve(rhs[-1:])[0]
-        for i in range(n - 2, -1, -1):
-            Ai = self.slice_blocks(i, i + 1)
-            Bi = B.slice_blocks(i, i + 1)
-            ri = rhs[i : i + 1] - Bi.t_matvec(out[i + 1].unsqueeze(0))
-            out[i] = Ai.t_solve(ri)[0]
-
-        return out
+        Expected logical structure
+        --------------------------
+        - `self.nblk == rhs.shape[0]`
+        - `B.nblk == self.nblk - 1`
+        - `rhs[i]` is the right-hand side for logical block `i`
+        - `B[i]` couples logical block `i` into logical block `i + 1`
+        """
+        pass
 
 
 class PCRBlockViewOps(ABC):
-    """
-    Storage/layout contract for fast PCR backends.
-    Implementations must guarantee that:
-    - pcr_window returns writable views or copies
-    - pcr_update_window is safe under internal storage layout
+    """Logical window/update contract required by the PCR solver.
+
+    PCR does not assume dense storage. It only assumes that a backend can
+    expose and update contiguous logical block windows in solver order.
+
+    Required semantics
+    ------------------
+    - `pcr_window(start, end)` returns the logical block range `[start:end)`
+    - `pcr_update_window(start, end, other)` writes `other` into that same
+      logical range
+    - `pcr_pad_front(n)` inserts `n` leading dummy logical blocks so the PCR
+      driver can align windows exactly as required
+    - `pcr_trim_front(n)` removes `n` leading logical blocks
+
+    These methods may return views or copies.
     """
 
     @abstractmethod
     def pcr_pad_front(self, n=1):
-        """Return a new operator/view with n leading dummy blocks."""
+        """Return an operator with `n` leading dummy logical blocks."""
         pass
 
     @abstractmethod
     def pcr_trim_front(self, n=1):
-        """Drop n leading blocks."""
+        """Return an operator with the first `n` logical blocks removed."""
         pass
 
     @abstractmethod
     def pcr_window(self, start, end):
-        """Return contiguous block window [start:end)."""
+        """Return logical block window `[start:end)`.
+
+        The returned operator must preserve the original logical block order.
+        If `end - start = m`, the returned operator must represent exactly `m`
+        logical blocks.
+        """
         pass
 
     @abstractmethod
     def pcr_update_window(self, start, end, other):
-        """Write other into [start:end)."""
+        """Overwrite logical block window `[start:end)` with `other`.
+
+        Required compatibility:
+            other.nblk == end - start
+
+        The update must affect the same logical block range that would be
+        returned by `pcr_window(start, end)`.
+        """
         pass
 
 
 class PCRFactorizedDiagonalOps(SolvableBlockOperator, PCRBlockViewOps):
-    """Factored diagonal blocks suitable for fast PCR."""
+    """Diagonal-block contract for fast PCR solves.
+    This interface is for the diagonal operator used by PCR-based bidiagonal
+    solves.
+    """
 
     @abstractmethod
     def pcr_reduce_block(self, B, rhs):
-        """Perform one backend-native PCR reduction block."""
+        """Perform one backend-native PCR reduction on a contiguous block window.
+
+        Let `m = self.nblk` for the current PCR window. The solver expects:
+            rhs.shape[0] == m
+
+        and expects the returned reduced system to satisfy:
+            B_red.nblk == m - 1
+            rhs_red.shape[0] == m - 1
+        """
         pass
 
 
@@ -225,10 +242,20 @@ class BlockOperatorBuilder(ABC):
 
     @abstractmethod
     def make_forward_blocks(self, J):
-        """Return (A_ops, B_ops) for the forward bidiagonal system."""
+        """Return `(A_ops, B_ops)` for the forward lower block-bidiagonal system.
+
+        Expected logical meaning:
+            - `A_ops` contains the diagonal blocks
+            - `B_ops` contains the lower off-diagonal blocks
+            - `B_ops.nblk == A_ops.nblk - 1`
+        """
         pass
 
     @abstractmethod
     def make_adjoint_blocks(self, J):
-        """Return (A_ops, B_ops) for the adjoint bidiagonal system."""
+        """Return `(A_ops, B_ops)` for the adjoint system.
+
+        The returned operators must follow the same logical block-ordering
+        convention expected by the adjoint solver.
+        """
         pass

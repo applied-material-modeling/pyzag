@@ -38,6 +38,42 @@ torch.set_default_dtype(torch.float64)
 torch.manual_seed(42)
 
 
+class _LowerBidiagonalSolveMixin:
+    diag_operator_cls = None
+
+    def setUp(self):
+        self.nblk = 7
+        self.sbat = 5
+        self.sblk = 6
+
+        A = torch.rand(self.nblk, self.sbat, self.sblk, self.sblk)
+        B = torch.rand(self.nblk - 1, self.sbat, self.sblk, self.sblk)
+
+        I = torch.eye(self.sblk, dtype=A.dtype).reshape(1, 1, self.sblk, self.sblk)
+        self.A_data = A + 2.0 * I
+        self.B_data = B
+        self.x = torch.rand(self.nblk, self.sbat, self.sblk)
+
+        self.A = self.diag_operator_cls(self.A_data)
+        self.B = DenseBlockOperator(self.B_data)
+
+    def _make_lower_bidiagonal_rhs(self, A_data, B_data, x):
+        rhs = torch.matmul(A_data, x.unsqueeze(-1)).squeeze(-1)
+        rhs[1:] = rhs[1:] + torch.matmul(B_data, x[:-1].unsqueeze(-1)).squeeze(-1)
+        return rhs
+
+    def test_solve_lower_bidiagonal(self):
+        rhs = self._make_lower_bidiagonal_rhs(self.A_data, self.B_data, self.x)
+        y = self.A.solve_lower_bidiagonal(self.B, rhs)
+        self.assertTrue(torch.allclose(y, self.x))
+
+    def test_solve_lower_bidiagonal_wrong_nblk(self):
+        rhs = self._make_lower_bidiagonal_rhs(self.A_data, self.B_data, self.x)
+        bad_B = DenseBlockOperator(self.B_data[:-1])
+        with self.assertRaises((ValueError, RuntimeError, IndexError)):
+            self.A.solve_lower_bidiagonal(bad_B, rhs)
+
+
 class _DensePackedOperatorTestMixin:
     operator_cls = None
 
@@ -80,16 +116,6 @@ class _DensePackedOperatorTestMixin:
         two = self.A.t_matvec(self.x)
         self.assertTrue(torch.allclose(one, two))
 
-    def test_matmat(self):
-        one = torch.matmul(self.A_data, self.X)
-        two = self.A.matmat(self.X)
-        self.assertTrue(torch.allclose(one, two))
-
-    def test_t_matmat(self):
-        one = torch.matmul(self.A_data.transpose(-1, -2), self.X)
-        two = self.A.t_matmat(self.X)
-        self.assertTrue(torch.allclose(one, two))
-
     def test_solve(self):
         b = torch.matmul(self.A_data, self.x.unsqueeze(-1)).squeeze(-1)
         one = torch.linalg.solve(self.A_data, b.unsqueeze(-1)).squeeze(-1)
@@ -97,83 +123,11 @@ class _DensePackedOperatorTestMixin:
         self.assertTrue(torch.allclose(one, two))
         self.assertTrue(torch.allclose(two, self.x))
 
-    def test_t_solve(self):
-        b = torch.matmul(self.A_data.transpose(-1, -2), self.x.unsqueeze(-1)).squeeze(
-            -1
-        )
-        one = torch.linalg.solve(
-            self.A_data.transpose(-1, -2), b.unsqueeze(-1)
-        ).squeeze(-1)
-        two = self.A.t_solve(b)
-        self.assertTrue(torch.allclose(one, two))
-        self.assertTrue(torch.allclose(two, self.x))
-
-    def test_solve_mat(self):
-        B_rhs = torch.matmul(self.A_data, self.X)
-        one = torch.linalg.solve(self.A_data, B_rhs)
-        two = self.A.solve_mat(B_rhs)
-        self.assertTrue(torch.allclose(one, two))
-        self.assertTrue(torch.allclose(two, self.X))
-
-    def test_t_solve_mat(self):
-        B_rhs = torch.matmul(self.A_data.transpose(-1, -2), self.X)
-        one = torch.linalg.solve(self.A_data.transpose(-1, -2), B_rhs)
-        two = self.A.t_solve_mat(B_rhs)
-        self.assertTrue(torch.allclose(one, two))
-        self.assertTrue(torch.allclose(two, self.X))
-
-    def test_compose(self):
-        C = self.A.compose(self.B)
-        one = torch.matmul(self.A_data, self.B_data)
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, one))
-
-    def test_add(self):
-        C = self.A.add(self.B)
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, self.A_data + self.B_data))
-
-    def test_sub(self):
-        C = self.A.sub(self.B)
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, self.A_data - self.B_data))
-
-    def test_neg(self):
-        C = self.A.neg()
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, -self.A_data))
-
-    def test_inv_compose(self):
-        C = self.A.inv_compose(self.B)
-        one = torch.linalg.solve(self.A_data, self.B_data)
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, one))
-
-    def test_t_inv_compose(self):
-        C = self.A.t_inv_compose(self.B)
-        one = torch.linalg.solve(self.A_data.transpose(-1, -2), self.B_data)
-        self.assertIsInstance(C, DenseBlockOperator)
-        self.assertTrue(torch.allclose(C.data, one))
-
     def test_clone(self):
         C = self.A.clone()
         self.assertTrue(torch.allclose(C.data, self.A.data))
         self.assertIsNot(C, self.A)
         self.assertIsNot(C.data, self.A.data)
-
-    def test_slice_blocks(self):
-        C = self.A.slice_blocks(1, 5, 2)
-        self.assertEqual(C.nblk, 2)
-        self.assertTrue(torch.allclose(C.data, self.A_data[1:5:2]))
-
-    def test_empty_like(self):
-        C = self.A.empty_like(3)
-        self.assertEqual(C.nblk, 3)
-        self.assertEqual(C.batch_size, self.sbat)
-        self.assertEqual(C.block_shape, (self.sblk, self.sblk))
-        self.assertEqual(C.dtype, self.A.dtype)
-        self.assertEqual(C.device, self.A.device)
-        self.assertEqual(C.data.shape, (3, self.sbat, self.sblk, self.sblk))
 
 
 class TestDenseBlockOperator(_DensePackedOperatorTestMixin, unittest.TestCase):
@@ -210,7 +164,7 @@ class TestDenseBlockOperatorBuilder(unittest.TestCase):
     def test_make_adjoint_blocks(self):
         A_ops, B_ops = self.builder.make_adjoint_blocks(self.J)
 
-        self.assertIsInstance(A_ops, DenseBlockOperator)
+        self.assertIsInstance(A_ops, DenseBlockLUFactorizedOperator)
         self.assertIsInstance(B_ops, DenseBlockOperator)
 
         self.assertEqual(A_ops.nblk, self.nblk - 1)
@@ -218,3 +172,42 @@ class TestDenseBlockOperatorBuilder(unittest.TestCase):
 
         self.assertTrue(torch.allclose(A_ops.data, self.J[1, 1:].transpose(-1, -2)))
         self.assertTrue(torch.allclose(B_ops.data, self.J[0, 1:-1].transpose(-1, -2)))
+
+
+class TestDenseBlockOperatorLowerBidiagonal(
+    _LowerBidiagonalSolveMixin, unittest.TestCase
+):
+    diag_operator_cls = DenseBlockOperator
+
+
+class TestDenseBlockLUFactorizedOperatorLowerBidiagonal(
+    _LowerBidiagonalSolveMixin, unittest.TestCase
+):
+    diag_operator_cls = DenseBlockLUFactorizedOperator
+
+
+class TestLowerBidiagonalSolveEquivalence(unittest.TestCase):
+    def test_dense_and_lu_factorized_match(self):
+        nblk, sbat, sblk = 7, 5, 6
+
+        A = torch.rand(nblk, sbat, sblk, sblk)
+        B = torch.rand(nblk - 1, sbat, sblk, sblk)
+        I = torch.eye(sblk, dtype=A.dtype).reshape(1, 1, sblk, sblk)
+
+        A_data = A + 2.0 * I
+        B_data = B
+        x = torch.rand(nblk, sbat, sblk)
+
+        rhs = torch.matmul(A_data, x.unsqueeze(-1)).squeeze(-1)
+        rhs[1:] = rhs[1:] + torch.matmul(B_data, x[:-1].unsqueeze(-1)).squeeze(-1)
+
+        A_dense = DenseBlockOperator(A_data)
+        A_lu = DenseBlockLUFactorizedOperator(A_data)
+        B_op = DenseBlockOperator(B_data)
+
+        y_dense = A_dense.solve_lower_bidiagonal(B_op, rhs)
+        y_lu = A_lu.solve_lower_bidiagonal(B_op, rhs)
+
+        self.assertTrue(torch.allclose(y_dense, x))
+        self.assertTrue(torch.allclose(y_lu, x))
+        self.assertTrue(torch.allclose(y_dense, y_lu))

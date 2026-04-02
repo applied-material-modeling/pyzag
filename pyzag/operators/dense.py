@@ -51,18 +51,14 @@ def dense_thomas_solve(lu, pivots, B, rhs):
     return torch.stack(out, dim=0)
 
 
-def dense_thomas_t_solve(t_lu, t_pivots, B, rhs):
-    n = rhs.shape[0]
-    out = [None] * n
-    out[-1] = batch_lu_solve(
-        t_lu[-1], t_pivots[-1], rhs[-1].clone().unsqueeze(-1)
-    ).squeeze(-1)
+def dense_thomas_solve_dense(A, B, rhs):
+    x0 = torch.linalg.solve(A[0], rhs[0].clone().unsqueeze(-1)).squeeze(-1)
+    out = [x0]
 
-    for i in range(n - 2, -1, -1):
-        ri = rhs[i].unsqueeze(-1) - torch.bmm(
-            B[i].transpose(-1, -2), out[i + 1].unsqueeze(-1)
-        )
-        out[i] = batch_lu_solve(t_lu[i], t_pivots[i], ri).squeeze(-1)
+    for i in range(1, A.shape[0]):
+        ri = rhs[i].unsqueeze(-1) - torch.bmm(B[i - 1], out[i - 1].unsqueeze(-1))
+        xi = torch.linalg.solve(A[i], ri).squeeze(-1)
+        out.append(xi)
 
     return torch.stack(out, dim=0)
 
@@ -120,87 +116,13 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
             raise ValueError("t_matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data.transpose(-1, -2), x.unsqueeze(-1)).squeeze(-1)
 
-    def matmat(self, X):
-        if X.ndim != 4:
-            raise ValueError("matmat expects X with shape (nblk, sbat, sblk, nrhs).")
-        return torch.matmul(self.data, X)
-
-    def t_matmat(self, X):
-        if X.ndim != 4:
-            raise ValueError("t_matmat expects X with shape (nblk, sbat, sblk, nrhs).")
-        return torch.matmul(self.data.transpose(-1, -2), X)
-
     def solve(self, rhs):
         if rhs.ndim != 3:
             raise ValueError("solve expects rhs with shape (nblk, sbat, sblk).")
         return torch.linalg.solve(self.data, rhs.unsqueeze(-1)).squeeze(-1)
 
-    def t_solve(self, rhs):
-        if rhs.ndim != 3:
-            raise ValueError("t_solve expects rhs with shape (nblk, sbat, sblk).")
-        return torch.linalg.solve(
-            self.data.transpose(-1, -2), rhs.unsqueeze(-1)
-        ).squeeze(-1)
-
-    def solve_mat(self, rhs):
-        if rhs.ndim != 4:
-            raise ValueError(
-                "solve_mat expects rhs with shape (nblk, sbat, sblk, nrhs)."
-            )
-        return torch.linalg.solve(self.data, rhs)
-
-    def t_solve_mat(self, rhs):
-        if rhs.ndim != 4:
-            raise ValueError(
-                "t_solve_mat expects rhs with shape (nblk, sbat, sblk, nrhs)."
-            )
-        return torch.linalg.solve(self.data.transpose(-1, -2), rhs)
-
-    def compose(self, other):
-        if not isinstance(other, DenseBlockOperator):
-            raise TypeError("DenseBlockOperator.compose expects DenseBlockOperator.")
-        return DenseBlockOperator(torch.matmul(self.data, other.data))
-
-    def add(self, other):
-        if not isinstance(other, DenseBlockOperator):
-            raise TypeError("DenseBlockOperator.add expects DenseBlockOperator.")
-        return DenseBlockOperator(self.data + other.data)
-
-    def sub(self, other):
-        if not isinstance(other, DenseBlockOperator):
-            raise TypeError("DenseBlockOperator.sub expects DenseBlockOperator.")
-        return DenseBlockOperator(self.data - other.data)
-
-    def neg(self):
-        return DenseBlockOperator(-self.data)
-
     def clone(self):
         return DenseBlockOperator(self.data.clone())
-
-    def slice_blocks(self, start=None, end=None, step=None):
-        return DenseBlockOperator(self.data[slice(start, end, step)])
-
-    def empty_like(self, nblk):
-        shape = (nblk,) + self.data.shape[1:]
-        return DenseBlockOperator(
-            torch.empty(shape, dtype=self.dtype, device=self.device)
-        )
-
-    def inv_compose(self, other):
-        if not isinstance(other, DenseBlockOperator):
-            raise TypeError(
-                "DenseBlockOperator.inv_compose expects DenseBlockOperator."
-            )
-        return DenseBlockOperator(torch.linalg.solve(self.data, other.data))
-
-    def t_inv_compose(self, other):
-        if not isinstance(other, DenseBlockOperator):
-            raise TypeError(
-                "DenseBlockOperator.t_inv_compose expects DenseBlockOperator."
-            )
-        return DenseBlockOperator(
-            torch.linalg.solve(self.data.transpose(-1, -2), other.data)
-        )
 
     def pcr_pad_front(self, n=1):
         if n < 0:
@@ -224,6 +146,9 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
         self.data[start:end].copy_(other.data)
         return self
 
+    def solve_lower_bidiagonal(self, B, rhs):
+        return dense_thomas_solve_dense(self.data, B.data, rhs)
+
 
 class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
     """Dense tensor-backed packed block operator with cached LU.
@@ -243,12 +168,8 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         self.data = data
         self.lu, self.pivots, _ = torch.linalg.lu_factor_ex(data)
 
-        # lazy transpose factorization
-        self.t_lu = None
-        self.t_pivots = None
-
     @classmethod
-    def from_factored(cls, data, lu, pivots, t_lu=None, t_pivots=None):
+    def from_factored(cls, data, lu, pivots):
         """
         Construct without recomputing LU.
         """
@@ -256,15 +177,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         obj.data = data
         obj.lu = lu
         obj.pivots = pivots
-        obj.t_lu = t_lu
-        obj.t_pivots = t_pivots
         return obj
-
-    def _ensure_transpose_lu(self):
-        if self.t_lu is None or self.t_pivots is None:
-            self.t_lu, self.t_pivots, _ = torch.linalg.lu_factor_ex(
-                self.data.transpose(-1, -2)
-            )
 
     @property
     def device(self):
@@ -296,127 +209,20 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
             raise ValueError("t_matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data.transpose(-1, -2), x.unsqueeze(-1)).squeeze(-1)
 
-    def matmat(self, X):
-        if X.ndim != 4:
-            raise ValueError("matmat expects X with shape (nblk, sbat, sblk, nrhs).")
-        return torch.matmul(self.data, X)
-
-    def t_matmat(self, X):
-        if X.ndim != 4:
-            raise ValueError("t_matmat expects X with shape (nblk, sbat, sblk, nrhs).")
-        return torch.matmul(self.data.transpose(-1, -2), X)
-
     def solve(self, rhs):
         if rhs.ndim != 3:
             raise ValueError("solve expects rhs with shape (nblk, sbat, sblk).")
         return batch_lu_solve(self.lu, self.pivots, rhs.unsqueeze(-1)).squeeze(-1)
 
-    def t_solve(self, rhs):
-        if rhs.ndim != 3:
-            raise ValueError("t_solve expects rhs with shape (nblk, sbat, sblk).")
-        self._ensure_transpose_lu()
-        return batch_lu_solve(self.t_lu, self.t_pivots, rhs.unsqueeze(-1)).squeeze(-1)
-
-    def solve_mat(self, rhs):
-        if rhs.ndim != 4:
-            raise ValueError(
-                "solve_mat expects rhs with shape (nblk, sbat, sblk, nrhs)."
-            )
-        return batch_lu_solve(self.lu, self.pivots, rhs)
-
-    def t_solve_mat(self, rhs):
-        if rhs.ndim != 4:
-            raise ValueError(
-                "t_solve_mat expects rhs with shape (nblk, sbat, sblk, nrhs)."
-            )
-        self._ensure_transpose_lu()
-        return batch_lu_solve(self.t_lu, self.t_pivots, rhs)
-
-    def compose(self, other):
-        if not isinstance(other, (DenseBlockOperator, DenseBlockLUFactorizedOperator)):
-            raise TypeError(
-                "DenseBlockLUFactorizedOperator.compose expects DenseBlockOperator "
-                "or DenseBlockLUFactorizedOperator."
-            )
-        return DenseBlockOperator(torch.matmul(self.data, other.data))
-
-    def add(self, other):
-        if not isinstance(other, (DenseBlockOperator, DenseBlockLUFactorizedOperator)):
-            raise TypeError(
-                "DenseBlockLUFactorizedOperator.add expects DenseBlockOperator "
-                "or DenseBlockLUFactorizedOperator."
-            )
-        return DenseBlockOperator(self.data + other.data)
-
-    def sub(self, other):
-        if not isinstance(other, (DenseBlockOperator, DenseBlockLUFactorizedOperator)):
-            raise TypeError(
-                "DenseBlockLUFactorizedOperator.sub expects DenseBlockOperator "
-                "or DenseBlockLUFactorizedOperator."
-            )
-        return DenseBlockOperator(self.data - other.data)
-
-    def neg(self):
-        return DenseBlockOperator(-self.data)
-
     def clone(self):
-        t_lu = None if self.t_lu is None else self.t_lu.clone()
-        t_pivots = None if self.t_pivots is None else self.t_pivots.clone()
         return DenseBlockLUFactorizedOperator.from_factored(
             self.data.clone(),
             self.lu.clone(),
             self.pivots.clone(),
-            t_lu=t_lu,
-            t_pivots=t_pivots,
         )
-
-    def slice_blocks(self, start=None, end=None, step=None):
-        sl = slice(start, end, step)
-        t_lu = None if self.t_lu is None else self.t_lu[sl]
-        t_pivots = None if self.t_pivots is None else self.t_pivots[sl]
-        return DenseBlockLUFactorizedOperator.from_factored(
-            self.data[sl],
-            self.lu[sl],
-            self.pivots[sl],
-            t_lu=t_lu,
-            t_pivots=t_pivots,
-        )
-
-    def empty_like(self, nblk):
-        shape = (nblk,) + self.data.shape[1:]
-        return DenseBlockLUFactorizedOperator(
-            torch.empty(shape, dtype=self.dtype, device=self.device)
-        )
-
-    def inv_compose(self, other):
-        if not isinstance(other, (DenseBlockOperator, DenseBlockLUFactorizedOperator)):
-            raise TypeError(
-                "DenseBlockLUFactorizedOperator.inv_compose expects DenseBlockOperator "
-                "or DenseBlockLUFactorizedOperator."
-            )
-        return DenseBlockOperator(
-            torch.linalg.lu_solve(self.lu, self.pivots, other.data)
-        )
-
-    def t_inv_compose(self, other):
-        if not isinstance(other, (DenseBlockOperator, DenseBlockLUFactorizedOperator)):
-            raise TypeError(
-                "DenseBlockLUFactorizedOperator.t_inv_compose expects DenseBlockOperator "
-                "or DenseBlockLUFactorizedOperator."
-            )
-        self._ensure_transpose_lu()
-        return DenseBlockOperator(batch_lu_solve(self.t_lu, self.t_pivots, other.data))
 
     def solve_lower_bidiagonal(self, B, rhs):
-        if not isinstance(B, DenseBlockOperator):
-            return super().solve_lower_bidiagonal(B, rhs)
         return dense_thomas_solve(self.lu, self.pivots, B.data, rhs)
-
-    def solve_lower_bidiagonal_transpose(self, B, rhs):
-        if not isinstance(B, DenseBlockOperator):
-            return super().solve_lower_bidiagonal_transpose(B, rhs)
-        self._ensure_transpose_lu()
-        return dense_thomas_t_solve(self.t_lu, self.t_pivots, B.data, rhs)
 
     def pcr_pad_front(self, n=1):
         if n != 0:
@@ -437,8 +243,6 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
             self.data[start:end],
             self.lu[start:end],
             self.pivots[start:end],
-            t_lu=None if self.t_lu is None else self.t_lu[start:end],
-            t_pivots=None if self.t_pivots is None else self.t_pivots[start:end],
         )
 
     def pcr_update_window(self, start, end, other):
@@ -447,8 +251,6 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         self.data[start:end].copy_(other.data)
         self.lu[start:end].copy_(other.lu)
         self.pivots[start:end].copy_(other.pivots)
-        self.t_lu = None
-        self.t_pivots = None
         return self
 
     def pcr_reduce_block(self, B, rhs):
@@ -518,6 +320,6 @@ class DenseBlockOperatorBuilder(BlockOperatorBuilder):
         return A_ops, B_ops
 
     def make_adjoint_blocks(self, J):
-        A_ops = DenseBlockOperator(J[1, 1:].transpose(-1, -2))
+        A_ops = DenseBlockLUFactorizedOperator(J[1, 1:].transpose(-1, -2))
         B_ops = DenseBlockOperator(J[0, 1:-1].transpose(-1, -2))
         return A_ops, B_ops
