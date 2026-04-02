@@ -34,7 +34,7 @@ These include:
 """
 
 import warnings
-from math import prod, log2, floor
+from math import log2, floor
 
 import torch
 import numpy as np
@@ -399,28 +399,37 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         v_work = v.clone()
 
         start, end, last = self._pcr_blocks()
+        self._apply_pcr_windows(B, v_work, start, end)
 
+        B = B.pcr_trim_front(1)
+        self._solve_hybrid_tail(B, v_work, last)
+
+        return v_work
+
+    def _apply_pcr_windows(self, B, v_work, start, end):
         for s, e in zip(start, end):
             A_blk = self.A.pcr_window(s, e)
             B_blk = B.pcr_window(s, e)
 
             B_red, v_red = A_blk.pcr_reduce_block(B_blk, v_work[s:e])
-
-            expected = e - s - 1
-            if B_red.nblk != expected:
-                raise RuntimeError(
-                    f"PCR backend returned wrong B_red size: got {B_red.nblk}, expected {expected}"
-                )
-            if v_red.shape[0] != expected:
-                raise RuntimeError(
-                    f"PCR backend returned wrong rhs size: got {v_red.shape[0]}, expected {expected}"
-                )
+            self._check_pcr_reduce_result(B_red, v_red, s, e)
 
             B.pcr_update_window(s + 1, e, B_red)
             v_work[s + 1 : e] = v_red
 
-        B = B.pcr_trim_front(1)
+    @staticmethod
+    def _check_pcr_reduce_result(B_red, v_red, s, e):
+        expected = e - s - 1
+        if B_red.nblk != expected:
+            raise RuntimeError(
+                f"PCR backend returned wrong B_red size: got {B_red.nblk}, expected {expected}"
+            )
+        if v_red.shape[0] != expected:
+            raise RuntimeError(
+                f"PCR backend returned wrong rhs size: got {v_red.shape[0]}, expected {expected}"
+            )
 
+    def _solve_hybrid_tail(self, B, v_work, last):
         if last > 0:
             v_work[:last] = self.A.pcr_window(0, last).solve(v_work[:last])
 
@@ -429,8 +438,6 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
             Bi = B.pcr_window(i - 1, i)
             ri = v_work[i : i + 1] - Bi.matvec(v_work[i - 1 : i])
             v_work[i : i + 1] = Ai.solve(ri)
-
-        return v_work
 
     def _pcr_blocks(self):
         """
