@@ -36,10 +36,16 @@ from .base import (
 
 
 def batch_lu_solve(lu, pivots, rhs):
+    """
+    Batched version of torch.linalg.lu_solve that accepts separate LU and pivot tensors.
+    """
     return torch.linalg.lu_solve(lu, pivots, rhs)
 
 
 def dense_thomas_solve(lu, pivots, B, rhs):
+    """
+    Dense Thomas algorithm that accepts separate LU and pivot tensors.
+    """
     x0 = batch_lu_solve(lu[0], pivots[0], rhs[0].clone().unsqueeze(-1)).squeeze(-1)
     out = [x0]
 
@@ -52,6 +58,9 @@ def dense_thomas_solve(lu, pivots, B, rhs):
 
 
 def dense_thomas_solve_dense(A, B, rhs):
+    """
+    Dense Thomas algorithm that accepts dense tensors.
+    """
     x0 = torch.linalg.solve(A[0], rhs[0].clone().unsqueeze(-1)).squeeze(-1)
     out = [x0]
 
@@ -64,6 +73,16 @@ def dense_thomas_solve_dense(A, B, rhs):
 
 
 def _dense_pcr_cyclic_shift(A, level):
+    """
+    Perform a cyclic shift on a dense tensor for PCR reduction.
+
+    Args:
+        A (torch.Tensor): Input tensor.
+        level (int): PCR reduction level.
+
+    Returns:
+        torch.Tensor: Shifted tensor.
+    """
     return A.as_strided(
         (A.shape[0] * 2, A.shape[1] // 2) + A.shape[2:],
         (prod(A.shape[2:]), 2 ** (level + 1) * prod(A.shape[2:])) + A.stride()[2:],
@@ -88,43 +107,54 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
 
     @property
     def device(self):
+        """Return the device of the underlying data tensor."""
         return self.data.device
 
     @property
     def dtype(self):
+        """Return the dtype of the underlying data tensor."""
         return self.data.dtype
 
     @property
     def nblk(self):
+        """Return the number of logical blocks."""
         return self.data.shape[0]
 
     @property
     def batch_size(self):
+        """Return the logical batch size."""
+
         return self.data.shape[1]
 
     @property
     def block_shape(self):
+        """Return the shape of one operator block."""
         return self.data.shape[-2:]
 
     def matvec(self, x):
+        """Apply the operator to a block-major vector `x`."""
         if x.ndim != 3:
             raise ValueError("matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data, x.unsqueeze(-1)).squeeze(-1)
 
     def t_matvec(self, x):
+        """Apply the transpose of the operator to a block-major vector `x`."""
         if x.ndim != 3:
             raise ValueError("t_matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data.transpose(-1, -2), x.unsqueeze(-1)).squeeze(-1)
 
     def solve(self, rhs):
+        """Solve the linear system with this operator as the coefficient matrix."""
         if rhs.ndim != 3:
             raise ValueError("solve expects rhs with shape (nblk, sbat, sblk).")
         return torch.linalg.solve(self.data, rhs.unsqueeze(-1)).squeeze(-1)
 
     def clone(self):
+        """Return a safe copy of the operator."""
         return DenseBlockOperator(self.data.clone())
 
     def pcr_pad_front(self, n=1):
+        """Return an operator with `n` leading dummy logical blocks."""
         if n < 0:
             raise ValueError("n must be nonnegative.")
         if n == 0:
@@ -133,20 +163,25 @@ class DenseBlockOperator(SolvableBlockOperator, PCRBlockViewOps):
         return DenseBlockOperator(data)
 
     def pcr_trim_front(self, n=1):
+        """Return an operator with the first `n` logical blocks removed."""
         if n < 0:
             raise ValueError("n must be nonnegative.")
         return DenseBlockOperator(self.data[n:])
 
     def pcr_window(self, start, end):
+        """Return a logical block window `[start:end)`."""
         return DenseBlockOperator(self.data[start:end])
 
     def pcr_update_window(self, start, end, other):
+        """Overwrite logical block window `[start:end)` with `other`."""
+
         if not isinstance(other, DenseBlockOperator):
             raise TypeError("other must be DenseBlockOperator.")
         self.data[start:end].copy_(other.data)
         return self
 
     def solve_lower_bidiagonal(self, B, rhs):
+        """Solve the lower bidiagonal system with this operator as the diagonal blocks."""
         return dense_thomas_solve_dense(self.data, B.data, rhs)
 
 
@@ -181,40 +216,49 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
 
     @property
     def device(self):
+        """Return the device of the underlying data tensor."""
         return self.data.device
 
     @property
     def dtype(self):
+        """Return the dtype of the underlying data tensor."""
         return self.data.dtype
 
     @property
     def nblk(self):
+        """Return the number of logical blocks."""
         return self.data.shape[0]
 
     @property
     def batch_size(self):
+        """Return the logical batch size."""
         return self.data.shape[1]
 
     @property
     def block_shape(self):
+        """Return the shape of one operator block."""
         return self.data.shape[-2:]
 
     def matvec(self, x):
+        """Apply the operator to a block-major vector `x`."""
         if x.ndim != 3:
             raise ValueError("matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data, x.unsqueeze(-1)).squeeze(-1)
 
     def t_matvec(self, x):
+        """Apply the transpose of the operator to a block-major vector `x`."""
         if x.ndim != 3:
             raise ValueError("t_matvec expects x with shape (nblk, sbat, sblk).")
         return torch.matmul(self.data.transpose(-1, -2), x.unsqueeze(-1)).squeeze(-1)
 
     def solve(self, rhs):
+        """Solve the linear system with this operator as the coefficient matrix."""
         if rhs.ndim != 3:
             raise ValueError("solve expects rhs with shape (nblk, sbat, sblk).")
         return batch_lu_solve(self.lu, self.pivots, rhs.unsqueeze(-1)).squeeze(-1)
 
     def clone(self):
+        """Return a safe copy of the operator."""
         return DenseBlockLUFactorizedOperator.from_factored(
             self.data.clone(),
             self.lu.clone(),
@@ -222,9 +266,12 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         )
 
     def solve_lower_bidiagonal(self, B, rhs):
+        """Solve the lower bidiagonal system with this operator as the diagonal blocks."""
         return dense_thomas_solve(self.lu, self.pivots, B.data, rhs)
 
     def pcr_pad_front(self, n=1):
+        """Return an operator with `n` leading dummy logical blocks."""
+
         if n != 0:
             raise NotImplementedError(
                 "Padding factored diagonal operators is not needed for PCR."
@@ -232,6 +279,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         return self.clone()
 
     def pcr_trim_front(self, n=1):
+        """Return an operator with the first `n` logical blocks removed."""
         if n != 0:
             raise NotImplementedError(
                 "Trimming factored diagonal operators is not needed for PCR."
@@ -239,6 +287,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         return self.clone()
 
     def pcr_window(self, start, end):
+        """Return a logical block window `[start:end)`."""
         return DenseBlockLUFactorizedOperator.from_factored(
             self.data[start:end],
             self.lu[start:end],
@@ -246,6 +295,7 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
         )
 
     def pcr_update_window(self, start, end, other):
+        """Overwrite logical block window `[start:end)` with `other`."""
         if not isinstance(other, DenseBlockLUFactorizedOperator):
             raise TypeError("other must be DenseBlockLUFactorizedOperator.")
         self.data[start:end].copy_(other.data)
@@ -315,11 +365,13 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
 
 class DenseBlockOperatorBuilder(BlockOperatorBuilder):
     def make_forward_blocks(self, J):
+        """Return `(A_ops, B_ops)` for the forward lower block-bidiagonal system."""
         A_ops = DenseBlockLUFactorizedOperator(J[1])
         B_ops = DenseBlockOperator(J[0, 1:])
         return A_ops, B_ops
 
     def make_adjoint_blocks(self, J):
+        """Return `(A_ops, B_ops)` for the adjoint upper block-bidiagonal system."""
         A_ops = DenseBlockLUFactorizedOperator(J[1, 1:].transpose(-1, -2))
         B_ops = DenseBlockOperator(J[0, 1:-1].transpose(-1, -2))
         return A_ops, B_ops

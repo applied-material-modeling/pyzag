@@ -63,25 +63,21 @@ class BlockOperator(ABC):
     @abstractmethod
     def device(self):
         """Execution device for torch-backed implementations."""
-        pass
 
     @property
     @abstractmethod
     def dtype(self):
         """Data type for torch-backed implementations."""
-        pass
 
     @property
     @abstractmethod
     def nblk(self):
         """Number of logical blocks in this operator."""
-        pass
 
     @property
     @abstractmethod
     def batch_size(self):
         """Logical batch size expected in block-major vector inputs."""
-        pass
 
     @property
     @abstractmethod
@@ -89,7 +85,6 @@ class BlockOperator(ABC):
         """Logical shape of one operator block.
         This is the mathematical shape of a single block.
         """
-        pass
 
     @abstractmethod
     def matvec(self, x):
@@ -101,7 +96,6 @@ class BlockOperator(ABC):
         The backend must interpret `x[i]` as the vector for logical block `i`
         and return the result in the same logical block order.
         """
-        pass
 
     @abstractmethod
     def t_matvec(self, x):
@@ -113,12 +107,10 @@ class BlockOperator(ABC):
         The backend must interpret `x[i]` as the vector for logical block `i`
         and return the result in the same logical block order.
         """
-        pass
 
     @abstractmethod
     def clone(self):
         """Return a safe copy of the operator."""
-        pass
 
     def __len__(self):
         return self.nblk
@@ -144,7 +136,6 @@ class SolvableBlockOperator(BlockOperator):
 
         Returns a solution with the same leading block convention.
         """
-        pass
 
     @abstractmethod
     def solve_lower_bidiagonal(self, B, rhs):
@@ -161,7 +152,6 @@ class SolvableBlockOperator(BlockOperator):
         - `rhs[i]` is the right-hand side for logical block `i`
         - `B[i]` couples logical block `i` into logical block `i + 1`
         """
-        pass
 
 
 class PCRBlockViewOps(ABC):
@@ -185,12 +175,10 @@ class PCRBlockViewOps(ABC):
     @abstractmethod
     def pcr_pad_front(self, n=1):
         """Return an operator with `n` leading dummy logical blocks."""
-        pass
 
     @abstractmethod
     def pcr_trim_front(self, n=1):
         """Return an operator with the first `n` logical blocks removed."""
-        pass
 
     @abstractmethod
     def pcr_window(self, start, end):
@@ -200,7 +188,6 @@ class PCRBlockViewOps(ABC):
         If `end - start = m`, the returned operator must represent exactly `m`
         logical blocks.
         """
-        pass
 
     @abstractmethod
     def pcr_update_window(self, start, end, other):
@@ -212,7 +199,6 @@ class PCRBlockViewOps(ABC):
         The update must affect the same logical block range that would be
         returned by `pcr_window(start, end)`.
         """
-        pass
 
 
 class PCRFactorizedDiagonalOps(SolvableBlockOperator, PCRBlockViewOps):
@@ -232,7 +218,6 @@ class PCRFactorizedDiagonalOps(SolvableBlockOperator, PCRBlockViewOps):
             B_red.nblk == m - 1
             rhs_red.shape[0] == m - 1
         """
-        pass
 
 
 class BlockOperatorBuilder(ABC):
@@ -249,7 +234,6 @@ class BlockOperatorBuilder(ABC):
             - `B_ops` contains the lower off-diagonal blocks
             - `B_ops.nblk == A_ops.nblk - 1`
         """
-        pass
 
     @abstractmethod
     def make_adjoint_blocks(self, J):
@@ -258,4 +242,3 @@ class BlockOperatorBuilder(ABC):
         The returned operators must follow the same logical block-ordering
         convention expected by the adjoint solver.
         """
-        pass
