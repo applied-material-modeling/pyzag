@@ -119,32 +119,6 @@ class BlockOperator(ABC):
     def __len__(self):
         return self.nblk
 
-    # for a generic approach, should be overriden
-    def solve_lower_bidiagonal(self, B, rhs):
-        out = [self.slice_blocks(0, 1).solve(rhs[0:1])[0]]
-
-        for i in range(1, self.nblk):
-            Bi = B.slice_blocks(i - 1, i)
-            Ai = self.slice_blocks(i, i + 1)
-            ri = rhs[i : i + 1] - Bi.matvec(out[i - 1].unsqueeze(0))
-            out.append(Ai.solve(ri)[0])
-
-        return __import__("torch").stack(out, dim=0)
-
-    # for a generic approach, should be overriden
-    def solve_lower_bidiagonal_transpose(self, B, rhs):
-        out = rhs.clone()
-        n = self.nblk
-
-        out[-1] = self.slice_blocks(n - 1, n).t_solve(rhs[-1:])[0]
-        for i in range(n - 2, -1, -1):
-            Ai = self.slice_blocks(i, i + 1)
-            Bi = B.slice_blocks(i, i + 1)
-            ri = rhs[i : i + 1] - Bi.t_matvec(out[i + 1].unsqueeze(0))
-            out[i] = Ai.t_solve(ri)[0]
-
-        return out
-
 
 class SolvableBlockOperator(BlockOperator):
     """Abstract block operator that supports linear solves."""
@@ -177,6 +151,70 @@ class SolvableBlockOperator(BlockOperator):
     @abstractmethod
     def t_inv_compose(self, other):
         """Return the operator A^{-T} @ other."""
+        pass
+
+    # for a generic approach, should be overriden
+    def solve_lower_bidiagonal(self, B, rhs):
+        out = [self.slice_blocks(0, 1).solve(rhs[0:1])[0]]
+
+        for i in range(1, self.nblk):
+            Bi = B.slice_blocks(i - 1, i)
+            Ai = self.slice_blocks(i, i + 1)
+            ri = rhs[i : i + 1] - Bi.matvec(out[i - 1].unsqueeze(0))
+            out.append(Ai.solve(ri)[0])
+
+        return __import__("torch").stack(out, dim=0)
+
+    # for a generic approach, should be overriden
+    def solve_lower_bidiagonal_transpose(self, B, rhs):
+        out = rhs.clone()
+        n = self.nblk
+
+        out[-1] = self.slice_blocks(n - 1, n).t_solve(rhs[-1:])[0]
+        for i in range(n - 2, -1, -1):
+            Ai = self.slice_blocks(i, i + 1)
+            Bi = B.slice_blocks(i, i + 1)
+            ri = rhs[i : i + 1] - Bi.t_matvec(out[i + 1].unsqueeze(0))
+            out[i] = Ai.t_solve(ri)[0]
+
+        return out
+
+
+class PCRBlockViewOps(ABC):
+    """
+    Storage/layout contract for fast PCR backends.
+    Implementations must guarantee that:
+    - pcr_window returns writable views or copies
+    - pcr_update_window is safe under internal storage layout
+    """
+
+    @abstractmethod
+    def pcr_pad_front(self, n=1):
+        """Return a new operator/view with n leading dummy blocks."""
+        pass
+
+    @abstractmethod
+    def pcr_trim_front(self, n=1):
+        """Drop n leading blocks."""
+        pass
+
+    @abstractmethod
+    def pcr_window(self, start, end):
+        """Return contiguous block window [start:end)."""
+        pass
+
+    @abstractmethod
+    def pcr_update_window(self, start, end, other):
+        """Write other into [start:end)."""
+        pass
+
+
+class PCRFactorizedDiagonalOps(SolvableBlockOperator, PCRBlockViewOps):
+    """Factored diagonal blocks suitable for fast PCR."""
+
+    @abstractmethod
+    def pcr_reduce_block(self, B, rhs):
+        """Perform one backend-native PCR reduction block."""
         pass
 
 

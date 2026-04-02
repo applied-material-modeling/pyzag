@@ -37,13 +37,13 @@ import warnings
 from math import prod, log2, floor
 
 import torch
-from torch.nn.functional import pad
 import numpy as np
 
-from pyzag.operators.base import BlockOperator
-
-# this is to ensure backward compatibility
-from pyzag.operators.dense import DenseBlockOperator, DenseBlockLUFactorizedOperator
+from pyzag.operators.base import (
+    BlockOperator,
+    PCRBlockViewOps,
+    PCRFactorizedDiagonalOps,
+)
 
 
 class ChunkNewtonRaphson:
@@ -227,27 +227,6 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
 class BidiagonalOperator(torch.nn.Module):
     """
-    An object working with a Batched block diagonal operator of the type
-
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & 0 & 0 & 0 & \\cdots  & 0\\\\
-        B_1 & A_2 & 0 & 0 & \\cdots & 0\\\\
-        0 & B_2 & A_3 & 0 & \\cdots & 0\\\\
-        \\vdots & \\vdots & \\ddots & \\ddots & \\ddots  & \\vdots \\\\
-        0 & 0 & 0 & B_{n-2} & A_{n-1} & 0\\\\
-        0 & 0 & 0 & 0 & B_{n-1} & A_n
-        \\end{bmatrix}
-
-    that is, a blocked banded system with the main
-    diagonal and the first lower diagonal filled
-
-    We use the following sizes:
-        - nblk:   number of blocks in the square matrix
-        - sblk:   size of each block
-        - sbat:   batch size
-
     This is now handled abstractions.
     """
 
@@ -327,11 +306,6 @@ class BidiagonalThomasFactorization(LUFactorization):
     factorization
     """
 
-    def __init__(self, A, B, *args, **kwargs):
-        if isinstance(A, DenseBlockOperator):
-            A = DenseBlockLUFactorizedOperator(A.data)
-        super().__init__(A, B, *args, **kwargs)
-
     def matvec(self, v):
         """call the thomas_solve"""
         return thomas_solve(self.A, self.B, v)
@@ -340,126 +314,57 @@ class BidiagonalThomasFactorization(LUFactorization):
 ########## NEW PCR #################
 class BidiagonalPCRFactorization(LUFactorization):
     """
-    Packed PCR factorization.
+    Fast PCR factorization for PCR-capable packed backends only.
     """
 
     def __init__(self, A, B, *args, **kwargs):
-        if isinstance(A, DenseBlockOperator):
-            A = DenseBlockLUFactorizedOperator(A.data)
         super().__init__(A, B, *args, **kwargs)
-        self._dense_pcr = isinstance(
-            self.A, DenseBlockLUFactorizedOperator
-        ) and isinstance(self.B, DenseBlockOperator)
+
+        if not isinstance(self.A, PCRFactorizedDiagonalOps):
+            raise TypeError("A must implement PCRFactorizedDiagonalOps.")
+        if not isinstance(self.B, PCRBlockViewOps):
+            raise TypeError("B must implement PCRBlockViewOps.")
 
     def matvec(self, v):
-        """two paths, one for dense where we can do the PCR part with dense linear algebra,
-        and one for the generic case where we have to do it with matvecs"""
-        if self._dense_pcr:
-            return self._matvec_dense(v)
-        return self._matvec_generic(v)
-
-    def _matvec_dense(self, v):
-        B = pad(self.B.data, (0, 0, 0, 0, 0, 0, 1, 0))
+        """
+        Apply the factorization to a vector v.
+        This mirrors the original dense PCR algorithm:
+        - pad B once
+        - reduce each power-of-two window independently
+        - solve with the original A ordering
+        """
+        B = self.B.pcr_pad_front(1)
         v_work = v.clone()
 
         for s, e in zip(*self._pow2(self.nblk)):
-            B[s + 1 : e], v_work[s + 1 : e] = self._solve_block(
-                self.A.lu[s:e], self.A.pivots[s:e], B[s:e], v_work[s:e]
-            )
+            A_blk = self.A.pcr_window(s, e)
+            B_blk = B.pcr_window(s, e)
 
-        return torch.linalg.lu_solve(
-            self.A.lu, self.A.pivots, v_work.unsqueeze(-1)
-        ).squeeze(-1)
+            B_red, v_red = A_blk.pcr_reduce_block(B_blk, v_work[s:e])
 
-    def _matvec_generic(self, v):
-        rhs = v
-        A = self.A
-        B = self.B
+            expected = e - s - 1
+            if B_red.nblk != expected:
+                raise RuntimeError(
+                    f"PCR backend returned wrong B_red size: got {B_red.nblk}, expected {expected}"
+                )
+            if v_red.shape[0] != expected:
+                raise RuntimeError(
+                    f"PCR backend returned wrong rhs size: got {v_red.shape[0]}, expected {expected}"
+                )
 
-        if A.nblk == 1:
-            return A.solve(rhs)
+            B.pcr_update_window(s + 1, e, B_red)
+            v_work[s + 1 : e] = v_red
 
-        hist = []
-
-        while A.nblk > 1:
-            A_red, B_red, rhs_red = self._reduce_generic(A, B, rhs)
-            hist.append((A, B, rhs))
-            A, B, rhs = A_red, B_red, rhs_red
-
-        x = A.solve(rhs)
-
-        for A_prev, B_prev, rhs_prev in reversed(hist):
-            x = self._expand_generic(A_prev, B_prev, rhs_prev, x)
-
-        return x
-
-    @staticmethod
-    def _reduce_generic(A, B, rhs):
-        n = A.nblk
-
-        A_red = A.slice_blocks(0, n, 2)
-        rhs_red = rhs[0:n:2].clone()
-
-        m = A_red.nblk - 1
-        if m == 0:
-            B_red = B.slice_blocks(0, 0)
-            return A_red, B_red, rhs_red
-
-        # all three must have length m
-        A1 = A.slice_blocks(1, 1 + 2 * m, 2)
-        B1 = B.slice_blocks(1, 1 + 2 * m, 2)
-        B0 = B.slice_blocks(0, 2 * m, 2)
-
-        rhs_odd = rhs[1 : 1 + 2 * m : 2]
-
-        B_red = B1.neg().compose(A1.inv_compose(B0))
-        rhs_red[1:] = rhs_red[1:] - B1.matvec(A1.solve(rhs_odd))
-
-        return A_red, B_red, rhs_red
-
-    @staticmethod
-    def _expand_generic(A, B, rhs, x_even):
-        n = A.nblk
-        x = torch.empty_like(rhs)
-        x[0:n:2] = x_even
-
-        if n > 1:
-            A_odd = A.slice_blocks(1, n, 2)
-            B_odd = B.slice_blocks(0, n - 1, 2)
-            x[1:n:2] = A_odd.solve(rhs[1:n:2] - B_odd.matvec(x[0:n:2][: A_odd.nblk]))
-
-        return x
-
-    def _solve_block(self, lu, pivots, B, v):
-        niter = lu.shape[0].bit_length() - 1
-
-        lu = lu.unsqueeze(0)
-        pivots = pivots.unsqueeze(0)
-        B = B.unsqueeze(0)
-        v = v.unsqueeze(0).unsqueeze(-1)
-
-        for i in range(niter):
-            v[:, 1:] -= torch.matmul(
-                B[:, 1:],
-                torch.linalg.lu_solve(lu[:, :-1], pivots[:, :-1], v[:, :-1]),
-            )
-
-            B[:, 2:] = -torch.matmul(
-                B[:, 2:],
-                torch.linalg.lu_solve(lu[:, 1:-1], pivots[:, 1:-1], B[:, 1:-1]),
-            )
-
-            v = self._cyclic_shift(v, i)
-            B = self._cyclic_shift(B, i)
-            lu = self._cyclic_shift(lu, i)
-            pivots = self._cyclic_shift(pivots, i)
-
-        return B.squeeze(1)[1:], v.squeeze(1)[1:].squeeze(-1)
+        return self.A.solve(v_work)
 
     @staticmethod
     def _pow2(n):
-        def sz(n):
-            return 2 ** floor(log2(n))
+        """
+        Return lists of start and end indices for power-of-two windows covering n blocks.
+        """
+
+        def sz(nv):
+            return 2 ** floor(log2(nv))
 
         start = [0]
         end = [sz(n)]
@@ -473,13 +378,6 @@ class BidiagonalPCRFactorization(LUFactorization):
 
         return start, end
 
-    @staticmethod
-    def _cyclic_shift(A, n):
-        return A.as_strided(
-            (A.shape[0] * 2, A.shape[1] // 2) + A.shape[2:],
-            (prod(A.shape[2:]), 2 ** (n + 1) * prod(A.shape[2:])) + A.stride()[2:],
-        )
-
 
 class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
     """Hybrid PCR/Thomas factorization."""
@@ -489,65 +387,58 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         self.min_size = min_size + 1
 
     def matvec(self, v):
-        """Apply the factorization to a vector v"""
-        if self._dense_pcr:
-            return self._matvec_dense_hybrid(v)
-        return self._matvec_generic_hybrid(v)
-
-    def _matvec_dense_hybrid(self, v):
         """
-        Apply the hybrid factorization to a vector v,
-        but since we're dense we can just do the PCR part
-        and then solve the reduced system with Thomas
+        Original hybrid semantics:
+        - pad B once
+        - perform PCR only on selected pow2 windows
+        - trim B back
+        - solve the first reduced prefix directly
+        - finish the remaining blocks with Thomas in original ordering
         """
-        B = pad(self.B.data, (0, 0, 0, 0, 0, 0, 1, 0))
+        B = self.B.pcr_pad_front(1)
         v_work = v.clone()
 
         start, end, last = self._pcr_blocks()
 
         for s, e in zip(start, end):
-            B[s + 1 : e], v_work[s + 1 : e] = self._solve_block(
-                self.A.lu[s:e], self.A.pivots[s:e], B[s:e], v_work[s:e]
-            )
+            A_blk = self.A.pcr_window(s, e)
+            B_blk = B.pcr_window(s, e)
 
-        B = B[1:]
+            B_red, v_red = A_blk.pcr_reduce_block(B_blk, v_work[s:e])
 
-        v_work[:last] = torch.linalg.lu_solve(
-            self.A.lu[:last], self.A.pivots[:last], v_work[:last].unsqueeze(-1)
-        ).squeeze(-1)
+            expected = e - s - 1
+            if B_red.nblk != expected:
+                raise RuntimeError(
+                    f"PCR backend returned wrong B_red size: got {B_red.nblk}, expected {expected}"
+                )
+            if v_red.shape[0] != expected:
+                raise RuntimeError(
+                    f"PCR backend returned wrong rhs size: got {v_red.shape[0]}, expected {expected}"
+                )
+
+            B.pcr_update_window(s + 1, e, B_red)
+            v_work[s + 1 : e] = v_red
+
+        B = B.pcr_trim_front(1)
+
+        if last > 0:
+            v_work[:last] = self.A.pcr_window(0, last).solve(v_work[:last])
 
         for i in range(last, self.nblk):
-            v_work[i] = torch.linalg.lu_solve(
-                self.A.lu[i],
-                self.A.pivots[i],
-                v_work[i].unsqueeze(-1)
-                - torch.bmm(B[i - 1], v_work[i - 1].clone().unsqueeze(-1)),
-            ).squeeze(-1)
+            Ai = self.A.pcr_window(i, i + 1)
+            Bi = B.pcr_window(i - 1, i)
+            ri = v_work[i : i + 1] - Bi.matvec(v_work[i - 1 : i])
+            v_work[i : i + 1] = Ai.solve(ri)
 
         return v_work
 
-    def _matvec_generic_hybrid(self, v):
-        """Perform a hybrid matrix-vector"""
-        A = self.A
-        B = self.B
-        rhs = v
-        hist = []
-
-        while A.nblk > self.min_size:
-            hist.append((A, B, rhs))
-            A, B, rhs = self._reduce_generic(A, B, rhs)
-
-        x = thomas_solve(A, B, rhs)
-
-        for A_prev, B_prev, rhs_prev in reversed(hist):
-            x = self._expand_generic(A_prev, B_prev, rhs_prev, x)
-
-        return x
-
     def _pcr_blocks(self):
-        """Determine which blocks to solve with PCR vs Thomas in the dense case"""
+        """
+        Return the start and end indices for PCR blocks, as well as the size of the first reduced prefix.
+        """
         start, end = self._pow2(self.nblk)
         blk_size = [e - s for e, s in zip(end, start)]
+
         if blk_size[0] < self.min_size:
             return [], [], 1
 
@@ -576,27 +467,6 @@ def BidiagonalHybridFactorization(min_size=1):
 
 class BidiagonalForwardOperator(BidiagonalOperator):
     """
-    A batched block banded matrix of the form:
-
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & 0 & 0 & 0 & \\cdots  & 0\\\\
-        B_1 & A_2 & 0 & 0 & \\cdots & 0\\\\
-        0 & B_2 & A_3 & 0 & \\cdots & 0\\\\
-        \\vdots & \\vdots & \\ddots & \\ddots & \\ddots  & \\vdots \\\\
-        0 & 0 & 0 & B_{n-2} & A_{n-1} & 0\\\\
-        0 & 0 & 0 & 0 & B_{n-1} & A_n
-        \\end{bmatrix}
-
-    that is, a blocked banded system with the main
-    diagonal and first lower block diagonal filled
-
-    We use the following sizes:
-        - nblk: number of blocks in the square matrix
-        - sblk: size of each block
-        - sbat: batch size
-
     Now handles abstractions
     """
 
@@ -633,38 +503,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
 
 class SquareBatchedBlockDiagonalMatrix:
     """
-    A batched block diagonal matrix of the type
-
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & B_1 & 0 & 0\\\\
-        C_1 & A_2 & B_2 & 0 \\\\
-        0 & C_2 & A_3 & B_3\\\\
-        0 & 0 & C_3 & A_4
-        \\end{bmatrix}
-
-    where the matrix has diagonal blocks of non-zeros and
-    can have arbitrary numbers of filled diagonals
-
-    Additionally, this matrix is batched.
-
-    We use the following sizes:
-        - nblk: number of blocks in the each direction
-        - sblk: size of each block
-        - sbat: batch size
-
-    Args:
-        data (list of tensors):     list of tensors of length ndiag.
-                                    Each tensor
-                                    has shape :code:`(nblk-abs(d),sbat,sblk,sblk)`
-                                    where d is the diagonal number
-                                    provided in the next input
-        diags (list of ints):       list of ints of length ndiag.
-                                    Each entry gives the diagonal
-                                    for the data in the corresponding
-                                    tensor.  These values d can
-                                    range from -(n-1) to (n-1)
+    now handles abstractions
     """
 
     def __init__(self, data, diags):
@@ -804,7 +643,6 @@ class SquareBatchedBlockDiagonalMatrix:
     def to_unrolled_csr(self):
         """
         Return a list of CSR tensors with length equal to the batch size
-
         """
         coo = self.to_batched_coo()
         return [

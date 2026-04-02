@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Test linear algebra on blocked diagonal matrices"""
+"""Test chunktime operators and factorizations using the dense operator backend."""
 
 from pyzag import chunktime
 
@@ -36,7 +36,7 @@ import unittest
 torch.set_default_dtype(torch.float64)
 
 
-class TestBackwardEulerChunkTimeOperator(unittest.TestCase):
+class TestBackwardEulerChunkTimeOperatorDense(unittest.TestCase):
     def setUp(self):
         self.sblk = 6
         self.max_nblk = 31

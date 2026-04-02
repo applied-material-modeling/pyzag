@@ -29,8 +29,8 @@ import unittest
 import torch
 
 from pyzag.operators.dense import (
-    DenseBlockOperator,
     DenseBlockLUFactorizedOperator,
+    DenseBlockOperator,
     DenseBlockOperatorBuilder,
 )
 
@@ -198,7 +198,7 @@ class TestDenseBlockOperatorBuilder(unittest.TestCase):
     def test_make_forward_blocks(self):
         A_ops, B_ops = self.builder.make_forward_blocks(self.J)
 
-        self.assertIsInstance(A_ops, DenseBlockOperator)
+        self.assertIsInstance(A_ops, DenseBlockLUFactorizedOperator)
         self.assertIsInstance(B_ops, DenseBlockOperator)
 
         self.assertEqual(A_ops.nblk, self.nblk)
