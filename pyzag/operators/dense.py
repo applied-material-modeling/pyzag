@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""Packed block operators with dense tensor storage and direct linear algebra implementations."""
+
 from math import prod
 
 import torch
@@ -364,6 +366,10 @@ class DenseBlockLUFactorizedOperator(PCRFactorizedDiagonalOps):
 
 
 class DenseBlockOperatorBuilder(BlockOperatorBuilder):
+    """
+    Block operator builder for dense tensor-backed operators.
+    """
+
     def make_forward_blocks(self, J):
         """Return `(A_ops, B_ops)` for the forward lower block-bidiagonal system."""
         A_ops = DenseBlockLUFactorizedOperator(J[1])

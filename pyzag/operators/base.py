@@ -24,6 +24,10 @@
 
 from abc import ABC, abstractmethod
 
+"""
+Abstract block operator interfaces.
+"""
+
 
 class BlockOperator(ABC):
     """Abstract interface for a logical packed block operator.
