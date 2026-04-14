@@ -289,3 +289,73 @@ class TestGeneralFunction(unittest.TestCase):
                 self.assertTrue(torch.isclose(val1, val2))
                 for p1, p2 in zip(derivs1, derivs2):
                     self.assertTrue(torch.allclose(p1, p2))
+
+
+class AdjointSolveModule(torch.nn.Module):
+    def __init__(self, solver):
+        super().__init__()
+        self.solver = solver
+
+    def forward(self, y0, n, *forces):
+        # Uses custom adjoint backward via solve_adjoint
+        return nonlinear.solve_adjoint(self.solver, y0, n, *forces)
+
+
+class TestGeneralFunctionJacRev(unittest.TestCase):
+    def setUp(self):
+        self.n = [1]
+        self.nbatch = [1]
+        self.nchunk = [1]
+        self.ninit = [None]
+
+        self.ntime = 100
+
+        self.ref_time = torch.linspace(0, 0.01, self.ntime)
+
+        self.f = 0.5
+
+    def test_all(self):
+        for n, nbatch, nchunk, ninit in itertools.product(
+            self.n, self.nbatch, self.nchunk, self.ninit
+        ):
+            with self.subTest(n=n, nbatch=nbatch, nchunk=nchunk, ninit=ninit):
+                times = (
+                    self.ref_time.clone().unsqueeze(-1).expand(-1, nbatch).unsqueeze(-1)
+                )
+                model = GeneralNonlinearEquation(n, self.f)
+                y0 = model.y0(nbatch)
+                if ninit is None or ninit <= nchunk:
+                    nn = 0
+                else:
+                    nn = ninit
+                solver = nonlinear.RecursiveNonlinearEquationSolver(
+                    model,
+                    step_generator=nonlinear.StepGenerator(nchunk, first_block_size=nn),
+                )
+
+                params = dict(solver.named_parameters())
+                jac_ad = torch.func.jacrev(torch.func.functional_call, argnums=1)(
+                    solver, params, (y0, self.ntime, times)
+                )
+
+                wrapper = AdjointSolveModule(solver)
+                params = dict(wrapper.named_parameters())
+                buffers = dict(wrapper.named_buffers())
+
+                def model_response(params, buffers, y0, n, *forces):
+                    return torch.func.functional_call(
+                        wrapper, (params, buffers), (y0, n, *forces)
+                    )
+
+                jac_adjoint = torch.func.jacrev(model_response, argnums=0)(
+                    params, buffers, y0, self.ntime, times
+                )
+
+                for k in jac_ad.keys():
+                    mod_key = "solver." + k
+                    self.assertTrue(mod_key in jac_adjoint)
+                    self.assertTrue(
+                        torch.allclose(
+                            jac_adjoint[mod_key], jac_ad[k], rtol=1e-4, atol=1e-6
+                        )
+                    )
