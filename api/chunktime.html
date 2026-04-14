@@ -8,14 +8,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pyzag.chunktime &mdash; pyzag 1.1.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../_static/documentation_options.js?v=58fbf978"></script>
-      <script src="../_static/doctools.js?v=9bcbadda"></script>
-      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -151,7 +151,7 @@
 </dl>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalForwardOperator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalForwardOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator=&lt;class</span> <span class="pre">'pyzag.chunktime.BidiagonalThomasFactorization'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalForwardOperator" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalForwardOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;class</span> <span class="pre">'pyzag.chunktime.BidiagonalThomasFactorization'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalForwardOperator" title="Link to this definition"></a></dt>
 <dd><p>A batched block banded matrix of the form:</p>
 <div class="math">
 <p><img src="../_images/math/5708946bb6232e6e60bf487459cb5835f1a86112.png" alt="\begin{bmatrix}
@@ -238,7 +238,7 @@ or legacy purposes</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalHybridFactorizationImpl">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalHybridFactorizationImpl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalHybridFactorizationImpl" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalHybridFactorizationImpl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalHybridFactorizationImpl" title="Link to this definition"></a></dt>
 <dd><p>A factorization approach that switches from PCR to Thomas</p>
 <p>Specifically, this class uses PCR until the PCR chunk size is
 smaller than user provided minimum chunk size.  Then it switches
@@ -269,7 +269,7 @@ to Thomas.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator" title="Link to this definition"></a></dt>
 <dd><p>An object working with a Batched block diagonal operator of the type</p>
 <div class="math">
 <p><img src="../_images/math/5708946bb6232e6e60bf487459cb5835f1a86112.png" alt="\begin{bmatrix}
@@ -302,25 +302,25 @@ storing the nblk-1 off diagonal blocks</p></li>
 </dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator.device">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.device" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.device" title="Link to this definition"></a></dt>
 <dd><p>device, which is just the device of self.diag</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator.dtype">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.dtype" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.dtype" title="Link to this definition"></a></dt>
 <dd><p>dtype, which is just the dtype of self.diag</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator.n">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.n" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">n</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.n" title="Link to this definition"></a></dt>
 <dd><p>Size of the unbatched square matrix</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalOperator.shape">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.shape" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#pyzag.chunktime.BidiagonalOperator.shape" title="Link to this definition"></a></dt>
 <dd><p>Logical shape of the dense array</p>
 </dd></dl>
 
@@ -328,7 +328,7 @@ storing the nblk-1 off diagonal blocks</p></li>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalPCRFactorization">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalPCRFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalPCRFactorization" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalPCRFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalPCRFactorization" title="Link to this definition"></a></dt>
 <dd><p>Manages the data needed to solve our bidiagonal system via parallel cyclic reduction</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -353,7 +353,7 @@ storing the nblk-1 off diagonal blocks</p></li>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.BidiagonalThomasFactorization">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalThomasFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalThomasFactorization" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">BidiagonalThomasFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.BidiagonalThomasFactorization" title="Link to this definition"></a></dt>
 <dd><p>Manages the data needed to solve our bidiagonal system via Thomas
 factorization</p>
 <dl class="field-list simple">
@@ -379,7 +379,7 @@ factorization</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.ChunkNewtonRaphson">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">ChunkNewtonRaphson</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rtol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">throw_on_fail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record_failed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_batches</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">ChunkNewtonRaphson</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rtol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">miter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">throw_on_fail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record_failed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_batches</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphson" title="Link to this definition"></a></dt>
 <dd><p>Solve a nonlinear system with Newton’s method where the residual and Jacobian are presented as chunked operators</p>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
@@ -454,7 +454,7 @@ factorization</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.ChunkNewtonRaphsonLineSearch">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">ChunkNewtonRaphsonLineSearch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linesearch_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphsonLineSearch" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">ChunkNewtonRaphsonLineSearch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linesearch_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.ChunkNewtonRaphsonLineSearch" title="Link to this definition"></a></dt>
 <dd><p>Newton Raphson with backtracking line search</p>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
@@ -491,7 +491,7 @@ factorization</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.LUFactorization">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">LUFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.LUFactorization" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">LUFactorization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.LUFactorization" title="Link to this definition"></a></dt>
 <dd><p>A factorization that uses the LU decomposition of A</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -517,7 +517,7 @@ with the number of blocks and block size squeezed</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">SquareBatchedBlockDiagonalMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diags</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.chunktime.</span></span><span class="sig-name descname"><span class="pre">SquareBatchedBlockDiagonalMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diags</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix" title="Link to this definition"></a></dt>
 <dd><p>A batched block diagonal matrix of the type</p>
 <div class="math">
 <p><img src="../_images/math/6116ec9b102a7aa4466f7d337194f6a1bbc14dc2.png" alt="\begin{bmatrix}
@@ -555,31 +555,31 @@ range from -(n-1) to (n-1)</p></li>
 </dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.device">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.device" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.device" title="Link to this definition"></a></dt>
 <dd><p>device, as reported by the first entry in self.device</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.dtype">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.dtype" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.dtype" title="Link to this definition"></a></dt>
 <dd><p>dtype, as reported by the first entry in self.data</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.n">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.n" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">n</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.n" title="Link to this definition"></a></dt>
 <dd><p>Size of the unbatched square matrix</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.nnz">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nnz</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.nnz" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nnz</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.nnz" title="Link to this definition"></a></dt>
 <dd><p>Number of logical non-zeros (not counting the batch dimension)</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.shape">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.shape" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.shape" title="Link to this definition"></a></dt>
 <dd><p>Logical shape of the dense array</p>
 </dd></dl>
 
