@@ -24,9 +24,65 @@
 
 """Basic functionality for solving recursive nonlinear equations and calculating senstivities using the adjoint method"""
 
+import warnings
+
 import torch
 
 from pyzag import chunktime
+
+
+def _disable_donated_buffers() -> None:
+    """Lower torch's AOTAutograd ``donated_buffer`` default so pyzag's adjoint works
+    with ``torch.compile``.
+
+    pyzag's adjoint reuses the autograd graph across the reverse sweep via
+    ``torch.autograd.grad(..., retain_graph=True)`` (see
+    :meth:`RecursiveNonlinearEquationSolver.accumulate`). On torch>=2.12 AOTAutograd
+    collects "donated buffers" for a ``torch.compile``'d graph, and a backward compiled
+    with non-empty donated buffers *requires* ``retain_graph=False``. So a compiled model
+    differentiated through pyzag's adjoint raises
+    ``RuntimeError: ... compiled with non-empty donated buffers ...``.
+
+    ``donated_buffer`` is a ``ContextVar``-backed torch config. AOTAutograd compiles and
+    runs the backward under its own contextvars contexts, where a normal
+    ``torch._functorch.config.donated_buffer = False`` (or ``config.patch``) override is
+    not visible -- those contexts read the config *default*. So the only setting that
+    actually reaches them is the default, which we lower here, process-wide.
+
+    This is deliberately blunt: it lowers a global torch default the first time a
+    :class:`RecursiveNonlinearEquationSolver` is constructed. It is scoped to actual
+    pyzag use -- merely importing pyzag (or neml2) does not touch the default, so code
+    that never runs the adjoint is unaffected. A ``UserWarning`` is emitted once, when it
+    takes effect. To keep donated buffers enabled, restore the default::
+
+        import torch._functorch.config as c
+        c._config["donated_buffer"].default = True
+
+    The consequence of restoring it: any ``torch.compile``'d model differentiated through
+    pyzag's adjoint will raise the donated-buffer error again. (Donation saves a little
+    backward memory, but is fundamentally incompatible with ``retain_graph=True``.)
+    """
+    try:
+        import torch._functorch.config as functorch_config
+
+        # pylint: disable=protected-access
+        entry = functorch_config._config["donated_buffer"]
+    except (ImportError, KeyError, AttributeError):
+        return  # older/other torch without the flag -- nothing to disable
+
+    if getattr(entry, "default", False):
+        entry.default = False
+        warnings.warn(
+            "pyzag lowered torch._functorch.config.donated_buffer's default to False "
+            "process-wide. AOTAutograd 'donated buffers' (torch>=2.12) are incompatible "
+            "with pyzag's retain_graph=True adjoint over torch.compile'd models, which "
+            "otherwise raises 'compiled with non-empty donated buffers'. To keep donated "
+            "buffers enabled, restore "
+            "torch._functorch.config._config['donated_buffer'].default = True -- "
+            "compiled models differentiated through the adjoint will then error.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 class NonlinearRecursiveFunction(torch.nn.Module):
@@ -350,6 +406,11 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
         convert_nan_gradients=True,
     ):
         super().__init__()
+        # Lower torch's AOTAutograd donated-buffer default so the adjoint (which uses
+        # retain_graph=True) works with torch.compile'd models. Scoped here to actual
+        # solver use, and runs before any solve compiles a backward. Process-global and
+        # emits a one-time warning; see _disable_donated_buffers.
+        _disable_donated_buffers()
         # Store basic information
         self.func = func
 
