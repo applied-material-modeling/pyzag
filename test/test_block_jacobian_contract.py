@@ -48,7 +48,6 @@ from pathlib import Path
 
 import torch
 
-from examples.dense.math_problems import LinearSystem, LogisticODE
 from pyzag import chunktime, nonlinear, ode
 from pyzag.ode import DenseODEWrapper
 from pyzag.operators.base import BlockJacobian, BlockVector
@@ -56,6 +55,50 @@ from pyzag.operators.dense import DenseBlockJacobian, DenseBlockVector
 
 torch.set_default_dtype(torch.float64)
 torch.manual_seed(42)
+
+
+class LogisticODE(torch.nn.Module):
+    """Logistic growth ODE rate: dy/dt = r * (1 - y/K) * y."""
+
+    def __init__(self, r, K):
+        super().__init__()
+        self.r = torch.tensor(r)
+        self.K = torch.tensor(K)
+
+    def forward(self, t, y):
+        y_dot = self.r * (1.0 - y / self.K) * y
+        J_dot = (self.r - (2 * self.r * y) / self.K)[..., None]
+        return y_dot, J_dot
+
+    def y0(self, nbatch):
+        return torch.linspace(0, 1, nbatch).reshape(nbatch, 1)
+
+
+class LinearSystem(torch.nn.Module):
+    """Linear ODE rate: dy/dt = A y, with A symmetric positive."""
+
+    def __init__(self, n, seed=None):
+        super().__init__()
+        self.n = n
+        if seed is not None:
+            g = torch.Generator()
+            g.manual_seed(seed)
+            Ap = torch.rand((n, n), generator=g)
+        else:
+            Ap = torch.rand((n, n))
+        self.A = torch.nn.Parameter(Ap.transpose(0, 1) * Ap)
+
+    def forward(self, t, y):
+        y_dot = torch.matmul(self.A.unsqueeze(0).unsqueeze(0), y.unsqueeze(-1)).squeeze(
+            -1
+        )
+        J_dot = self.A.unsqueeze(0).unsqueeze(0).expand(
+            t.shape[0], t.shape[1], self.n, self.n
+        )
+        return y_dot, J_dot
+
+    def y0(self, nbatch):
+        return torch.outer(torch.linspace(-1, 1, nbatch), torch.linspace(1, 2, self.n))
 
 
 class OpaqueBlockJacobian(BlockJacobian):
