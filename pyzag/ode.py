@@ -22,133 +22,174 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Module for solving ordinary differential equations using numerical integration"""
+"""Generic ODE integration as :class:`NonlinearFunctionOperator` factories.
+
+The Euler integration math is fully abstract: it operates on
+:class:`BlockVector` objects and produces :class:`BlockOperator` blocks via a
+user-supplied :class:`ODEWrapper`. This decouples the integration scheme
+from any particular tensor backend (dense, sparse, structured, etc.).
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Sequence
 
 import torch
 
-from pyzag import nonlinear
+from pyzag.nonlinear import (
+    NonlinearFunctionOperator,
+    NonlinearFunctionOperatorFactory,
+)
+from pyzag.operators.base import BlockJacobian, BlockVector
 
 
-class IntegrateODE(nonlinear.NonlinearRecursiveFunction):
-    # pylint: disable=W0223
-    """Maps an ODE to a nonlinear function with some numerical integration scheme
+class ODEWrapper(ABC):
+    """Bridge from raw user-ODE outputs to the abstract block types.
 
-    The input is a torch Module which defines the rate form of the ODE.  The forward function must
-    return both the time rate of change of the state and the derivative of the rate of change with
-    respect to the state as a function of time and the current state.
-
-    The input and output for the underlying ODE must meet our global batch convention, where the first
-    dimension of the input is used to vectorize time/step.
-
-    Args:
-        ode (torch.nn.Module): module defining the system of ODEs
+    A user's ODE module returns raw tensors ``(x_dot, J_dot) = ode(t, x)``.
+    The wrapper converts these into the :class:`BlockVector` /
+    :class:`BlockOperator` family that the Euler operator and downstream
+    solver consume.
     """
 
-    def __init__(self, ode, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @abstractmethod
+    def wrap_vector(self, raw: torch.Tensor) -> BlockVector:
+        """Wrap a raw tensor into a :class:`BlockVector`."""
 
+    @abstractmethod
+    def unwrap_vector(self, bv: BlockVector) -> torch.Tensor:
+        """Extract the raw tensor representation from a :class:`BlockVector`.
+
+        Required because the user's ODE module operates on raw tensors and
+        the chunk's combined state must be assembled before the call.
+        """
+
+    @abstractmethod
+    def wrap_jacobian(self, diag: torch.Tensor, sub: torch.Tensor) -> BlockJacobian:
+        """Wrap raw per-step diagonal and subdiagonal tensors into a
+        backend-typed :class:`BlockJacobian`.
+
+        ``diag[k] = dR[k]/dx[k]`` and ``sub[k] = dR[k]/dx[k-1]``, both of
+        shape ``(nblk_steps, ..., nstate, nstate)`` for the dense
+        backend; other backends define their own raw contract.
+        """
+
+
+class DenseODEWrapper(ODEWrapper):
+    """Default wrapper for dense torch tensors.
+
+    Uses :class:`DenseBlockVector` and :class:`DenseBlockJacobian`.
+    """
+
+    def wrap_vector(self, raw: torch.Tensor) -> BlockVector:
+        from pyzag.operators.dense import DenseBlockVector
+
+        return DenseBlockVector(raw)
+
+    def unwrap_vector(self, bv: BlockVector) -> torch.Tensor:
+        from pyzag.operators.dense import DenseBlockVector
+
+        if not isinstance(bv, DenseBlockVector):
+            raise TypeError("DenseODEWrapper requires DenseBlockVector input.")
+        return bv.data
+
+    def wrap_jacobian(self, diag: torch.Tensor, sub: torch.Tensor) -> BlockJacobian:
+        from pyzag.operators.dense import DenseBlockJacobian
+
+        return DenseBlockJacobian(diag=diag, sub=sub)
+
+
+class IntegrateODE(torch.nn.Module, NonlinearFunctionOperatorFactory):
+    """Base class for ODE integration factories.
+
+    Extends ``torch.nn.Module`` so the user's ODE parameters are discovered
+    by the enclosing solver via ``parameters()``.
+
+    Args:
+        ode: ``torch.nn.Module`` whose ``forward(t, x)`` returns
+            ``(x_dot, J_dot)`` as raw tensors.
+        wrapper: bridge between the raw ODE outputs and the abstract block
+            types used by the solver.
+    """
+
+    def __init__(
+        self,
+        ode: torch.nn.Module,
+        wrapper: ODEWrapper | None = None,
+    ) -> None:
+        super().__init__()
         self.ode = ode
+        self._wrapper = wrapper if wrapper is not None else DenseODEWrapper()
+
+    @property
+    def lookback(self) -> int:
+        return 1
+
+    @property
+    def wrapper(self) -> ODEWrapper:
+        return self._wrapper
+
+    @wrapper.setter
+    def wrapper(self, value: ODEWrapper) -> None:
+        self._wrapper = value
 
 
 class BackwardEulerODE(IntegrateODE):
-    """Applies a backward Euler time integration scheme to an ODE
+    """Backward Euler integration as a :class:`NonlinearFunctionOperator` factory."""
 
-    The input is a torch Module which defines the rate form of the ODE.  The forward function must
-    return both the time rate of change of the state and the derivative of the rate of change with
-    respect to the state as a function of time and the current state.
-
-    The input and output for the underlying ODE must meet our global batch convention, where the first
-    dimension of the input is used to vectorize time/step.
-
-    Args:
-        ode (torch.nn.Module): module defining the system of ODEs
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Lookback of 1!
-        self.lookback = 1
-
-    def forward(self, x, t):
-        """Provide the blocked residual and Jacobian for the time integration scheme
-
-        Args:
-            x (torch.tensor):   (nchunk+self.n,...,nstate) tensor.  As always, the first batch dimension
-                is used to vectorize over steps (for an ODE, time steps).  Then the operator
-                must accept arbitrary batch dimensions.  The final dimension is the problem
-                state size.
-            t (torch.tensor):   (nchunk+self.n,...,) tensor of times as driving forces
-
-        Returns:
-            (R,J) tuple(torch.tensor, torch.tensor):   tuple giving R the (nchunk,...,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
-
-        """
+    def evaluate_raw(
+        self,
+        x_full: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+    ) -> tuple[torch.Tensor, BlockJacobian]:
+        t = forces[0]
+        x_dot, J_dot = self.ode(t, x_full)
         dt = torch.diff(t, dim=0)
+        sblk = x_full.shape[-1]
+        I_eye = torch.eye(sblk, dtype=x_full.dtype, device=x_full.device)
 
-        x_dot, J_dot = self.ode(t, x)
+        R = x_full[1:] - x_full[:-1] - x_dot[1:] * dt
+        diag = I_eye - J_dot[1:] * dt.unsqueeze(-1)
+        sub = -I_eye.expand_as(J_dot[1:])
+        return R, self.wrapper.wrap_jacobian(diag, sub)
 
-        R = x[1:] - x[:-1] - x_dot[1:] * dt
-        J = torch.stack(
-            [
-                -torch.eye(x.shape[-1], dtype=x.dtype, device=x.device).expand_as(
-                    J_dot[1:]
-                ),
-                torch.eye(x.shape[-1], dtype=x.dtype, device=x.device)
-                - J_dot[1:] * dt.unsqueeze(-1),
-            ]
-        )
+    def make_operator(
+        self,
+        prev_solution: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+        inverse_operator,
+    ) -> NonlinearFunctionOperator:
+        from pyzag.nonlinear import ChunkOp
 
-        return R, J
+        return ChunkOp(self, prev_solution, forces, inverse_operator)
 
 
 class ForwardEulerODE(IntegrateODE):
-    """Applies a forward Euler time integration scheme to an ODE
+    """Forward Euler integration as a :class:`NonlinearFunctionOperator` factory."""
 
-    The input is a torch Module which defines the rate form of the ODE.  The forward function must
-    return both the time rate of change of the state and the derivative of the rate of change with
-    respect to the state as a function of time and the current state.
-
-    The input and output for the underlying ODE must meet our global batch convention, where the first
-    dimension of the input is used to vectorize time/step.
-
-    Args:
-        ode (torch.nn.Module): module defining the system of ODEs
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Lookback of 1!
-        self.lookback = 1
-
-    def forward(self, x, t):
-        """Provide the blocked residual and Jacobian for the time integration scheme
-
-        Args:
-            x (torch.tensor):   (nchunk+self.n,...,nstate) tensor.  As always, the first batch dimension
-                is used to vectorize over steps (for an ODE, time steps).  Then the operator
-                must accept arbitrary batch dimensions.  The final dimension is the problem
-                state size.
-            t (torch.tensor):   (nchunk+self.n,...,) tensor of times as driving forces
-
-        Returns:
-            (R,J) tuple(torch.tensor, torch.tensor):   tuple giving R the (nchunk,...,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,...,nstate,nstate) tensor giving the Jacobians
-
-        """
+    def evaluate_raw(
+        self,
+        x_full: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+    ) -> tuple[torch.Tensor, BlockJacobian]:
+        t = forces[0]
+        x_dot, J_dot = self.ode(t, x_full)
         dt = torch.diff(t, dim=0)
+        sblk = x_full.shape[-1]
+        I_eye = torch.eye(sblk, dtype=x_full.dtype, device=x_full.device)
 
-        x_dot, J_dot = self.ode(t, x)
+        R = x_full[1:] - x_full[:-1] - x_dot[:-1] * dt
+        diag = I_eye.expand_as(J_dot[:-1]).contiguous()
+        sub = -I_eye.expand_as(J_dot[:-1]) - J_dot[:-1] * dt.unsqueeze(-1)
+        return R, self.wrapper.wrap_jacobian(diag, sub)
 
-        R = x[1:] - x[:-1] - x_dot[:-1] * dt
-        J = torch.stack(
-            [
-                -torch.eye(x.shape[-1], dtype=x.dtype, device=x.device)
-                - J_dot[:-1] * dt.unsqueeze(-1),
-                torch.eye(x.shape[-1], dtype=x.dtype, device=x.device).expand_as(
-                    J_dot[:-1]
-                ),
-            ]
-        )
+    def make_operator(
+        self,
+        prev_solution: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+        inverse_operator,
+    ) -> NonlinearFunctionOperator:
+        from pyzag.nonlinear import ChunkOp
 
-        return R, J
+        return ChunkOp(self, prev_solution, forces, inverse_operator)

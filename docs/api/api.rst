@@ -10,6 +10,7 @@ This page collects the API documentation for pyzag, split up by module.
 
    nonlinear
    chunktime
+   operators
    ode
    reparametrization
    stochastic

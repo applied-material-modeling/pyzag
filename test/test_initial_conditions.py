@@ -30,7 +30,6 @@ import itertools
 
 import torch
 
-# Ensure test consistency
 torch.manual_seed(42)
 
 import unittest
@@ -91,7 +90,9 @@ class TestInitialConditionDerivatives(unittest.TestCase):
 
             def forward(self, ntime, times, adjoint=False):
                 if adjoint:
-                    nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
+                    # Return the adjoint result so ``.backward()`` flows through
+                    # ``AdjointWrapper.backward`` (not plain autograd).
+                    return nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
                 return nonlinear.solve(self.solver, self.y0, ntime, times)
 
         dmodel = Dummy(model, self.nbatch, self.nchunk)
@@ -131,7 +132,9 @@ class TestInitialConditionDerivatives(unittest.TestCase):
 
             def forward(self, ntime, times, adjoint=False):
                 if adjoint:
-                    nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
+                    # Return the adjoint result so ``.backward()`` flows through
+                    # ``AdjointWrapper.backward`` (not plain autograd).
+                    return nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
                 return nonlinear.solve(self.solver, self.y0, ntime, times)
 
         dmodel = Dummy(model, self.nbatch, self.nchunk)
@@ -171,7 +174,9 @@ class TestInitialConditionDerivatives(unittest.TestCase):
 
             def forward(self, ntime, times, adjoint=False):
                 if adjoint:
-                    nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
+                    # Return the adjoint result so ``.backward()`` flows through
+                    # ``AdjointWrapper.backward`` (not plain autograd).
+                    return nonlinear.solve_adjoint(self.solver, self.y0, ntime, times)
                 return nonlinear.solve(self.solver, self.y0, ntime, times)
 
         dmodel = Dummy(model, self.nbatch, self.nchunk)

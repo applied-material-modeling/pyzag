@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyzag"
-version = "1.1.3"
+version = "2.0.0"
 authors = [
   { name="Mark Messner", email="messner@anl.gov" },
 ]
@@ -20,6 +20,10 @@ dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["pyzag*"]
+exclude = ["pyzag_original*", "examples*", "docs*", "test*"]
 
 [project.urls]
 Homepage = "https://github.com/applied-material-modeling/pyzag"
