@@ -153,7 +153,7 @@ class _FlatStructuredAinv:
         grain-major row order; returns the same shape. ``...`` must broadcast
         with the stored factors' leading dims.
         """
-        N, np_, ns = self.ngrain, self.np_, self.ns
+        N, np_ = self.ngrain, self.np_
         P = N * np_
         k = X.shape[-1]
         bp = X[..., :P, :].reshape(*X.shape[:-2], N, np_, k)
@@ -218,6 +218,7 @@ class _FlatCarrier:
 
     @property
     def nf(self) -> int:
+        """Total flat DOF count: ``ngrain * np_ + ns``."""
         return self.ngrain * self.np_ + self.ns
 
     def dense(self) -> torch.Tensor:

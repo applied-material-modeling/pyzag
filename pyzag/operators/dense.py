@@ -34,6 +34,7 @@ from typing import Sequence
 import torch
 from torch.nn.functional import pad
 
+from pyzag.chunktime import BidiagonalForwardOperator
 from .base import (
     BlockJacobian,
     BlockOperator,
@@ -202,6 +203,7 @@ class DenseBlockVector(BlockVector):
         dtype: torch.dtype,
         device: torch.device,
     ) -> DenseBlockVector:
+        """Return a zero-filled DenseBlockVector of the given shape."""
         return DenseBlockVector(
             torch.zeros(nblk, batch_size, block_size, dtype=dtype, device=device)
         )
@@ -221,6 +223,7 @@ class DenseBlockVector(BlockVector):
         dtype: torch.dtype,
         device: torch.device,
     ) -> DenseBlockVector:
+        """Return an uninitialized DenseBlockVector of the given shape."""
         return DenseBlockVector(
             torch.empty(nblk, batch_size, block_size, dtype=dtype, device=device)
         )
@@ -462,12 +465,14 @@ class DenseBlockOperator(SolvableBlockOperator):
         dtype: torch.dtype,
         device: torch.device,
     ) -> DenseBlockOperator:
+        """Return an identity DenseBlockOperator of the given shape."""
         eye = torch.eye(block_size, dtype=dtype, device=device)
         data = eye.expand(nblk, batch_size, block_size, block_size).contiguous()
         return cls(data)
 
     @classmethod
     def from_diagonal(cls, data: torch.Tensor) -> DenseBlockOperator:
+        """Return a DenseBlockOperator built from per-block diagonal data."""
         return cls(data)
 
 
@@ -557,8 +562,6 @@ class DenseBlockJacobian(BlockJacobian):
         return self.sub.flip(0) if self._reversed else self.sub
 
     def forward_system(self, inverse_operator):
-        from pyzag.chunktime import BidiagonalForwardOperator
-
         if self._reversed:
             raise RuntimeError(
                 "forward_system() must be called on a forward-walk "

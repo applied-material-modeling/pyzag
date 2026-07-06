@@ -54,6 +54,7 @@ class NEML2Wrapper:
         return NEML2BlockVector.from_av(av)
 
     def unwrap_vector(self, bv: BlockVector) -> torch.Tensor:
+        """NEML2BlockVector -> flat torch (..., nstate_flat)."""
         if not isinstance(bv, NEML2BlockVector):
             raise TypeError("NEML2Wrapper.unwrap_vector requires NEML2BlockVector.")
         return _av_to_flat(bv.to_av())
@@ -61,4 +62,5 @@ class NEML2Wrapper:
     def wrap_jacobian(
         self, diag: "AssembledMatrix", sub: "AssembledMatrix"
     ) -> NEML2BlockJacobian:
+        """Wrap diag/sub AssembledMatrix blocks into an NEML2BlockJacobian."""
         return NEML2BlockJacobian(diag, sub, self.layout)

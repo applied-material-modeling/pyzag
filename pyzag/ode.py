@@ -38,10 +38,12 @@ from typing import Sequence
 import torch
 
 from pyzag.nonlinear import (
+    ChunkOp,
     NonlinearFunctionOperator,
     NonlinearFunctionOperatorFactory,
 )
 from pyzag.operators.base import BlockJacobian, BlockVector
+from pyzag.operators.dense import DenseBlockJacobian, DenseBlockVector
 
 
 class ODEWrapper(ABC):
@@ -83,20 +85,14 @@ class DenseODEWrapper(ODEWrapper):
     """
 
     def wrap_vector(self, raw: torch.Tensor) -> BlockVector:
-        from pyzag.operators.dense import DenseBlockVector
-
         return DenseBlockVector(raw)
 
     def unwrap_vector(self, bv: BlockVector) -> torch.Tensor:
-        from pyzag.operators.dense import DenseBlockVector
-
         if not isinstance(bv, DenseBlockVector):
             raise TypeError("DenseODEWrapper requires DenseBlockVector input.")
         return bv.data
 
     def wrap_jacobian(self, diag: torch.Tensor, sub: torch.Tensor) -> BlockJacobian:
-        from pyzag.operators.dense import DenseBlockJacobian
-
         return DenseBlockJacobian(diag=diag, sub=sub)
 
 
@@ -160,8 +156,6 @@ class BackwardEulerODE(IntegrateODE):
         forces: Sequence[torch.Tensor],
         inverse_operator,
     ) -> NonlinearFunctionOperator:
-        from pyzag.nonlinear import ChunkOp
-
         return ChunkOp(self, prev_solution, forces, inverse_operator)
 
 
@@ -190,6 +184,4 @@ class ForwardEulerODE(IntegrateODE):
         forces: Sequence[torch.Tensor],
         inverse_operator,
     ) -> NonlinearFunctionOperator:
-        from pyzag.nonlinear import ChunkOp
-
         return ChunkOp(self, prev_solution, forces, inverse_operator)

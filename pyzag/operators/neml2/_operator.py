@@ -32,6 +32,8 @@ import torch
 
 from ..base import BlockOperator, BlockVector, PCRState, SolvableBlockOperator
 from ..dense import (
+    DenseBlockOperator,
+    DenseBlockVector,
     DensePCRState,
     _dense_pcr_cyclic_shift,
     _lu_factor_guarded,
@@ -86,6 +88,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
 
     @classmethod
     def factored(cls, am: "AssembledMatrix") -> "NEML2SolvableBlockOperator":
+        """Construct the operator and eagerly perform its LU factorization."""
         op = cls(am)
         op._ensure_lu()
         return op
@@ -357,10 +360,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
         A_ps_t = self.am.tensors[p][s]
         A_sp_t = self.am.tensors[s][p]
         A_ss_t = self.am.tensors[s][s]
-        A_pp = A_pp_t.torch()  # (nblk, B, *intmd_p, np, np)
         A_ss = A_ss_t.torch()  # (nblk, B, ns, ns)
-        # Cross-blocks may be undefined (block-diagonal A) — treat as zero
-        # contribution. Skip the matmuls and use the RHS / Aii solves alone.
         has_ps = A_ps_t.defined()
         has_sp = A_sp_t.defined()
         A_ps = A_ps_t.torch() if has_ps else None
@@ -744,8 +744,6 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
         PCR uses flat-dense, while the final ``self.A.solve(v_work)`` in
         BidiagonalPCRFactorization still uses Schur.)
         """
-        from ..dense import DenseBlockOperator, DenseBlockVector
-
         # Materialize to flat torch tensors.
         A_flat = _am_to_flat(self.am)  # (nblk,  sbat, n_flat, n_flat)
         B_flat = _am_to_flat(B.am)  # (nblk', sbat, n_flat, n_flat)
@@ -770,14 +768,14 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
             intmd_sizes_per_group=intmd_sizes_per_group,
             B_template=B.am,
         )
-        state._dense_op = A_dense  # attach for reduce_level / finalize
+        state.dense_op = A_dense  # attach for reduce_level / finalize
         return state
 
     def pcr_reduce_level_multigroup(
         self, state: MultiGroupPCRState, level: int
     ) -> MultiGroupPCRState:
         """Delegate one reduction level to Dense PCR."""
-        new_dense_state = state._dense_op.pcr_reduce_level(state.dense_state, level)
+        new_dense_state = state.dense_op.pcr_reduce_level(state.dense_state, level)
         new_state = MultiGroupPCRState(
             dense_state=new_dense_state,
             layout=state.layout,
@@ -785,7 +783,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
             intmd_sizes_per_group=state.intmd_sizes_per_group,
             B_template=state.B_template,
         )
-        new_state._dense_op = state._dense_op
+        new_state.dense_op = state.dense_op
         return new_state
 
     def pcr_finalize_multigroup(
@@ -798,7 +796,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
         in :class:`BidiagonalPCRFactorization` is ``self.A.solve(v_work)``
         which doesn't reference B).
         """
-        _B_dense_red, v_dense_red = state._dense_op.pcr_finalize(state.dense_state)
+        _B_dense_red, v_dense_red = state.dense_op.pcr_finalize(state.dense_state)
 
         # Un-flatten v_dense_red. v_dense_red.data has shape (nblk-1, sbat, n_flat).
         v_red_av = _split_flat_to_av(v_dense_red.data, state.layout)
@@ -886,7 +884,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
                         fixed_rank = fallback
                         break
                     fixed_rank = max(fixed_rank, probe.U.shape[-1])
-            except torch._C._LinAlgError:
+            except torch.linalg.LinAlgError:
                 fixed_rank = fallback
         else:
             fixed_rank = fallback
@@ -949,13 +947,13 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
             ainv_mid = _carrier_time_slice(ainv, slice(1, -1))
             b_mid = _carrier_time_slice(b, slice(1, -1))
             b_top = _carrier_time_slice(b, slice(2, None))
-            prod = _carrier_mul(
+            chained = _carrier_mul(
                 _carrier_mul(b_top, ainv_mid, tol=tol, fixed_rank=R),
                 b_mid,
                 tol=tol,
                 fixed_rank=R,
             )
-            new_b_top = _carrier_neg(prod)
+            new_b_top = _carrier_neg(chained)
             # In-place write into the strided b views (fixed rank R guarantees
             # shape compatibility).
             b.Dg[:, 2:] = new_b_top.Dg
@@ -1020,6 +1018,7 @@ class NEML2SolvableBlockOperator(SolvableBlockOperator):
         dtype: torch.dtype,
         device: torch.device,
     ) -> "NEML2SolvableBlockOperator":
+        """Build an identity operator matching the given NEML2 axis layout."""
         ng = layout.ngroup()
         T = [[Tensor() for _ in range(ng)] for _ in range(ng)]
         for g in range(ng):

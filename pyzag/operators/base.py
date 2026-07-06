@@ -131,7 +131,7 @@ class BlockVector(ABC):
 
     def neg(self) -> BlockVector:
         """Return the negated vector (alias for ``-self``)."""
-        return self.__neg__()
+        return self.__neg__()  # pylint: disable=unnecessary-dunder-call
 
     @abstractmethod
     def __add__(self, other: BlockVector) -> BlockVector:

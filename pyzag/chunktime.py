@@ -254,14 +254,17 @@ class BidiagonalOperator(torch.nn.Module):
 
     @property
     def dtype(self) -> torch.dtype:
+        """The dtype of the underlying operator blocks."""
         return self.A.dtype
 
     @property
     def device(self) -> torch.device:
+        """The device of the underlying operator blocks."""
         return self.A.device
 
     @property
     def batch_size(self) -> int:
+        """The batch size of the underlying operator blocks."""
         return self.A.batch_size
 
 
@@ -481,9 +484,11 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         self.inverse_operator = inverse_operator
 
     def forward(self, v: BlockVector) -> BlockVector:
+        """Apply the forward bidiagonal operator to a vector v."""
         return self.matvec(v)
 
     def matvec(self, v: BlockVector) -> BlockVector:
+        """Return the matrix-vector product of the bidiagonal operator with v."""
         out = self.A.matvec(v)
         if self.nblk > 1:
             tail = out[1:] + self.B.matvec(v[:-1])
@@ -491,6 +496,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         return out
 
     def vecmat(self, v: BlockVector) -> BlockVector:
+        """Return the transpose matrix-vector product of the operator with v."""
         out = self.A.t_matvec(v)
         if self.nblk > 1:
             head = out[:-1] + self.B.t_matvec(v[1:])
@@ -498,6 +504,7 @@ class BidiagonalForwardOperator(BidiagonalOperator):
         return out
 
     def inverse(self) -> "BidiagonalInverseOperator":
+        """Return the inverse operator built via the configured factory."""
         return self.inverse_operator(self.A, self.B)
 
 
@@ -516,10 +523,12 @@ class SquareBatchedBlockDiagonalMatrix:
 
     @property
     def dtype(self) -> torch.dtype:
+        """The dtype of the block-diagonal data."""
         return self.data[0].dtype
 
     @property
     def device(self) -> torch.device:
+        """The device of the block-diagonal data."""
         return self.data[0].device
 
     @property

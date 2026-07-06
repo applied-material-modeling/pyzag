@@ -152,7 +152,6 @@ def _split_flat_per_var(
     For BLOCK groups this means slicing along the **combined-base** axis
     AFTER the intmd dim, not along the flat axis.
     """
-    dyn_dim = raw.ndim - 1
     group_sizes = [_group_flat_size(layout, g) for g in range(layout.ngroup())]
     group_flats = torch.split(raw, group_sizes, dim=-1)
 
@@ -354,7 +353,7 @@ def _av_to_flat(av: "AssembledVector") -> torch.Tensor:
     this remains correct even if the AV's layout is somehow stale.
     """
     parts = []
-    for g, t in enumerate(av.tensors):
+    for t in av.tensors:
         raw = t.torch()
         intmd_ndim = t.intmd.dim()
         # Flatten intmd + base (the last 1+intmd_ndim dims) into one.

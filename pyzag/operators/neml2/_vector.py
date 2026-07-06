@@ -161,7 +161,7 @@ class NEML2BlockVector(BlockVector):
         Combined L2 across groups, matching :meth:`DenseBlockVector.flat_norm`.
         """
         per_group_sq = []
-        for t, i in zip(self.raw_tensors, self.intmd_dims):
+        for t in self.raw_tensors:
             # Batch to front, flatten the rest: (nblk, B, *intmd, base) ->
             # (B, nblk * intmd * base).
             flat = t.transpose(0, 1).flatten(1)
@@ -173,16 +173,14 @@ class NEML2BlockVector(BlockVector):
             raise TypeError("NEML2BlockVector.where expects NEML2BlockVector.")
         # Broadcast mask (B,) over (nblk, B, *intmd, base) for each group.
         out = []
-        for t_self, t_other, i in zip(
-            self.raw_tensors, other.raw_tensors, self.intmd_dims
-        ):
+        for t_self, t_other in zip(self.raw_tensors, other.raw_tensors):
             shape = (1, -1) + (1,) * (t_self.ndim - 2)
             out.append(torch.where(mask.reshape(shape), t_self, t_other))
         return NEML2BlockVector(out, self.layout, self.intmd_dims)
 
     def scale_batches(self, factor: torch.Tensor) -> "NEML2BlockVector":
         out = []
-        for t, i in zip(self.raw_tensors, self.intmd_dims):
+        for t in self.raw_tensors:
             shape = (1, -1) + (1,) * (t.ndim - 2)
             out.append(t * factor.reshape(shape))
         return NEML2BlockVector(out, self.layout, self.intmd_dims)
@@ -233,7 +231,7 @@ class NEML2BlockVector(BlockVector):
     def __setitem__(self, idx: int | slice, value: BlockVector) -> None:
         if not isinstance(value, NEML2BlockVector):
             raise TypeError("NEML2BlockVector can only assign from NEML2BlockVector.")
-        for g, (t_self, t_val) in enumerate(zip(self.raw_tensors, value.raw_tensors)):
+        for t_self, t_val in zip(self.raw_tensors, value.raw_tensors):
             t_self[idx] = t_val
 
     @classmethod

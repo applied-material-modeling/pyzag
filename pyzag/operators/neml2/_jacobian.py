@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import torch
 
+from pyzag.chunktime import BidiagonalForwardOperator
+from pyzag.operators.dense import DenseBlockJacobian
 from ..base import BlockJacobian, BlockVector
 from ._containers import AssembledMatrix, Tensor
 from ._assembly import _am_to_flat, _layout_flat_size, _split_flat_to_av, _transpose_am
@@ -141,8 +143,6 @@ class NEML2BlockJacobian(BlockJacobian):
     # ---- BlockJacobian abstract methods ----
 
     def forward_system(self, inverse_operator):
-        from pyzag.chunktime import BidiagonalForwardOperator
-
         if self._reversed:
             raise RuntimeError(
                 "forward_system() must be called on a forward-walk BlockJacobian, "
@@ -214,8 +214,6 @@ class NEML2BlockJacobian(BlockJacobian):
         with a single LU on the flat per-step Jacobian. Inherits
         :func:`_am_to_flat`'s single-intmd restriction.
         """
-        from pyzag.operators.dense import DenseBlockJacobian
-
         diag_flat = _am_to_flat(self.diag_am)
         sub_flat = _am_to_flat(self.sub_am)
         return DenseBlockJacobian(

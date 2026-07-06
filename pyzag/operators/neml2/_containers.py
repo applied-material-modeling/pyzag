@@ -114,15 +114,19 @@ class BlockLayout:
         return hash(self.groups)
 
     def ngroup(self) -> int:
+        """Number of groups in the layout."""
         return len(self.groups)
 
     def nvar(self) -> int:
+        """Total number of variables across all groups."""
         return sum(len(g.names) for g in self.groups)
 
     def istr(self, g: int) -> IStructure:
+        """Return the :class:`IStructure` tag of group ``g``."""
         return self.groups[g].istructure
 
     def group_offsets(self, g: int) -> tuple[int, int]:
+        """Return the ``(start, end)`` global variable index range of group ``g``."""
         start = sum(len(self.groups[i].names) for i in range(g))
         end = start + len(self.groups[g].names)
         return (start, end)
@@ -138,18 +142,22 @@ class BlockLayout:
         raise IndexError(f"variable index {vi} out of range (nvar={self.nvar()})")
 
     def intmd_sizes(self, vi: int) -> list[int]:
+        """Intermediate dim sizes of the global variable index ``vi``."""
         g, local = self._resolve(vi)
         return list(g.intmd_sizes[local])
 
     def base_sizes(self, vi: int) -> list[int]:
+        """Base dim sizes of the global variable index ``vi``."""
         g, local = self._resolve(vi)
         return list(g.base_sizes[local])
 
     def var(self, vi: int) -> str:
+        """Name of the global variable index ``vi``."""
         g, local = self._resolve(vi)
         return g.names[local]
 
     def vars(self) -> list[str]:
+        """Flat list of all variable names across groups."""
         return [n for g in self.groups for n in g.names]
 
     def storage_sizes(self, include_intmd: bool) -> list[int]:
@@ -177,6 +185,7 @@ class _DimView:
         self._d = d
 
     def dim(self) -> int:
+        """Number of dynamic dims."""
         return self._d
 
 
@@ -191,10 +200,12 @@ class _IntmdView:
         self._shape = shape
 
     def dim(self) -> int:
+        """Number of intermediate dims."""
         return self._d
 
     @property
     def shape(self) -> tuple[int, ...]:
+        """Intermediate dim shape."""
         return self._shape
 
 
@@ -224,19 +235,23 @@ class BlockTensor:
         self._intmd = intmd_dim
 
     def defined(self) -> bool:
+        """True if this block wraps a real tensor (not a zero/absent block)."""
         return self._raw is not None
 
     def torch(self) -> torch.Tensor:
+        """Return the wrapped :class:`torch.Tensor` (raises if undefined)."""
         if self._raw is None:
             raise RuntimeError("BlockTensor is undefined; cannot extract torch tensor.")
         return self._raw
 
     @property
     def dynamic(self) -> _DimView:
+        """View exposing the number of dynamic dims via ``.dim()``."""
         return _DimView(self._dyn)
 
     @property
     def intmd(self) -> _IntmdView:
+        """View exposing the intermediate dims via ``.dim()`` / ``.shape``."""
         if self._raw is None:
             return _IntmdView(self._intmd, ())
         shape = tuple(self._raw.shape[self._dyn : self._dyn + self._intmd])
@@ -244,10 +259,12 @@ class BlockTensor:
 
     @property
     def ndim(self) -> int:
+        """Number of dims of the wrapped tensor (0 if undefined)."""
         return self._raw.ndim if self._raw is not None else 0
 
     @property
     def shape(self):
+        """Shape of the wrapped tensor (empty :class:`torch.Size` if undefined)."""
         return self._raw.shape if self._raw is not None else torch.Size([])
 
 

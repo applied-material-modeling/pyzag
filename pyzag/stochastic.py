@@ -224,6 +224,9 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                 eps = self.eps
 
             with pyro.plate("time", shape[0]):
+                # eps is assigned in exactly one of the sample_noise_outside
+                # branches above; pylint can't see they are exhaustive.
+                # pylint: disable=possibly-used-before-assignment
                 pyro.sample("obs", dist.Normal(res, eps).to_event(1), obs=results)
 
         return res

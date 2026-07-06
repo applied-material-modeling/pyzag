@@ -92,8 +92,10 @@ class LinearSystem(torch.nn.Module):
         y_dot = torch.matmul(self.A.unsqueeze(0).unsqueeze(0), y.unsqueeze(-1)).squeeze(
             -1
         )
-        J_dot = self.A.unsqueeze(0).unsqueeze(0).expand(
-            t.shape[0], t.shape[1], self.n, self.n
+        J_dot = (
+            self.A.unsqueeze(0)
+            .unsqueeze(0)
+            .expand(t.shape[0], t.shape[1], self.n, self.n)
         )
         return y_dot, J_dot
 
