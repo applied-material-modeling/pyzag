@@ -25,20 +25,23 @@
 # pylint: disable=abstract-method
 
 """
-    Functions and objects to help with blocked/chunked time integration.
-
-    These include:
-        1. Sparse matrix classes for banded systems
-        2. General sparse matrix classes
-        3. Specialized solver routines working with banded systems
+Functions and objects to help with blocked/chunked time integration.
 """
 
-import warnings
-from math import prod, log2, floor
+from __future__ import annotations
 
-import torch
-from torch.nn.functional import pad
+import warnings
+from math import floor, log2
+from typing import Callable, Sequence
+
 import numpy as np
+import torch
+
+from pyzag.operators.base import (
+    BlockOperator,
+    BlockVector,
+    SolvableBlockOperator,
+)
 
 
 class ChunkNewtonRaphson:
@@ -55,46 +58,51 @@ class ChunkNewtonRaphson:
 
     def __init__(
         self,
-        rtol=1e-6,
-        atol=1e-10,
-        miter=200,
-        throw_on_fail=False,
-        record_failed=False,
-        ignore_batches=None,
-    ):
+        rtol: float = 1e-6,
+        atol: float = 1e-10,
+        miter: int = 200,
+        throw_on_fail: bool = False,
+        record_failed: bool = False,
+        ignore_batches: Sequence[int] | None = None,
+    ) -> None:
         self.rtol = rtol
         self.atol = atol
         self.miter = miter
         self.throw_on_fail = throw_on_fail
 
         self.record_failed = record_failed
-        self.failed = None
+        self.failed: torch.Tensor | None = None
 
         self.ignore_batches = ignore_batches
 
-    def setup(self, x):
+    def setup(self, x: BlockVector) -> None:
         """Do any initialization required before solving"""
 
-    def solve(self, fn, x0):
-        """Actually solve the system
+    def solve(
+        self,
+        fn: Callable[[BlockVector], tuple[BlockVector, "BidiagonalForwardOperator"]],
+        x0: BlockVector,
+    ) -> BlockVector:
+        """Solve the nonlinear system.
 
         Args:
-            fn (function): function that returns the residual and Jacobian (as appropriate chunked operators)
-            x0 (torch.tensor): initial guess, again properly chunked
+            fn: callable that returns ``(R, J)`` where ``R`` is a
+                :class:`BlockVector` and ``J`` is a
+                :class:`BidiagonalForwardOperator`.
+            x0: initial guess as a :class:`BlockVector`.
 
         Returns:
-            torch.tensor:   solution
+            BlockVector: solution
         """
         self.setup(x0)
         x = x0
         R, J = fn(x)
 
-        nR = torch.norm(R, dim=-1)
+        nR = R.norm(dim=-1)
         nR0 = nR.clone()
         i = 0
 
         while i < self.miter:
-            # There is no reason to thunk on nans
             not_converged = torch.logical_and(
                 self.not_converged(nR, nR0), torch.logical_not(torch.isnan(nR))
             )
@@ -116,51 +124,47 @@ class ChunkNewtonRaphson:
             )
 
         if self.record_failed:
-            # We took one more newton step since we calculated this
             self._store_failed(
                 torch.logical_or(self.not_converged(nR, nR0), torch.isnan(nR))
             )
 
         return x
 
-    def not_converged(self, nR, nR0):
-        """The logical to determine if we've converged in a particular time/batch
-
-        Args:
-            nR (torch.tensor): current residual
-            nR0 (torch.tensor): original residual
-        """
+    def not_converged(self, nR: torch.Tensor, nR0: torch.Tensor) -> torch.Tensor:
+        """The logical to determine if we've converged in a particular time/batch."""
         return torch.logical_and(nR > self.atol, nR / nR0 > self.rtol)
 
-    def _store_failed(self, not_converged):
-        """Store which batches did not converge
-
-        Args:
-            not_converged (torch.tensor of bool): which entries did not converge
-        """
+    def _store_failed(self, not_converged: torch.Tensor) -> None:
+        """Store which batches did not converge."""
         failed_this_time = torch.any(not_converged, dim=0)
         if self.failed is None:
             self.failed = failed_this_time
         else:
             self.failed = torch.logical_or(failed_this_time, self.failed)
 
-    def step(self, x, J, fn, R0, take_step):
-        """Take a simple Newton step
+    def step(
+        self,
+        x: BlockVector,
+        J: "BidiagonalForwardOperator",
+        fn: Callable[[BlockVector], tuple[BlockVector, "BidiagonalForwardOperator"]],
+        R0: BlockVector,
+        take_step: torch.Tensor,
+    ) -> tuple[BlockVector, BlockVector, "BidiagonalForwardOperator", torch.Tensor]:
+        """Take a simple Newton step.
 
-        Args:
-            x (torch.tensor): current solution
-            dx (torch.tensor): newton increment
-            fn (function): function
-            R0 (torch.tensor): current residual
-            take_step (torch.tensor): which entries to take a step with
+        Partial step application uses the abstract
+        :meth:`BlockVector.where` primitive: the candidate ``x - dx`` is
+        committed only for batches whose entries in ``final_steps`` are
+        True; converged batches keep their current value.
         """
         final_steps = torch.any(take_step, dim=0)
 
         dx = J.inverse().matvec(R0)
 
-        x[:, final_steps] = x[:, final_steps] - dx[:, final_steps]
+        candidate = x - dx
+        x = candidate.where(final_steps, x)
         R, J = fn(x)
-        nR = torch.norm(R, dim=-1)
+        nR = R.norm(dim=-1)
 
         return x, R, J, nR
 
@@ -179,38 +183,49 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
         linesearch_iter (int): maximum number of line search iterations
     """
 
-    def __init__(self, *args, alpha=0.5, linesearch_iter=3, **kwargs):
+    def __init__(
+        self,
+        *args,
+        alpha: float = 0.5,
+        linesearch_iter: int = 3,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.alpha = alpha
         self.linesearch_iter = linesearch_iter
 
-    def step(self, x, J, fn, R0, take_step):
-        """Take a Newton step with backtracking line search
+    def step(
+        self,
+        x: BlockVector,
+        J: "BidiagonalForwardOperator",
+        fn: Callable[[BlockVector], tuple[BlockVector, "BidiagonalForwardOperator"]],
+        R0: BlockVector,
+        take_step: torch.Tensor,
+    ) -> tuple[BlockVector, BlockVector, "BidiagonalForwardOperator", torch.Tensor]:
+        """Take a Newton step with backtracking line search.
 
-        Args:
-            x (torch.tensor): current solution
-            dx (torch.tensor): newton increment
-            fn (function): function
-            R0 (torch.tensor): current residual
-            take_step (torch.tensor): which entries to take a step with
+        Uses the abstract :meth:`BlockVector.flat_norm`,
+        :meth:`BlockVector.scale_batches`, and :meth:`BlockVector.where`
+        primitives so no backend storage is touched directly.
         """
-        # Need to map into the full x
         final_steps = torch.any(take_step, dim=0)
 
-        nR0 = torch.norm(R0.transpose(0, 1).flatten(1), dim=-1)[final_steps]
-        dx = J.inverse().matvec(R0)[:, final_steps]
-        x0 = x[:, final_steps].clone()
+        nR0 = R0.flat_norm()
+        dx = J.inverse().matvec(R0)
+        x0 = x.clone()
 
-        f = torch.ones_like(nR0)
+        f = torch.ones(x.batch_size, dtype=R0.dtype, device=R0.device)
 
         for _ in range(self.linesearch_iter):
-            x[:, final_steps] = x0 - f.unsqueeze(-1).unsqueeze(0) * dx
+            candidate = x0 - dx.scale_batches(f)
+            x = candidate.where(final_steps, x)
 
             R, J = fn(x)
-            nR = torch.norm(R, dim=-1)
-            nRR = torch.norm(R.transpose(0, 1).flatten(1), dim=-1)[final_steps]
+            nR = R.norm(dim=-1)
+            nRR = R.flat_norm()
 
-            decreasing = nRR < nR0
+            # Inactive batches count as decreasing to avoid spurious backtrack.
+            decreasing = (nRR < nR0) | torch.logical_not(final_steps)
 
             if torch.all(decreasing):
                 break
@@ -221,236 +236,147 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
 
 class BidiagonalOperator(torch.nn.Module):
-    """
-    An object working with a Batched block diagonal operator of the type
+    """Base class for block bidiagonal operators."""
 
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & 0 & 0 & 0 & \\cdots  & 0\\\\
-        B_1 & A_2 & 0 & 0 & \\cdots & 0\\\\
-        0 & B_2 & A_3 & 0 & \\cdots & 0\\\\
-        \\vdots & \\vdots & \\ddots & \\ddots & \\ddots  & \\vdots \\\\
-        0 & 0 & 0 & B_{n-2} & A_{n-1} & 0\\\\
-        0 & 0 & 0 & 0 & B_{n-1} & A_n
-        \\end{bmatrix}
-
-    that is, a blocked banded system with the main
-    diagonal and the first lower diagonal filled
-
-    We use the following sizes:
-        - nblk:   number of blocks in the square matrix
-        - sblk:   size of each block
-        - sbat:   batch size
-
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk)
-            storing the nblk main diagonal blocks
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk)
-            storing the nblk-1 off diagonal blocks
-    """
-
-    def __init__(self, A, B, *args, **kwargs):
+    def __init__(self, A: BlockOperator, B: BlockOperator, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+        if not isinstance(A, BlockOperator):
+            raise TypeError("A must be a BlockOperator.")
+        if not isinstance(B, BlockOperator):
+            raise TypeError("B must be a BlockOperator.")
+        if B.nblk != A.nblk - 1:
+            raise ValueError("B must have nblk = A.nblk - 1.")
+
         self.A = A
         self.B = B
-        self.nblk = A.shape[0]
-        self.sbat = A.shape[1]
-        self.sblk = A.shape[2]
+        self.nblk = A.nblk
 
     @property
-    def dtype(self):
-        """
-        dtype, which is just the dtype of self.diag
-        """
+    def dtype(self) -> torch.dtype:
+        """The dtype of the underlying operator blocks."""
         return self.A.dtype
 
     @property
-    def device(self):
-        """
-        device, which is just the device of self.diag
-        """
+    def device(self) -> torch.device:
+        """The device of the underlying operator blocks."""
         return self.A.device
 
     @property
-    def n(self):
-        """
-        Size of the unbatched square matrix
-        """
-        return self.nblk * self.sblk
-
-    @property
-    def shape(self):
-        """
-        Logical shape of the dense array
-        """
-        return (self.sbat, self.n, self.n)
+    def batch_size(self) -> int:
+        """The batch size of the underlying operator blocks."""
+        return self.A.batch_size
 
 
-class LUFactorization(BidiagonalOperator):
-    """A factorization that uses the LU decomposition of A
+class BidiagonalInverseOperator(BidiagonalOperator):
+    """Base for bidiagonal *inverse* operators (Thomas / PCR / hybrid).
 
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk) with the main diagonal
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk) with the off diagonal
+    Applying the operator solves the bidiagonal system, i.e. it acts as the
+    inverse. The actual factorization now lives in the ``SolvableBlockOperator``
+    backend (e.g. ``DenseBlockOperator``); this class only aliases ``forward``
+    to :meth:`matvec`.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._setup_factorization()
-
-    def _setup_factorization(self):
-        """
-        Form the factorization...
-
-        Args:
-            diag (torch.tensor): diagonal blocks of shape (nblk, sbat, sblk, sblk)
-        """
-        self.lu, self.pivots, _ = torch.linalg.lu_factor_ex(self.A)
-
-    def forward(self, v):
-        """
-        Run the solve using the linear algebra type interface
-        with the number of blocks and block size squeezed
-
-        Args:
-            v (torch.tensor): tensor of shape (sbat, sblk*nblk)
-        """
+    def forward(self, v: BlockVector) -> BlockVector:
+        """Apply the inverse operator (solve the system) for a vector v"""
         return self.matvec(v)
 
 
-def thomas_solve(lu, pivots, B, v):
-    """Simple function implementing a Thomas solve
+def thomas_solve(A: BlockOperator, B: BlockOperator, v: BlockVector) -> BlockVector:
+    """Generic Thomas solve over block views.
 
-    Solves in place of v
-
-    Args:
-        lu (torch.tensor): factorized diagonal blocks, (nblk,sbat,sblk,sblk)
-        pivots (torch.tensor): pivots for factorization
-        B (torch.tensor): lower diagonal blocks (nblk-1,sbat,sblk,sblk)
-        v (torch.tensor): right hand side (nblk,sbat,sblk)
+    All vector and operator arguments use the abstract block interfaces.
     """
-    i = 0
-    v[i] = torch.linalg.lu_solve(lu[i], pivots[i], v[i].unsqueeze(-1)).squeeze(-1)
-    for i in range(1, lu.shape[0]):
-        v[i] = torch.linalg.lu_solve(
-            lu[i],
-            pivots[i],
-            v[i].unsqueeze(-1) - torch.bmm(B[i - 1], v[i - 1].unsqueeze(-1).clone()),
-        ).squeeze(-1)
+    if A.nblk != v.nblk:
+        raise ValueError("A.nblk must match v.nblk.")
+    if B.nblk != A.nblk - 1:
+        raise ValueError("B.nblk must equal A.nblk - 1.")
 
-    return v
+    v_work = v.clone()
 
+    v_work[0:1] = A[0:1].solve(v_work[0:1])
 
-class BidiagonalThomasFactorization(LUFactorization):
-    """
-    Manages the data needed to solve our bidiagonal system via Thomas
-    factorization
+    for i in range(1, A.nblk):
+        Ai = A[i : i + 1]
+        Bi = B[i - 1 : i]
 
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk) with the main diagonal
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk) with the off diagonal
-    """
+        # Clone block i-1 only when building an autograd graph: matvec saves it
+        # for backward, and the in-place ``v_work[i] = ...`` below would bump the
+        # shared storage's version and invalidate that saved view. Under
+        # torch.no_grad() (the adjoint solve) no graph is saved, so skip the copy.
+        prev = v_work[i - 1 : i]
+        if torch.is_grad_enabled():
+            prev = prev.clone()
+        ri = v_work[i : i + 1] - Bi.matvec(prev)
+        v_work[i : i + 1] = Ai.solve(ri)
 
-    def matvec(self, v):
-        """
-        Complete the backsolve for a given right hand side
-
-        Args:
-            v (torch.tensor): tensor of shape (nblk, sbat, sblk)
-        """
-        return thomas_solve(self.lu, self.pivots, self.B, v)
+    return v_work
 
 
-class BidiagonalPCRFactorization(LUFactorization):
-    """
-    Manages the data needed to solve our bidiagonal system via parallel cyclic reduction
+class BidiagonalThomasFactorization(BidiagonalInverseOperator):
+    """Manages the data needed to solve our bidiagonal system via Thomas factorization."""
 
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk) with the main diagonal
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk) with the off diagonal
-    """
+    def __init__(self, A: BlockOperator, B: BlockOperator, *args, **kwargs) -> None:
+        super().__init__(A, B, *args, **kwargs)
 
-    def matvec(self, v):
-        """
-        Complete the backsolve for a given right hand side
+        if not isinstance(self.A, SolvableBlockOperator):
+            raise TypeError("A must implement SolvableBlockOperator.")
 
-        Args:
-            v (torch.tensor): tensor of shape (nblk, sbat, sblk)
-        """
-        # We could do this in place if it wasn't for the pad
-        self.B = pad(self.B, (0, 0, 0, 0, 0, 0, 1, 0))
+    def matvec(self, v: BlockVector) -> BlockVector:
+        """Apply the Thomas factorization."""
+        return thomas_solve(self.A, self.B, v)
 
-        # Now figure out how many powers of 2 we need to complete our matrix
+
+class BidiagonalPCRFactorization(BidiagonalInverseOperator):
+    """PCR factorization — algorithm lives here, backend provides pcr_init/reduce_level/finalize."""
+
+    def __init__(self, A: BlockOperator, B: BlockOperator, *args, **kwargs) -> None:
+        super().__init__(A, B, *args, **kwargs)
+
+        if not isinstance(self.A, SolvableBlockOperator):
+            raise TypeError("A must implement SolvableBlockOperator.")
+
+    def matvec(self, v: BlockVector) -> BlockVector:
+        """Apply the PCR factorization."""
+        B = self.B.pad_front(1)
+        v_work = v.clone()
+
         for s, e in zip(*self._pow2(self.nblk)):
-            self.B[s + 1 : e], v[s + 1 : e] = self._solve_block(
-                self.lu[s:e], self.pivots[s:e], self.B[s:e], v[s:e]
-            )
+            A_blk = self.A[s:e]
+            B_blk = B[s:e]
 
-        # To retain consistent sizes
-        self.B = self.B[1:]
+            niter = (e - s).bit_length() - 1
+            state = A_blk.pcr_init(B_blk, v_work[s:e])
+            for level in range(niter):
+                state = A_blk.pcr_reduce_level(state, level)
+            B_red, v_red = A_blk.pcr_finalize(state)
 
-        return torch.linalg.lu_solve(self.lu, self.pivots, v.unsqueeze(-1)).squeeze(-1)
+            self._check_pcr_reduce_result(B_red, v_red, s, e)
+            B[s + 1 : e] = B_red
+            v_work[s + 1 : e] = v_red
 
-    def _solve_block(self, lu, pivots, B, v):
-        """Solve a subsection of the matrix via PCR
-
-        Args:
-            lu (torch.tensor): (ncurr,sbat,sblk,sblk)
-            pivots (torch.tensor): (ncurr,sbat,sblk)
-            B (torch.tensor): (ncurr,sbat,sblk,sblk)
-            v (torch.tensor): (ncurr,sbat,sblk)
-        """
-        # Number of iterations required to reduce this block
-        niter = lu.shape[0].bit_length() - 1
-
-        # Add the extra working dimension to the start of everything
-        lu = lu.unsqueeze(0)
-        pivots = pivots.unsqueeze(0)
-        B = B.unsqueeze(0)
-        v = v.unsqueeze(0).unsqueeze(-1)
-
-        # Actually start reduction!
-        for i in range(niter):
-            # Reduce RHS
-            v[:, 1:] -= torch.matmul(
-                B[:, 1:],
-                torch.linalg.lu_solve(lu[:, :-1], pivots[:, :-1], v[:, :-1]),
-            )
-
-            # Reduce off diagonal coefficients
-            B[:, 2:] = -torch.matmul(
-                B[:, 2:],
-                torch.linalg.lu_solve(lu[:, 1:-1], pivots[:, 1:-1], B[:, 1:-1]),
-            )
-
-            # Shuffle dimensions
-            v = self._cyclic_shift(v, i)
-            B = self._cyclic_shift(B, i)
-            lu = self._cyclic_shift(lu, i)
-            pivots = self._cyclic_shift(pivots, i)
-
-        return B.squeeze(1)[1:], v.squeeze(1)[1:].squeeze(-1)
+        return self.A.solve(v_work)
 
     @staticmethod
-    def _pow2(n):
-        """Calculate submatrix sizes
+    def _check_pcr_reduce_result(
+        B_red: BlockOperator, v_red: BlockVector, s: int, e: int
+    ) -> None:
+        expected = e - s - 1
+        if B_red.nblk != expected:
+            raise RuntimeError(
+                f"PCR backend returned wrong B_red size: got {B_red.nblk}, expected {expected}"
+            )
+        if v_red.nblk != expected:
+            raise RuntimeError(
+                f"PCR backend returned wrong rhs size: got {v_red.nblk}, expected {expected}"
+            )
 
-        Args:
-            n (int): number of blocks
+    @staticmethod
+    def _pow2(n: int) -> tuple[list[int], list[int]]:
+        """Return lists of start and end indices for power-of-two windows covering n blocks."""
 
-        Returns:
-            two lists, one giving start block indices and the
-            second giving end block indices.
-
-        The first (start,end) pair is the largest power of 2 that fits in
-        n.  Subsequent pairs are the largest power of 2 that fit in the remainder
-        *with one overlap between the next increment and the previous*.
-        """
-
-        def sz(n):
-            return 2 ** floor(log2(n))
+        def sz(nv: int) -> int:
+            return 2 ** floor(log2(nv))
 
         start = [0]
         end = [sz(n)]
@@ -464,98 +390,65 @@ class BidiagonalPCRFactorization(LUFactorization):
 
         return start, end
 
-    @staticmethod
-    def _cyclic_shift(A, n):
-        """Provide a view of the input with a cyclic shift applied
-
-        Args:
-            A (torch.tensor): input tensor
-            n (int): number of cyclic shifts
-        """
-        return A.as_strided(
-            (A.shape[0] * 2, A.shape[1] // 2) + A.shape[2:],
-            (prod(A.shape[2:]), 2 ** (n + 1) * prod(A.shape[2:])) + A.stride()[2:],
-        )
-
-
-# Cheater wrapper
-def BidiagonalHybridFactorization(min_size=1):
-    """Apply the hybrid factorization with a given min_size"""
-    return lambda A, B, min_size=min_size: BidiagonalHybridFactorizationImpl(
-        A, B, min_size=min_size
-    )
-
 
 class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
-    """A factorization approach that switches from PCR to Thomas
+    """Hybrid PCR/Thomas factorization."""
 
-    Specifically, this class uses PCR until the PCR chunk size is
-    smaller than user provided minimum chunk size.  Then it switches
-    to Thomas.
-
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk) with the main diagonal
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk) with the off diagonal
-
-    Keyword Args:
-        min_size (int): minimum block size, default is zero
-    """
-
-    def __init__(self, *args, min_size=0, **kwargs):
+    def __init__(self, *args, min_size: int = 0, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        # I use < below...
         self.min_size = min_size + 1
 
-    def matvec(self, v):
-        """
-        Complete the backsolve for a given right hand side
+    def matvec(self, v: BlockVector) -> BlockVector:
+        """Apply the hybrid PCR/Thomas factorization."""
+        B = self.B.pad_front(1)
+        v_work = v.clone()
 
-        Args:
-            v (torch.tensor): tensor of shape (nblk, sbat, sblk, 1)
-        """
-        # We could do this in place if it wasn't for the pad
-        self.B = pad(self.B, (0, 0, 0, 0, 0, 0, 1, 0))
-
-        # Get the PCR blocks to actually use
         start, end, last = self._pcr_blocks()
+        self._apply_pcr_windows(B, v_work, start, end)
 
-        # Do PCR
+        B = B.trim_front(1)
+        self._solve_hybrid_tail(B, v_work, last)
+
+        return v_work
+
+    def _apply_pcr_windows(
+        self,
+        B: BlockOperator,
+        v_work: BlockVector,
+        start: Sequence[int],
+        end: Sequence[int],
+    ) -> None:
         for s, e in zip(start, end):
-            self.B[s + 1 : e], v[s + 1 : e] = self._solve_block(
-                self.lu[s:e], self.pivots[s:e], self.B[s:e], v[s:e]
-            )
+            A_blk = self.A[s:e]
+            B_blk = B[s:e]
 
-        # To retain consistent sizes
-        self.B = self.B[1:]
+            niter = (e - s).bit_length() - 1
+            state = A_blk.pcr_init(B_blk, v_work[s:e])
+            for level in range(niter):
+                state = A_blk.pcr_reduce_level(state, level)
+            B_red, v_red = A_blk.pcr_finalize(state)
 
-        # We still need to solve the first block even if last is 0
+            self._check_pcr_reduce_result(B_red, v_red, s, e)
+            B[s + 1 : e] = B_red
+            v_work[s + 1 : e] = v_red
 
-        # The actual LU solve for the solution
-        v[:last] = torch.linalg.lu_solve(
-            self.lu[:last], self.pivots[:last], v[:last].unsqueeze(-1)
-        ).squeeze(-1)
+    def _solve_hybrid_tail(
+        self, B: BlockOperator, v_work: BlockVector, last: int
+    ) -> None:
+        if last > 0:
+            v_work[:last] = self.A[0:last].solve(v_work[:last])
 
-        # Now take over for Thomas
         for i in range(last, self.nblk):
-            # The .clone() here should not be necessary, but for whatever
-            # reason torch autograd give the usual "in place" complaint
-            # without it...
-            v[i] = torch.linalg.lu_solve(
-                self.lu[i],
-                self.pivots[i],
-                v[i].unsqueeze(-1)
-                - torch.bmm(self.B[i - 1], v[i - 1].clone().unsqueeze(-1)),
-            ).squeeze(-1)
+            Ai = self.A[i : i + 1]
+            Bi = B[i - 1 : i]
+            ri = v_work[i : i + 1] - Bi.matvec(v_work[i - 1 : i])
+            v_work[i : i + 1] = Ai.solve(ri)
 
-        return v
-
-    def _pcr_blocks(self):
-        """Figure out the PCR blocks we are actually going to use"""
-        # Figure out which blocks we're going to use
+    def _pcr_blocks(self) -> tuple[list[int], list[int], int]:
+        """Return the start and end indices for PCR blocks, plus the size of the first reduced prefix."""
         start, end = self._pow2(self.nblk)
-        # These are sorted...
         blk_size = [e - s for e, s in zip(end, start)]
+
         if blk_size[0] < self.min_size:
             return [], [], 1
 
@@ -571,138 +464,54 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         return start, end, end[-1]
 
 
+def BidiagonalHybridFactorization(min_size: int = 1):
+    """Factory wrapper for the hybrid factorization with a given min_size."""
+    return lambda A, B, min_size=min_size: BidiagonalHybridFactorizationImpl(
+        A, B, min_size=min_size
+    )
+
+
 class BidiagonalForwardOperator(BidiagonalOperator):
-    """
-    A batched block banded matrix of the form:
+    """Forward bidiagonal operator that wraps an inverse-operator factory."""
 
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & 0 & 0 & 0 & \\cdots  & 0\\\\
-        B_1 & A_2 & 0 & 0 & \\cdots & 0\\\\
-        0 & B_2 & A_3 & 0 & \\cdots & 0\\\\
-        \\vdots & \\vdots & \\ddots & \\ddots & \\ddots  & \\vdots \\\\
-        0 & 0 & 0 & B_{n-2} & A_{n-1} & 0\\\\
-        0 & 0 & 0 & 0 & B_{n-1} & A_n
-        \\end{bmatrix}
-
-    that is, a blocked banded system with the main
-    diagonal and first lower block diagonal filled
-
-    We use the following sizes:
-        - nblk: number of blocks in the square matrix
-        - sblk: size of each block
-        - sbat: batch size
-
-    Args:
-        A (torch.tensor): tensor of shape (nblk,sbat,sblk,sblk)
-            storing the nblk diagonal blocks
-        B (torch.tensor): tensor of shape (nblk-1,sbat,sblk,sblk)
-            storing the nblk-1 off diagonal blocks
-    """
-
-    def __init__(self, *args, inverse_operator=BidiagonalThomasFactorization, **kwargs):
+    def __init__(
+        self,
+        *args,
+        inverse_operator=BidiagonalThomasFactorization,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.inverse_operator = inverse_operator
 
-    def to_diag(self):
-        """
-        Convert to a SquareBatchedBlockDiagonalMatrix, for testing
-        or legacy purposes
-        """
-        return SquareBatchedBlockDiagonalMatrix([self.A, self.B], [0, -1])
-
-    def forward(self, v):
-        """
-        :math:`A \\cdot v` in an efficient manner
-
-        Args:
-            v (torch.tensor):   batch of vectors
-        """
+    def forward(self, v: BlockVector) -> BlockVector:
+        """Apply the forward bidiagonal operator to a vector v."""
         return self.matvec(v)
 
-    def matvec(self, v):
-        """
-        :math:`A \\cdot v` in an efficient manner
+    def matvec(self, v: BlockVector) -> BlockVector:
+        """Return the matrix-vector product of the bidiagonal operator with v."""
+        out = self.A.matvec(v)
+        if self.nblk > 1:
+            tail = out[1:] + self.B.matvec(v[:-1])
+            out = type(out).cat([out[:1], tail], dim=0)
+        return out
 
-        Args:
-            v (torch.tensor):   batch of vectors
-        """
-        # Reshaped v
-        vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-1)
+    def vecmat(self, v: BlockVector) -> BlockVector:
+        """Return the transpose matrix-vector product of the operator with v."""
+        out = self.A.t_matvec(v)
+        if self.nblk > 1:
+            head = out[:-1] + self.B.t_matvec(v[1:])
+            out = type(out).cat([head, out[-1:]], dim=0)
+        return out
 
-        # Actual calculation
-        b = torch.bmm(self.A.view(-1, self.sblk, self.sblk), vp)
-        b[self.sbat :] += torch.bmm(
-            self.B.view(-1, self.sblk, self.sblk), vp[: -self.sbat]
-        )
-
-        return b.squeeze(-1).view(self.nblk, self.sbat, self.sblk)
-
-    def vecmat(self, v):
-        """
-        :math:`v \\cdot A` in an efficient manner
-
-        Args:
-            v (torch.tensor):   batch of vectors
-        """
-        # Reshaped v
-        vp = v.reshape(self.sbat * self.nblk, self.sblk).unsqueeze(-2)
-
-        # Diagonal term
-        b = torch.bmm(vp, self.A.view(-1, self.sblk, self.sblk))
-        # Off diagonal term
-        b[: -self.sbat] += torch.bmm(
-            vp[self.sbat :], self.B.view(-1, self.sblk, self.sblk)
-        )
-
-        return b.squeeze(-2).view(self.nblk, self.sbat, self.sblk)
-
-    def inverse(self):
-        """
-        Return an inverse operator
-        """
+    def inverse(self) -> "BidiagonalInverseOperator":
+        """Return the inverse operator built via the configured factory."""
         return self.inverse_operator(self.A, self.B)
 
 
 class SquareBatchedBlockDiagonalMatrix:
-    """
-    A batched block diagonal matrix of the type
+    """Utility for converting block-diagonal data into dense / sparse representations."""
 
-    .. math::
-
-        \\begin{bmatrix}
-        A_1 & B_1 & 0 & 0\\\\
-        C_1 & A_2 & B_2 & 0 \\\\
-        0 & C_2 & A_3 & B_3\\\\
-        0 & 0 & C_3 & A_4
-        \\end{bmatrix}
-
-    where the matrix has diagonal blocks of non-zeros and
-    can have arbitrary numbers of filled diagonals
-
-    Additionally, this matrix is batched.
-
-    We use the following sizes:
-        - nblk: number of blocks in the each direction
-        - sblk: size of each block
-        - sbat: batch size
-
-    Args:
-        data (list of tensors):     list of tensors of length ndiag.
-                                    Each tensor
-                                    has shape :code:`(nblk-abs(d),sbat,sblk,sblk)`
-                                    where d is the diagonal number
-                                    provided in the next input
-        diags (list of ints):       list of ints of length ndiag.
-                                    Each entry gives the diagonal
-                                    for the data in the corresponding
-                                    tensor.  These values d can
-                                    range from -(n-1) to (n-1)
-    """
-
-    def __init__(self, data, diags):
-        # We will want this in order later
+    def __init__(self, data, diags) -> None:
         iargs = np.argsort(diags)
 
         self.data = [data[i] for i in iargs]
@@ -713,50 +522,37 @@ class SquareBatchedBlockDiagonalMatrix:
         self.sblk = self.data[0].shape[-1]
 
     @property
-    def dtype(self):
-        """
-        dtype, as reported by the first entry in self.data
-        """
+    def dtype(self) -> torch.dtype:
+        """The dtype of the block-diagonal data."""
         return self.data[0].dtype
 
     @property
-    def device(self):
-        """
-        device, as reported by the first entry in self.device
-        """
+    def device(self) -> torch.device:
+        """The device of the block-diagonal data."""
         return self.data[0].device
 
     @property
-    def n(self):
-        """
-        Size of the unbatched square matrix
-        """
+    def n(self) -> int:
+        """Size of the unbatched square matrix."""
         return self.nblk * self.sblk
 
     @property
-    def shape(self):
-        """
-        Logical shape of the dense array
-        """
+    def shape(self) -> tuple[int, int, int]:
+        """Logical shape of the dense array."""
         return (self.sbat, self.n, self.n)
 
     @property
-    def nnz(self):
-        """
-        Number of logical non-zeros (not counting the batch dimension)
-        """
+    def nnz(self) -> int:
+        """Number of logical non-zeros (not counting the batch dimension)."""
         return sum(
             self.data[i].shape[0] * self.sblk * self.sblk
             for i in range(len(self.diags))
         )
 
-    def to_dense(self):
-        """
-        Convert the representation to a dense tensor
-        """
+    def to_dense(self) -> torch.Tensor:
+        """Convert the representation to a dense tensor."""
         A = torch.zeros(*self.shape, dtype=self.dtype, device=self.device)
 
-        # There may be a more clever way than for loops, but for now
         for d, data in zip(self.diags, self.data):
             for k in range(self.nblk - abs(d)):
                 if d <= 0:
@@ -773,22 +569,11 @@ class SquareBatchedBlockDiagonalMatrix:
 
         return A
 
-    def to_batched_coo(self):
-        """
-        Convert to a torch sparse batched COO tensor
-
-        This is done in a weird way.  torch recognizes "batch" dimensions at
-        the start of the tensor and "dense" dimensions at the end (with "sparse"
-        dimensions in between).  batch dimensions can/do have difference indices,
-        dense dimensions all share the same indices.  We have the latter situation
-        so this is setup as a tensor with no "batch" dimensions, 2 "sparse" dimensions,
-        and 1 "dense" dimension.  So it will be the transpose of the shape of the
-        to_dense function.
-        """
+    def to_batched_coo(self) -> torch.Tensor:
+        """Convert to a torch sparse batched COO tensor."""
         inds = torch.zeros(2, self.nnz)
         data = torch.zeros(self.nnz, self.sbat, dtype=self.dtype, device=self.device)
 
-        # Order doesn't matter, nice!
         c = 0
         chunk = self.sblk * self.sblk
         for d, bdata in zip(self.diags, self.data):
@@ -835,11 +620,8 @@ class SquareBatchedBlockDiagonalMatrix:
             size=(self.n, self.n, self.sbat),
         ).coalesce()
 
-    def to_unrolled_csr(self):
-        """
-        Return a list of CSR tensors with length equal to the batch size
-
-        """
+    def to_unrolled_csr(self) -> list[torch.Tensor]:
+        """Return a list of CSR tensors with length equal to the batch size."""
         coo = self.to_batched_coo()
         return [
             torch.sparse_coo_tensor(coo.indices(), coo.values()[:, i]).to_sparse_csr()
