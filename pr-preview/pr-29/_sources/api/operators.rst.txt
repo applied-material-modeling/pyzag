@@ -10,6 +10,9 @@ Abstract interfaces
 
 .. automodule:: pyzag.operators.base
     :members:
+    :undoc-members:
+    :show-inheritance:
+    :member-order: bysource
 
 Dense backend
 -------------
@@ -20,3 +23,6 @@ operators as ``(nblk, sbat, sblk, sblk)`` tensors.
 
 .. automodule:: pyzag.operators.dense
     :members:
+    :undoc-members:
+    :show-inheritance:
+    :member-order: bysource
