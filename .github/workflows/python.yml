@@ -15,22 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sdist:
-    name: Build source distribution
+  dist:
+    name: Build distributions (sdist + wheel)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build SDist
-        run: pipx run build --sdist
-      - name: Upload SDist
+      - name: Build sdist + wheel
+        # `build` with no --sdist produces BOTH the sdist and a py3-none-any
+        # wheel. pyzag is pure Python, so the wheel is universal: pip installs it
+        # on every platform with no build step. That matters for consumers that
+        # build under --no-build-isolation (e.g. neml2's Windows/MSVC build), where
+        # an sdist-only release forces a source build that fails without `wheel`.
+        # Building both on every push/PR also keeps the wheel build under CI.
+        run: pipx run build
+      - name: Upload distributions
         uses: actions/upload-artifact@v4
         if: github.event_name == 'release' && github.event.action == 'published'
         with:
-          name: package-sdist
-          path: dist/*.tar.gz
+          name: package-dist
+          path: dist/*
 
   PyPI:
-    needs: sdist
+    needs: dist
     environment: pypi
     permissions:
       id-token: write
@@ -39,7 +45,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: package-sdist
+          pattern: package-dist
           path: dist
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
