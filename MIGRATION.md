@@ -3,9 +3,7 @@
 pyzag 2.0 introduces a block-operator abstraction layer alongside the existing
 dense implementation. The dense path remains the default and is functionally
 equivalent to 1.x, but the public Python API has changed in ways that will break
-code written against 1.x. The NEML2 backend that adapts pyzag to NEML2 lives
-entirely in the NEML2 repository (`neml2.pyzag`); pyzag itself has no dependency
-on NEML2.
+code written against 1.x.
 
 This document lists every user-visible break and shows the minimal port for
 each.
@@ -18,10 +16,9 @@ each.
 |---|---|
 | User-defined residuals | `NonlinearRecursiveFunction` removed; subclass `NonlinearFunctionOperatorFactory` and return a `ChunkOp` instead |
 | Block storage | New `pyzag.operators` subpackage with `BlockVector` / `BlockOperator` / `BlockJacobian` abstractions; dense backend is `pyzag.operators.dense` |
-| Backends | pyzag ships the dense backend; the NEML2 backend lives in the NEML2 repo (`neml2.pyzag`) and implements the same abstractions on NEML2's assembled types |
+| Backends | pyzag ships the dense backend; the `pyzag.operators` abstractions let alternate backends be implemented against the same interfaces |
 | `IntegrateODE` family | Now extends `torch.nn.Module, NonlinearFunctionOperatorFactory`; takes an optional `wrapper` argument |
 | `thomas_solve` | Signature operates on `BlockOperator` / `BlockVector` rather than LU factors and raw tensors |
-| Block operator indexing | `block(i)` and `window(start, end)` replaced by `__getitem__` (`A[i:i+1]`, `A[i:j]`) |
 | `StepExtrapolatingPredictor` | Bug fix: silent index wrap when `k == 1` is now caught by the guard |
 
 ---
@@ -44,15 +41,30 @@ class MyResidual(nonlinear.NonlinearRecursiveFunction):
 The base class `NonlinearRecursiveFunction` has been removed. Residuals are
 now produced by a *factory* (`NonlinearFunctionOperatorFactory`) that returns
 a *chunk operator* (`ChunkOp`). The factory pattern is what lets the solver
-swap in different backends (dense, NEML2) without changing the residual.
+swap in different backends without changing the residual.
+
+A `NonlinearFunctionOperatorFactory` subclass must provide four members: the
+`lookback` and `wrapper` properties, `make_operator` (builds the per-chunk
+operator the Newton solve calls), and `evaluate_raw` (recomputes `(R, J)` for
+the adjoint pass). `ChunkOp` is a ready-made operator most factories can return
+from `make_operator` unchanged.
 
 ```python
 from pyzag.nonlinear import NonlinearFunctionOperatorFactory, ChunkOp
 
 class MyResidualFactory(NonlinearFunctionOperatorFactory):
-    def make_operator(self, ...) -> ChunkOp:
+    @property
+    def lookback(self) -> int: ...
+
+    @property
+    def wrapper(self): ...        # ODEWrapper-like backend bridge
+
+    def make_operator(self, prev_solution, forces, inverse_operator) -> ChunkOp:
+        return ChunkOp(self, prev_solution, forces, inverse_operator)
+
+    def evaluate_raw(self, x_full, forces):
         ...
-        return ChunkOp(...)
+        return R, J             # R: raw tensor, J: BlockJacobian
 ```
 
 If you were subclassing `IntegrateODE` (i.e. you only cared about ODE
@@ -80,21 +92,6 @@ The dense implementation (drop-in for 1.x behavior) lives in
 If you were passing raw tensors directly to internal `chunktime` machinery,
 wrap them in the dense types instead. For most users this is invisible — the
 solver constructs them internally.
-
-### Block window API
-
-The methods `block(i)` and `window(start, end)` on operators have been
-replaced by Python's standard `__getitem__`:
-
-```python
-# 1.x
-A.block(i)
-A.window(start, end)
-
-# 2.0
-A[i:i+1]   # single-block operator
-A[start:end]
-```
 
 ---
 
@@ -145,31 +142,14 @@ def thomas_solve(A: BlockOperator, B: BlockOperator, v: BlockVector) -> BlockVec
 ```
 
 Operates on block types directly. The LU step is delegated to the operator's
-own `factored()` constructor (see `DenseBlockOperator.factored`,
-`NEML2SolvableBlockOperator.factored`).
+own `factored()` constructor (see `DenseBlockOperator.factored`).
 
 If you were calling `thomas_solve` directly with raw tensors, you now need to
 construct the appropriate `BlockOperator` first.
 
 ---
 
-## 5. NEML2 backend (lives in the NEML2 repo)
-
-The NEML2 backend is **not** part of pyzag. It lives in the NEML2 repository
-under `neml2.pyzag`, where it implements pyzag's `BlockVector` /
-`SolvableBlockOperator` / `BlockJacobian` ABCs directly on top of NEML2's own
-assembled types (`AssembledMatrix`, `AssembledVector`, `AxisLayout`, `Tensor`)
-and delegates the diagonal-block linear solve to NEML2's `SchurComplement` /
-`DenseLU` solvers. The user-facing factory that adapts a NEML2
-`ModelNonlinearSystem` to pyzag is `neml2.pyzag.NEML2PyzagFactory`.
-
-pyzag itself has **no `import neml2`** and no NEML2 dependency: it ships only the
-abstractions (`pyzag.operators.base`) and the dense backend
-(`pyzag.operators.dense`). NEML2 users install NEML2 to get the backend.
-
----
-
-## 6. Bug fix: `StepExtrapolatingPredictor.predict()`
+## 5. Bug fix: `StepExtrapolatingPredictor.predict()`
 
 `StepExtrapolatingPredictor.predict()` previously guarded with `if k < 1`,
 which let `k == 1` fall through to `results[k - 2] == results[-1]` — a silent
@@ -182,7 +162,7 @@ but the math was almost certainly not what you intended.
 
 ---
 
-## 7. Removed / unchanged
+## 6. Removed / unchanged
 
 - All three predictors that existed in 1.x but had no callers
   (`LastStepPredictor`, `StepExtrapolatingPredictor`, `ExtrapolatingPredictor`)
@@ -194,19 +174,3 @@ but the math was almost certainly not what you intended.
 - `MapNormal`, `HierarchicalStatisticalModel` (in `pyzag.stochastic`) are
   unchanged.
 - `solve()` and `solve_adjoint()` top-level helpers are unchanged.
-
----
-
-## Test-suite changes (internal-facing)
-
-If you were running pyzag's test suite directly, two changes:
-
-- The vestigial `try/except` + `_NEML2_AVAILABLE` + `@unittest.skipUnless`
-  scaffolding has been removed from the NEML2-backend test files. Those tests
-  now run unconditionally and pass without NEML2 being installed (the backend
-  has no `import neml2`).
-- The NEML2 AD-graph / adjoint tests have been moved out of pyzag and into
-  the NEML2 repository (`tests/unit/pyzag/`, e.g. `test_adjoint.py`,
-  `test_adjoint_multigroup.py`, `test_neml2_pyzag_factory.py`). They exercise
-  the NEML2-side adapter (`neml2.pyzag.interface.NEML2PyzagFactory`) rather
-  than anything in pyzag itself, so they live with the code they test.

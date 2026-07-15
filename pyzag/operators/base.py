@@ -99,11 +99,10 @@ class BlockVector(ABC):
         a block vector and should not be wrapped)."""
 
     @abstractmethod
-    def flat_norm(self) -> torch.Tensor:
-        """Cross-block flattened L2 norm per batch element. Returns a
-        raw tensor of shape ``(batch_size,)``. Counterpart to per-block
-        :meth:`norm`; used for convergence metrics that need a single
-        scalar per batch (e.g. line search)."""
+    def flatten(self) -> torch.Tensor:
+        """Flatten to a raw tensor of shape ``(batch_size, ndof)``:
+        batch-major, with every block and state entry for a given batch
+        element concatenated along the last axis."""
 
     @abstractmethod
     def where(self, mask: torch.Tensor, other: BlockVector) -> BlockVector:
@@ -254,10 +253,6 @@ class BlockOperator(ABC):
     def pad_front(self, n: int = 1) -> BlockOperator:
         """Return an operator with `n` leading dummy logical blocks
         (creates new data, not a view)."""
-
-    @abstractmethod
-    def trim_front(self, n: int = 1) -> BlockOperator:
-        """Return an operator with the first `n` logical blocks removed."""
 
     def __len__(self) -> int:
         return self.nblk

@@ -152,8 +152,8 @@ class TestDenseBlockOperatorViews(unittest.TestCase):
         self.assertTrue(torch.allclose(out.data[2:], self.data))
         self.assertTrue(torch.allclose(out.data[:2], torch.zeros_like(out.data[:2])))
 
-    def test_trim_front(self):
-        out = self.op.trim_front(2)
+    def test_slice_off_front(self):
+        out = self.op[2:]
         self.assertEqual(out.nblk, self.nblk - 2)
         self.assertTrue(torch.allclose(out.data, self.data[2:]))
 

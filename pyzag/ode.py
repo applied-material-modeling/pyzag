@@ -22,7 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Generic ODE integration as :class:`NonlinearFunctionOperator` factories.
+r"""Generic ODE integration as :class:`NonlinearFunctionOperator` factories.
+
+For :math:`\dot x = g(x, t;\, p)` and a step of size :math:`\Delta t`, the Euler
+schemes form a recursive residual :math:`R = 0` for the chunked solver:
+backward Euler :math:`x_{n+1} - x_n - \Delta t\, g(x_{n+1}) = 0` or forward Euler
+:math:`x_{n+1} - x_n - \Delta t\, g(x_n) = 0`.
 
 The Euler integration math is fully abstract: it operates on
 :class:`BlockVector` objects and produces :class:`BlockOperator` blocks via a

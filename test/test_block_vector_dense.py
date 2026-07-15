@@ -64,8 +64,15 @@ class TestDenseBlockVector(unittest.TestCase):
         self.assertTrue(torch.allclose(result, expected))
         self.assertIsInstance(result, torch.Tensor)
 
-    def test_flat_norm(self):
-        result = self.v.flat_norm()
+    def test_flatten(self):
+        result = self.v.flatten()
+        expected = self.data.transpose(0, 1).flatten(1)
+        self.assertEqual(result.shape, (self.sbat, self.nblk * self.sblk))
+        self.assertTrue(torch.allclose(result, expected))
+
+    def test_flatten_norm_is_cross_block_l2(self):
+        # The per-batch convergence scalar used by the line search.
+        result = self.v.flatten().norm(dim=-1)
         expected = torch.norm(self.data.transpose(0, 1).flatten(1), dim=-1)
         self.assertEqual(result.shape, (self.sbat,))
         self.assertTrue(torch.allclose(result, expected))

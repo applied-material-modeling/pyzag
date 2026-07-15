@@ -16,10 +16,25 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dynamic = ["dependencies"]
+dependencies = [
+    "torch>=2.0",
+    "tqdm",
+    "numpy>=2",
+    "matplotlib",
+    "pyro-ppl",
+    "scipy",
+]
 
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+[project.optional-dependencies]
+dev = [
+    # testing
+    "pytest",
+    # lint + format
+    "pylint==2.15.5",
+    "black==24.3.0",
+    # notebooks
+    "nbdime",
+]
 
 [tool.setuptools.packages.find]
 include = ["pyzag*"]

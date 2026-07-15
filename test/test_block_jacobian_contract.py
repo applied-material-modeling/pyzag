@@ -36,7 +36,7 @@ Two complementary checks:
 2. ``BlockVector`` contract: a static grep guarantees no ``.data[`` patterns
    in the solver core (``chunktime.py`` / ``nonlinear.py``), and a
    behavioral check confirms ``ChunkNewtonRaphson`` actually exercises
-   the new abstract primitives (``where``, ``flat_norm``,
+   the new abstract primitives (``where``, ``flatten``,
    ``scale_batches``) rather than working around them via ``.data``.
 """
 
@@ -340,16 +340,16 @@ class TestBlockVectorContract(unittest.TestCase):
         # `clone` is used inside the bidiagonal solvers (Thomas/PCR).
         self.assertGreater(counts["clone"], 0)
 
-    def test_line_search_exercises_flat_norm_and_scale_batches(self):
+    def test_line_search_exercises_flatten_and_scale_batches(self):
         counts = self._drive_newton_with_counters(
-            ["flat_norm", "scale_batches"],
+            ["flatten", "scale_batches"],
             nonlinear_solver=chunktime.ChunkNewtonRaphsonLineSearch(),
         )
 
         self.assertGreater(
-            counts["flat_norm"],
+            counts["flatten"],
             0,
-            "Line search did not call BlockVector.flat_norm()",
+            "Line search did not call BlockVector.flatten()",
         )
         self.assertGreater(
             counts["scale_batches"],

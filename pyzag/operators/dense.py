@@ -28,6 +28,7 @@ Packed block operators and vectors with dense tensor storage.
 
 from __future__ import annotations
 
+import os
 from math import prod
 from typing import Sequence
 
@@ -43,13 +44,39 @@ from .base import (
     SolvableBlockOperator,
 )
 
-
-_CUDA_BATCHED_LU_MAX_N = 256
+_CUDA_BATCHED_LU_MAX_N_DEFAULT = 256
 """cuSOLVER's batched LU is tuned for very small matrices. Above this
 per-matrix size, batched ``getrf``/``getrs`` print a "batched routines are
 designed for small sizes" warning and run slower than the non-batched
 ("Native") path. We loop the leading dims and call non-batched LU when the
-factorized matrix is larger than this threshold on cuda."""
+factorized matrix is larger than this threshold on cuda.
+
+torch does not expose this crossover. Override it with the
+``PYZAG_CUDA_BATCHED_LU_MAX_N`` environment variable to
+retune for a different GPU."""
+
+
+def _read_cuda_batched_lu_max_n() -> int:
+    """Read the cuda batched-LU size threshold from the environment, falling
+    back to :data:`_CUDA_BATCHED_LU_MAX_N_DEFAULT`. See that constant for the
+    meaning and provenance of the value."""
+    raw = os.environ.get("PYZAG_CUDA_BATCHED_LU_MAX_N")
+    if raw is None:
+        return _CUDA_BATCHED_LU_MAX_N_DEFAULT
+    try:
+        value = int(raw)
+    except ValueError as e:
+        raise ValueError(
+            f"PYZAG_CUDA_BATCHED_LU_MAX_N must be an integer, got {raw!r}."
+        ) from e
+    if value < 0:
+        raise ValueError(
+            f"PYZAG_CUDA_BATCHED_LU_MAX_N must be non-negative, got {value}."
+        )
+    return value
+
+
+_CUDA_BATCHED_LU_MAX_N = _read_cuda_batched_lu_max_n()
 
 
 def _lu_factor_guarded(A: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -116,34 +143,48 @@ class DenseBlockVector(BlockVector):
 
     @property
     def device(self) -> torch.device:
+        """Execution device of the backing tensor."""
         return self.data.device
 
     @property
     def dtype(self) -> torch.dtype:
+        """Data type of the backing tensor."""
         return self.data.dtype
 
     @property
     def nblk(self) -> int:
+        """Number of logical blocks (axis 0 of ``data``)."""
         return self.data.shape[0]
 
     @property
     def batch_size(self) -> int:
+        """Logical batch size (axis 1 of ``data``)."""
         return self.data.shape[1]
 
     @property
     def block_size(self) -> int:
+        """Logical size of one block (last axis of ``data``)."""
         return self.data.shape[-1]
 
     def clone(self) -> DenseBlockVector:
+        """Return a safe copy backed by a cloned tensor."""
         return DenseBlockVector(self.data.clone())
 
     def norm(self, dim: int = -1) -> torch.Tensor:
+        """Compute the norm along ``dim``. Returns a raw tensor (used for
+        scalar convergence checks; not wrapped as a block vector)."""
         return torch.norm(self.data, dim=dim)
 
-    def flat_norm(self) -> torch.Tensor:
-        return torch.norm(self.data.transpose(0, 1).flatten(1), dim=-1)
+    def flatten(self) -> torch.Tensor:
+        """Flatten to a raw ``(batch_size, nblk * block_size)`` tensor:
+        transpose the block axis behind the batch axis and flatten the rest,
+        so each batch element's entries are concatenated along the last axis."""
+        return self.data.transpose(0, 1).flatten(1)
 
     def where(self, mask: torch.Tensor, other: BlockVector) -> DenseBlockVector:
+        """Batch-axis conditional combination (``torch.where`` convention):
+        return ``self`` where ``mask`` is True, else ``other``. ``mask`` is a
+        ``(batch_size,)`` tensor broadcast over the block and state axes."""
         if not isinstance(other, DenseBlockVector):
             raise TypeError("DenseBlockVector.where expects DenseBlockVector.")
         # Broadcast mask (batch,) over (nblk, batch, *state): leading
@@ -154,41 +195,54 @@ class DenseBlockVector(BlockVector):
         )
 
     def scale_batches(self, factor: torch.Tensor) -> DenseBlockVector:
+        """Multiply each batch element by its own scalar from ``factor``
+        (shape ``(batch_size,)``), reshaped to ``(1, batch_size, 1, ...)`` so
+        it broadcasts over the block and state axes rather than the trailing
+        (state) axis. Used by line-search backtracking."""
         broadcast_shape = (1, -1) + (1,) * (self.data.ndim - 2)
         return DenseBlockVector(self.data * factor.reshape(broadcast_shape))
 
     def flip(self, dim: int) -> DenseBlockVector:
+        """Return a new vector with axis ``dim`` reversed."""
         return DenseBlockVector(self.data.flip(dim))
 
     def __neg__(self) -> DenseBlockVector:
+        """Return the negated vector."""
         return DenseBlockVector(-self.data)
 
     def __add__(self, other: BlockVector) -> DenseBlockVector:
+        """Element-wise addition with another ``DenseBlockVector``."""
         if not isinstance(other, DenseBlockVector):
             raise TypeError("DenseBlockVector can only add to DenseBlockVector.")
         return DenseBlockVector(self.data + other.data)
 
     def __sub__(self, other: BlockVector) -> DenseBlockVector:
+        """Element-wise subtraction with another ``DenseBlockVector``."""
         if not isinstance(other, DenseBlockVector):
             raise TypeError("DenseBlockVector can only subtract from DenseBlockVector.")
         return DenseBlockVector(self.data - other.data)
 
     def __mul__(self, other: torch.Tensor | float | int) -> DenseBlockVector:
+        """Scalar/broadcast multiplication."""
         return DenseBlockVector(self.data * other)
 
     def __getitem__(self, idx: int | slice) -> DenseBlockVector:
+        """Slice along the block dimension, preserving that axis (a bare int
+        result is re-expanded to a single-block vector)."""
         sliced = self.data[idx]
         if sliced.ndim == 2:
             sliced = sliced.unsqueeze(0)
         return DenseBlockVector(sliced)
 
     def __setitem__(self, idx: int | slice, value: BlockVector) -> None:
+        """Assign into a block-dim slice from another ``DenseBlockVector``."""
         if not isinstance(value, DenseBlockVector):
             raise TypeError("DenseBlockVector can only assign from DenseBlockVector.")
         self.data[idx] = value.data
 
     @classmethod
     def cat(cls, vectors: Sequence[BlockVector], dim: int = 0) -> DenseBlockVector:
+        """Concatenate a sequence of ``DenseBlockVector`` along ``dim``."""
         for v in vectors:
             if not isinstance(v, DenseBlockVector):
                 raise TypeError("All vectors must be DenseBlockVector.")
@@ -210,6 +264,8 @@ class DenseBlockVector(BlockVector):
 
     @classmethod
     def zeros_like(cls, other: BlockVector) -> DenseBlockVector:
+        """Return a zero-filled ``DenseBlockVector`` with the same shape as
+        ``other``."""
         if not isinstance(other, DenseBlockVector):
             raise TypeError("DenseBlockVector.zeros_like requires DenseBlockVector.")
         return DenseBlockVector(torch.zeros_like(other.data))
@@ -310,21 +366,27 @@ class DenseBlockOperator(SolvableBlockOperator):
 
     @property
     def device(self) -> torch.device:
+        """Execution device of the backing tensor."""
         return self.data.device
 
     @property
     def dtype(self) -> torch.dtype:
+        """Data type of the backing tensor."""
         return self.data.dtype
 
     @property
     def nblk(self) -> int:
+        """Number of logical blocks (axis 0 of ``data``)."""
         return self.data.shape[0]
 
     @property
     def batch_size(self) -> int:
+        """Logical batch size expected in block-major vector inputs."""
         return self.data.shape[1]
 
     def matvec(self, x: BlockVector) -> DenseBlockVector:
+        """Apply the (block-diagonal) operator to ``x``: per block, the
+        matrix-vector product ``A_k x_k``. Requires ``x.nblk == self.nblk``."""
         if not isinstance(x, DenseBlockVector):
             raise TypeError("DenseBlockOperator.matvec expects DenseBlockVector.")
         nblk, sbat, sblk = x.data.shape
@@ -336,6 +398,8 @@ class DenseBlockOperator(SolvableBlockOperator):
         )
 
     def t_matvec(self, x: BlockVector) -> DenseBlockVector:
+        """Apply the transpose of the operator to ``x`` (per block,
+        ``A_k^T x_k``). Requires ``x.nblk == self.nblk``."""
         if not isinstance(x, DenseBlockVector):
             raise TypeError("DenseBlockOperator.t_matvec expects DenseBlockVector.")
         nblk, sbat, sblk = x.data.shape
@@ -347,6 +411,9 @@ class DenseBlockOperator(SolvableBlockOperator):
         )
 
     def solve(self, rhs: BlockVector) -> DenseBlockVector:
+        """Solve the block system ``A x = rhs`` per block via the cached LU
+        factorization (materialized lazily on first call). Requires
+        ``rhs.nblk == self.nblk``."""
         if not isinstance(rhs, DenseBlockVector):
             raise TypeError("DenseBlockOperator.solve expects DenseBlockVector.")
         self._ensure_lu()
@@ -355,6 +422,7 @@ class DenseBlockOperator(SolvableBlockOperator):
         )
 
     def clone(self) -> DenseBlockOperator:
+        """Return a safe copy, cloning the cached LU factors if present."""
         return DenseBlockOperator(
             self.data.clone(),
             None if self.lu is None else self.lu.clone(),
@@ -362,6 +430,9 @@ class DenseBlockOperator(SolvableBlockOperator):
         )
 
     def __getitem__(self, idx: int | slice) -> DenseBlockOperator:
+        """Return a logical block window, carrying the cached LU/pivots for the
+        same window so chained ``A[i:i+1].solve(...)`` calls avoid re-factoring.
+        A bare-int result is re-expanded to a single-block operator."""
         sliced_data = self.data[idx]
         sliced_lu = None if self.lu is None else self.lu[idx]
         sliced_pivots = None if self.pivots is None else self.pivots[idx]
@@ -373,6 +444,9 @@ class DenseBlockOperator(SolvableBlockOperator):
         return DenseBlockOperator(sliced_data, sliced_lu, sliced_pivots)
 
     def __setitem__(self, idx: int | slice, other: BlockOperator) -> None:
+        """Overwrite a logical block window with ``other``. The cached LU is
+        kept consistent when both sides have it, otherwise invalidated so the
+        next ``solve`` re-factors."""
         if not isinstance(other, DenseBlockOperator):
             raise TypeError(
                 "DenseBlockOperator assignment requires DenseBlockOperator."
@@ -388,6 +462,9 @@ class DenseBlockOperator(SolvableBlockOperator):
             self.pivots = None
 
     def pad_front(self, n: int = 1) -> DenseBlockOperator:
+        """Return an operator with ``n`` leading zero (dummy) blocks prepended.
+        Creates new data rather than a view; the result is un-factored since
+        padding changes the per-block layout."""
         if n < 0:
             raise ValueError("n must be nonnegative.")
         if n == 0:
@@ -396,13 +473,6 @@ class DenseBlockOperator(SolvableBlockOperator):
         # invalid for the new layout; build a fresh (un-factored) op.
         data = pad(self.data, (0, 0, 0, 0, 0, 0, n, 0))
         return DenseBlockOperator(data)
-
-    def trim_front(self, n: int = 1) -> DenseBlockOperator:
-        if n < 0:
-            raise ValueError("n must be nonnegative.")
-        if n == 0:
-            return self.clone()
-        return DenseBlockOperator(self.data[n:])
 
     def pcr_init(self, B: BlockOperator, v: BlockVector) -> DensePCRState:
         """Initialise Dense PCR working state for a power-of-two window.
@@ -529,22 +599,27 @@ class DenseBlockJacobian(BlockJacobian):
 
     @property
     def device(self) -> torch.device:
+        """Execution device of the backing tensors."""
         return self.diag.device
 
     @property
     def dtype(self) -> torch.dtype:
+        """Data type of the backing tensors."""
         return self.diag.dtype
 
     @property
     def nblk_steps(self) -> int:
+        """Number of residual rows in the chunk (axis 0 of ``diag``)."""
         return self.diag.shape[0]
 
     @property
     def batch_size(self) -> int:
+        """Logical batch size (axis 1 of ``diag``)."""
         return self.diag.shape[1]
 
     @property
     def block_size(self) -> int:
+        """Per-step state size (last axis of ``diag``)."""
         return self.diag.shape[-1]
 
     def _walk_diag(self) -> torch.Tensor:
@@ -562,6 +637,10 @@ class DenseBlockJacobian(BlockJacobian):
         return self.sub.flip(0) if self._reversed else self.sub
 
     def forward_system(self, inverse_operator):
+        """Build the chunk's forward bidiagonal system for Newton: diagonal
+        ``A`` = the (factored) per-step ``diag`` blocks and subdiagonal ``B`` =
+        ``sub[1:]``, wrapped in a :class:`BidiagonalForwardOperator`. Must be
+        called on a forward-walk Jacobian."""
         if self._reversed:
             raise RuntimeError(
                 "forward_system() must be called on a forward-walk "
@@ -574,6 +653,12 @@ class DenseBlockJacobian(BlockJacobian):
         )
 
     def adjoint_system(self, inverse_operator):
+        """Build the chunk's adjoint bidiagonal *solve* operator, in
+        adjoint-walk order with transposes baked in: drop the first walked
+        diagonal block (handled by the terminal seed) and the first/last walked
+        subdiagonal blocks. Must be called on the walk-order Jacobian from
+        :meth:`as_adjoint_walk`; applying ``.matvec(rhs)`` yields the adjoint
+        solution."""
         if not self._reversed:
             raise RuntimeError(
                 "adjoint_system() must be called on the BlockJacobian "
@@ -588,6 +673,9 @@ class DenseBlockJacobian(BlockJacobian):
         return inverse_operator(A_ops, B_ops)
 
     def solve_terminal_adjoint(self, g_terminal: torch.Tensor) -> DenseBlockVector:
+        """Compute ``-A_terminal^{-T} @ g_terminal`` for the very last
+        forward-time step, returned as a single-block ``DenseBlockVector`` that
+        does not alias ``g_terminal``."""
         # The "terminal" block is the very last forward-time diagonal
         # block; this method may be called on either a forward or
         # walk-order Jacobian since both refer to the same trajectory.
@@ -598,6 +686,10 @@ class DenseBlockJacobian(BlockJacobian):
         return DenseBlockVector(adjoint_data)
 
     def couple_prev_chunk(self, a_first: BlockVector) -> DenseBlockVector:
+        """Compute the inter-chunk adjoint coupling ``B_boundary^T @ a_first``,
+        where ``a_first`` is the previous chunk's adjoint tail (single-block, in
+        walk order). Returns a single-block ``DenseBlockVector`` to subtract into
+        the current chunk's first-row RHS."""
         if not isinstance(a_first, DenseBlockVector):
             raise TypeError(
                 "DenseBlockJacobian.couple_prev_chunk expects DenseBlockVector."
@@ -612,6 +704,9 @@ class DenseBlockJacobian(BlockJacobian):
         return DenseBlockVector(coupling.unsqueeze(0))
 
     def as_adjoint_walk(self) -> DenseBlockJacobian:
+        """Return a sibling Jacobian whose forward time order is reversed. This
+        shares the same underlying tensors and only toggles a private flag, so
+        no physical ``flip`` materializes."""
         return DenseBlockJacobian(
             diag=self.diag, sub=self.sub, _reversed=not self._reversed
         )

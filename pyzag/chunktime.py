@@ -24,8 +24,21 @@
 
 # pylint: disable=abstract-method
 
-"""
+r"""
 Functions and objects to help with blocked/chunked time integration.
+
+Within a chunk the Newton system is block lower-bidiagonal (lookback 1): with
+diagonal blocks :math:`A_k = \partial R_k/\partial x_k` and subdiagonal blocks
+:math:`B_k = \partial R_k/\partial x_{k-1}`,
+
+.. math::
+
+    (J\,x)_k = A_k\,x_k + B_{k-1}\,x_{k-1},
+
+and each Newton iteration solves :math:`J\,\Delta = R`. Two solvers are provided:
+**Thomas** (sequential forward substitution, :func:`thomas_solve`) and **parallel
+cyclic reduction** (PCR), which eliminates odd blocks over power-of-two windows
+using :math:`A^{-1}`-products; a hybrid switches between them by window size.
 """
 
 from __future__ import annotations
@@ -131,7 +144,7 @@ class ChunkNewtonRaphson:
         return x
 
     def not_converged(self, nR: torch.Tensor, nR0: torch.Tensor) -> torch.Tensor:
-        """The logical to determine if we've converged in a particular time/batch."""
+        """The logic to determine if we've converged in a particular time/batch."""
         return torch.logical_and(nR > self.atol, nR / nR0 > self.rtol)
 
     def _store_failed(self, not_converged: torch.Tensor) -> None:
@@ -204,13 +217,15 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
     ) -> tuple[BlockVector, BlockVector, "BidiagonalForwardOperator", torch.Tensor]:
         """Take a Newton step with backtracking line search.
 
-        Uses the abstract :meth:`BlockVector.flat_norm`,
+        Uses the abstract :meth:`BlockVector.flatten`,
         :meth:`BlockVector.scale_batches`, and :meth:`BlockVector.where`
-        primitives so no backend storage is touched directly.
+        primitives so no backend storage is touched directly. The per-batch
+        convergence scalar is ``flatten().norm(-1)`` (cross-block L2 norm
+        per batch element).
         """
         final_steps = torch.any(take_step, dim=0)
 
-        nR0 = R0.flat_norm()
+        nR0 = R0.flatten().norm(dim=-1)
         dx = J.inverse().matvec(R0)
         x0 = x.clone()
 
@@ -222,7 +237,7 @@ class ChunkNewtonRaphsonLineSearch(ChunkNewtonRaphson):
 
             R, J = fn(x)
             nR = R.norm(dim=-1)
-            nRR = R.flat_norm()
+            nRR = R.flatten().norm(dim=-1)
 
             # Inactive batches count as decreasing to avoid spurious backtrack.
             decreasing = (nRR < nR0) | torch.logical_not(final_steps)
@@ -406,7 +421,7 @@ class BidiagonalHybridFactorizationImpl(BidiagonalPCRFactorization):
         start, end, last = self._pcr_blocks()
         self._apply_pcr_windows(B, v_work, start, end)
 
-        B = B.trim_front(1)
+        B = B[1:]
         self._solve_hybrid_tail(B, v_work, last)
 
         return v_work

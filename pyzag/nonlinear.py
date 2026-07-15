@@ -22,7 +22,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Solving recursive nonlinear equations and computing parameter sensitivities via the adjoint method."""
+r"""Solving recursive nonlinear equations and computing parameter sensitivities
+via the adjoint method.
+
+The solver integrates a recursive system whose residual couples consecutive
+steps (lookback 1):
+
+.. math::
+
+    R_k = f(x_k, x_{k-1};\, p) = 0, \qquad k = 1, \dots, n,
+
+solving the trajectory in chunks with a blocked Newton iteration. Parameter
+gradients are obtained by a reverse adjoint sweep that reuses the same chunk
+Jacobians, giving memory cost independent of ``n`` rather than backpropagating
+through every step.
+"""
 
 from __future__ import annotations
 
@@ -92,7 +106,28 @@ def _disable_donated_buffers() -> None:
 
 
 class NonlinearFunctionOperator(ABC):
-    """Abstract operator passed to the Newton solver.
+    r"""Abstract operator passed to the Newton solver.
+
+    The solver integrates a recursive nonlinear system whose per-step residual
+    has lookback ``L``:
+
+        R_k = f(x_k, x_{k-1}, \dots, x_{k-L};\, u_k;\, p) = 0,
+        \qquad x_k \in \mathbb{R}^n
+
+    A chunk covers ``m`` consecutive steps. The forces ``u_k`` and the lookback
+    tail ``x_0`` (the previous solution) are captured at construction; Newton
+    only varies the chunk unknowns ``x = (x_1, ..., x_m)``. Calling the operator
+    maps that trial state to ``(R, J)``:
+
+    - ``R(x) = (R_1, ..., R_m)`` (a :class:`BlockVector`), with
+      ``R_k = f(x_k, x_{k-1}; u_k)``.
+    - ``J = dR/dx``. For ``L == 1`` this is block lower-bidiagonal, with
+      diagonal blocks ``A_k = dR_k/dx_k`` and subdiagonal blocks
+      ``B_k = dR_k/dx_{k-1}``, so that ``(J @ d)_k = A_k d_k + B_{k-1} d_{k-1}``
+      and all other blocks are zero.
+
+    Newton iterates ``x <- x - J^{-1} R(x)``, solving ``J d = R`` each iteration
+    via the bidiagonal (Thomas/PCR) solver.
 
     Forces and time are captured at construction. Newton only passes the
     state ``x`` as a :class:`BlockVector` and receives back ``(R, J)``
