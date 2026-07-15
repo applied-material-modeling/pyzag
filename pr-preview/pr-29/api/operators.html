@@ -50,20 +50,19 @@
 <li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
 <li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.operators</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#module-pyzag.operators.base">Abstract interfaces</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.base.BlockVector"><code class="docutils literal notranslate"><span class="pre">BlockVector</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.base.BlockOperator"><code class="docutils literal notranslate"><span class="pre">BlockOperator</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.base.PCRState"><code class="docutils literal notranslate"><span class="pre">PCRState</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator"><code class="docutils literal notranslate"><span class="pre">SolvableBlockOperator</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.base.BlockJacobian"><code class="docutils literal notranslate"><span class="pre">BlockJacobian</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mathematical-model">Mathematical model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#abstract-interfaces">Abstract interfaces</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#block-vectors">Block vectors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#block-operators">Block operators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#block-jacobians">Block Jacobians</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#dense-backend">Dense backend</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.batch_lu_solve"><code class="docutils literal notranslate"><span class="pre">batch_lu_solve()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector"><code class="docutils literal notranslate"><span class="pre">DenseBlockVector</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState"><code class="docutils literal notranslate"><span class="pre">DensePCRState</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator"><code class="docutils literal notranslate"><span class="pre">DenseBlockOperator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState"><code class="docutils literal notranslate"><span class="pre">DensePCRState</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockJacobian"><code class="docutils literal notranslate"><span class="pre">DenseBlockJacobian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#dense-helpers">Dense helpers</a></li>
 </ul>
 </li>
 </ul>
@@ -105,16 +104,64 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">pyzag.operators</span></code> subpackage defines the abstract block-operator
 interfaces the solver runs against, plus the concrete dense backend. New in
 pyzag 2.0.</p>
-<section id="module-pyzag.operators.base">
-<span id="abstract-interfaces"></span><h2>Abstract interfaces<a class="headerlink" href="#module-pyzag.operators.base" title="Link to this heading"></a></h2>
-<p>Abstract block operator and block vector interfaces.</p>
+<section id="mathematical-model">
+<h2>Mathematical model<a class="headerlink" href="#mathematical-model" title="Link to this heading"></a></h2>
+<p>The solver works on <em>chunks</em> of a recursive nonlinear system. Within a chunk of
+<img class="math" src="../_images/math/215192642262b1ca47c0cb861b5b2f7981f98fca.png" alt="m"/> steps the unknowns are stacked into a <strong>block vector</strong></p>
+<div class="math">
+<p><img src="../_images/math/f40255de2612a7488459036c6585a8bfca6c0d6a.png" alt="x = (x_1, \dots, x_m), \qquad x_k \in \mathbb{R}^{n},"/></p>
+</div><p>with logical shape <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">batch_size,</span> <span class="pre">block_size)</span></code> – axis 0 is the block /
+time index, axis 1 is the batch, and the last axis holds one block’s entries. A
+backend is free to store this however it likes (dense tensor, per-group list,
+sparse) as long as it honours that logical shape.</p>
+<p>A <strong>block operator</strong> <img class="math" src="../_images/math/755423dba6516519200012fdc580a4decb6300b6.png" alt="A"/> is a linear map defined purely by its <em>action</em> –
+it need not materialize a matrix. The two required actions are the matrix-vector
+product and its transpose,</p>
+<div class="math">
+<p><img src="../_images/math/0187c50b17a010d1727cfc09ced6c5c1cad3c989.png" alt="y = A\,x, \qquad y = A^{\mathsf{T}} x,"/></p>
+</div><p>exposed as <a class="reference internal" href="#pyzag.operators.base.BlockOperator.matvec" title="pyzag.operators.base.BlockOperator.matvec"><code class="xref py py-meth docutils literal notranslate"><span class="pre">matvec()</span></code></a> and
+<a class="reference internal" href="#pyzag.operators.base.BlockOperator.t_matvec" title="pyzag.operators.base.BlockOperator.t_matvec"><code class="xref py py-meth docutils literal notranslate"><span class="pre">t_matvec()</span></code></a>. A
+<strong>solvable block operator</strong> additionally solves the block system</p>
+<div class="math">
+<p><img src="../_images/math/b3fec9b09c2c66e505818325ef247154f24d858f.png" alt="A\,x = b \;\Longrightarrow\; x = A^{-1} b,"/></p>
+</div><p>via <a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.solve" title="pyzag.operators.base.SolvableBlockOperator.solve"><code class="xref py py-meth docutils literal notranslate"><span class="pre">solve()</span></code></a>.</p>
+<p>For lookback 1 the chunk residual Jacobian is block <strong>lower-bidiagonal</strong>: with
+diagonal blocks <img class="math" src="../_images/math/bcbd24a14fc9d9144dfc21f0c21ffdae8b40b37e.png" alt="A_k = \partial R_k/\partial x_k"/> and subdiagonal blocks
+<img class="math" src="../_images/math/108390de08e9af305342aba86ac42ac0bb3d1809.png" alt="B_k = \partial R_k/\partial x_{k-1}"/>,</p>
+<div class="math">
+<p><img src="../_images/math/9e4da2668978a3d933e9a308a2921f5c3a6b9f40.png" alt="(J\,x)_k = A_k\,x_k + B_{k-1}\,x_{k-1},"/></p>
+</div><p>and all other blocks are zero. Newton solves <img class="math" src="../_images/math/5e0a993673c4e6bffb6549fa3f076e526e6f8288.png" alt="J\,\Delta = R"/> each iteration.
+This bidiagonal solve is provided two ways: <strong>Thomas</strong> (sequential forward
+substitution) and <strong>parallel cyclic reduction</strong> (PCR), which repeatedly halves a
+power-of-two window by eliminating the odd blocks using
+<img class="math" src="../_images/math/5dffc9457d092f79758938d0131d503db5cac9dd.png" alt="A^{-1}"/>-products. The PCR working state is carried opaquely across levels
+by a <a class="reference internal" href="#pyzag.operators.base.PCRState" title="pyzag.operators.base.PCRState"><code class="xref py py-class docutils literal notranslate"><span class="pre">PCRState</span></code></a>. The
+<a class="reference internal" href="#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code></a> abstraction owns the per-chunk
+Jacobian and knows how to build both the forward system (for Newton) and the
+transposed adjoint system (for the reverse/adjoint sweep).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The concrete bidiagonal <em>solve</em> operators that consume these interfaces –
+<code class="docutils literal notranslate"><span class="pre">BidiagonalForwardOperator</span></code> and the Thomas / PCR / hybrid factorizations
+that implement the <img class="math" src="../_images/math/c64d9eb987c2619c026ca560adaf7cbff969b97c.png" alt="J^{-1}"/> action described above – live in
+<a class="reference internal" href="chunktime.html"><span class="doc">pyzag.chunktime</span></a>, since they are solver machinery rather than storage
+backends.</p>
+</div>
+</section>
+<section id="abstract-interfaces">
+<h2>Abstract interfaces<a class="headerlink" href="#abstract-interfaces" title="Link to this heading"></a></h2>
+<p>Every backend implements these ABCs from <code class="docutils literal notranslate"><span class="pre">pyzag.operators.base</span></code>. The contract
+is behavioral: a backend may use any storage as long as the logical block
+ordering and shapes are preserved.</p>
+<section id="block-vectors">
+<h3>Block vectors<a class="headerlink" href="#block-vectors" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.operators.base.BlockVector">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.base.</span></span><span class="sig-name descname"><span class="pre">BlockVector</span></span><a class="headerlink" href="#pyzag.operators.base.BlockVector" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
 <p>Abstract interface for a logical packed block vector.</p>
 <section id="logical-conventions">
-<h3>Logical conventions<a class="headerlink" href="#logical-conventions" title="Link to this heading"></a></h3>
+<h4>Logical conventions<a class="headerlink" href="#logical-conventions" title="Link to this heading"></a></h4>
 <p>A block vector consists of <cite>nblk</cite> logical blocks. Solver code treats
 block vectors as block-major: axis 0 indexes logical blocks.</p>
 <p>For the current bidiagonal solvers, the logical shape is</p>
@@ -131,7 +178,7 @@ block vectors as block-major: axis 0 indexes logical blocks.</p>
 </dl>
 </section>
 <section id="backend-freedom">
-<h3>Backend freedom<a class="headerlink" href="#backend-freedom" title="Link to this heading"></a></h3>
+<h4>Backend freedom<a class="headerlink" href="#backend-freedom" title="Link to this heading"></a></h4>
 <p>A backend may store data in any representation it wants
 (dense, structured, sparse, factored, etc.) as long as:</p>
 <blockquote>
@@ -185,12 +232,11 @@ a block vector and should not be wrapped).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.base.BlockVector.flat_norm">
-<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">flat_norm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.base.BlockVector.flat_norm" title="Link to this definition"></a></dt>
-<dd><p>Cross-block flattened L2 norm per batch element. Returns a
-raw tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code>. Counterpart to per-block
-<a class="reference internal" href="#pyzag.operators.base.BlockVector.norm" title="pyzag.operators.base.BlockVector.norm"><code class="xref py py-meth docutils literal notranslate"><span class="pre">norm()</span></code></a>; used for convergence metrics that need a single
-scalar per batch (e.g. line search).</p>
+<dt class="sig sig-object py" id="pyzag.operators.base.BlockVector.flatten">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">flatten</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.base.BlockVector.flatten" title="Link to this definition"></a></dt>
+<dd><p>Flatten to a raw tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">ndof)</span></code>:
+batch-major, with every block and state entry for a given batch
+element concatenated along the last axis.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -239,18 +285,21 @@ line-search backtracking.</p>
 </section>
 </dd></dl>
 
+</section>
+<section id="block-operators">
+<h3>Block operators<a class="headerlink" href="#block-operators" title="Link to this heading"></a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.operators.base.BlockOperator">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.base.</span></span><span class="sig-name descname"><span class="pre">BlockOperator</span></span><a class="headerlink" href="#pyzag.operators.base.BlockOperator" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
 <p>Abstract interface for a logical packed block operator.</p>
 <section id="id1">
-<h3>Logical conventions<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<h4>Logical conventions<a class="headerlink" href="#id1" title="Link to this heading"></a></h4>
 <p>The operator consists of <cite>nblk</cite> logical blocks. The solver treats
 block vectors passed to this operator as block-major.</p>
 </section>
 <section id="id2">
-<h3>Backend freedom<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<h4>Backend freedom<a class="headerlink" href="#id2" title="Link to this heading"></a></h4>
 <dl class="simple">
 <dt>A backend may store its blocks in any representation it wants as long as:</dt><dd><ul class="simple">
 <li><p><cite>nblk</cite> reports the correct logical number of blocks</p></li>
@@ -316,24 +365,7 @@ block vectors passed to this operator as block-major.</p>
 (creates new data, not a view).</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.base.BlockOperator.trim_front">
-<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">trim_front</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.base.BlockOperator" title="pyzag.operators.base.BlockOperator"><span class="pre">BlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.base.BlockOperator.trim_front" title="Link to this definition"></a></dt>
-<dd><p>Return an operator with the first <cite>n</cite> logical blocks removed.</p>
-</dd></dl>
-
 </section>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.operators.base.PCRState">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.base.</span></span><span class="sig-name descname"><span class="pre">PCRState</span></span><a class="headerlink" href="#pyzag.operators.base.PCRState" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
-<p>Opaque PCR working state managed by the backend across levels.</p>
-<p>Created by <a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_init" title="pyzag.operators.base.SolvableBlockOperator.pcr_init"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_init()</span></code></a>, updated by
-<a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_reduce_level" title="pyzag.operators.base.SolvableBlockOperator.pcr_reduce_level"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_reduce_level()</span></code></a>, and consumed by
-<a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_finalize" title="pyzag.operators.base.SolvableBlockOperator.pcr_finalize"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_finalize()</span></code></a>. Callers in <code class="docutils literal notranslate"><span class="pre">chunktime.py</span></code>
-treat this as an opaque handle and never inspect its contents.</p>
 </dd></dl>
 
 <dl class="py class">
@@ -388,12 +420,26 @@ back into the full B and v_work arrays in
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="pyzag.operators.base.PCRState">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.base.</span></span><span class="sig-name descname"><span class="pre">PCRState</span></span><a class="headerlink" href="#pyzag.operators.base.PCRState" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Opaque PCR working state managed by the backend across levels.</p>
+<p>Created by <a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_init" title="pyzag.operators.base.SolvableBlockOperator.pcr_init"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_init()</span></code></a>, updated by
+<a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_reduce_level" title="pyzag.operators.base.SolvableBlockOperator.pcr_reduce_level"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_reduce_level()</span></code></a>, and consumed by
+<a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator.pcr_finalize" title="pyzag.operators.base.SolvableBlockOperator.pcr_finalize"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SolvableBlockOperator.pcr_finalize()</span></code></a>. Callers in <code class="docutils literal notranslate"><span class="pre">chunktime.py</span></code>
+treat this as an opaque handle and never inspect its contents.</p>
+</dd></dl>
+
+</section>
+<section id="block-jacobians">
+<h3>Block Jacobians<a class="headerlink" href="#block-jacobians" title="Link to this heading"></a></h3>
+<dl class="py class">
 <dt class="sig sig-object py" id="pyzag.operators.base.BlockJacobian">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.base.</span></span><span class="sig-name descname"><span class="pre">BlockJacobian</span></span><a class="headerlink" href="#pyzag.operators.base.BlockJacobian" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
 <p>Abstract per-chunk Jacobian for a recursive nonlinear system.</p>
 <section id="logical-model">
-<h3>Logical model<a class="headerlink" href="#logical-model" title="Link to this heading"></a></h3>
+<h4>Logical model<a class="headerlink" href="#logical-model" title="Link to this heading"></a></h4>
 <p>For lookback = 1 (the only case the solver currently supports), the
 chunk Jacobian represents the linearization of
 <code class="docutils literal notranslate"><span class="pre">R[k]</span> <span class="pre">=</span> <span class="pre">f(x[k-1],</span> <span class="pre">x[k])</span></code> over <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">=</span> <span class="pre">1..nblk_steps</span></code>. The two
@@ -418,7 +464,7 @@ and must NOT reach into storage to flip, reorder, or pick a boundary block
 themselves.</p>
 </section>
 <section id="id3">
-<h3>Backend freedom<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<h4>Backend freedom<a class="headerlink" href="#id3" title="Link to this heading"></a></h4>
 <p>Backends may store the diagonal/subdiagonal in any layout (dense per
 block, structured/arrowhead, sparse, factored). The contract is purely
 behavioral.</p>
@@ -521,18 +567,13 @@ it. Replaces direct <code class="docutils literal notranslate"><span class="pre"
 </dd></dl>
 
 </section>
+</section>
 <section id="dense-backend">
 <h2>Dense backend<a class="headerlink" href="#dense-backend" title="Link to this heading"></a></h2>
 <p>The dense backend is the default implementation and reproduces the pyzag 1.x
 behavior. Block vectors are stored as <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">batch,</span> <span class="pre">state)</span></code> tensors and block
-operators as <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk,</span> <span class="pre">sblk)</span></code> tensors.</p>
-<p id="module-pyzag.operators.dense">Packed block operators and vectors with dense tensor storage.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="pyzag.operators.dense.batch_lu_solve">
-<span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">batch_lu_solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pivots</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rhs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.dense.batch_lu_solve" title="Link to this definition"></a></dt>
-<dd><p>Batched version of torch.linalg.lu_solve that accepts separate LU and pivot tensors.</p>
-</dd></dl>
-
+operators as <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk,</span> <span class="pre">sblk)</span></code> tensors. Each abstract interface above
+has a dense counterpart below.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">DenseBlockVector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector" title="Link to this definition"></a></dt>
@@ -546,85 +587,81 @@ operators as <code class="docutils literal notranslate"><span class="pre">(nblk,
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.device">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">device</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.device" title="Link to this definition"></a></dt>
-<dd><p>Execution device for torch-backed implementations.</p>
+<dd><p>Execution device of the backing tensor.</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.dtype">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.dtype" title="Link to this definition"></a></dt>
-<dd><p>Data type for torch-backed implementations.</p>
+<dd><p>Data type of the backing tensor.</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.nblk">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nblk</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.nblk" title="Link to this definition"></a></dt>
-<dd><p>Number of logical blocks in this vector.</p>
+<dd><p>Number of logical blocks (axis 0 of <code class="docutils literal notranslate"><span class="pre">data</span></code>).</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.batch_size">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">batch_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.batch_size" title="Link to this definition"></a></dt>
-<dd><p>Logical batch size.</p>
+<dd><p>Logical batch size (axis 1 of <code class="docutils literal notranslate"><span class="pre">data</span></code>).</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.block_size">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">block_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.block_size" title="Link to this definition"></a></dt>
-<dd><p>Logical size of one block (last axis).</p>
+<dd><p>Logical size of one block (last axis of <code class="docutils literal notranslate"><span class="pre">data</span></code>).</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.clone">
 <span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.clone" title="Link to this definition"></a></dt>
-<dd><p>Return a safe copy of the vector.</p>
+<dd><p>Return a safe copy backed by a cloned tensor.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.norm">
 <span class="sig-name descname"><span class="pre">norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.norm" title="Link to this definition"></a></dt>
-<dd><p>Compute the norm along <cite>dim</cite>. Returns a raw tensor (used for
-scalar convergence checks; the result has a different shape than
-a block vector and should not be wrapped).</p>
+<dd><p>Compute the norm along <code class="docutils literal notranslate"><span class="pre">dim</span></code>. Returns a raw tensor (used for
+scalar convergence checks; not wrapped as a block vector).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.flat_norm">
-<span class="sig-name descname"><span class="pre">flat_norm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.flat_norm" title="Link to this definition"></a></dt>
-<dd><p>Cross-block flattened L2 norm per batch element. Returns a
-raw tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code>. Counterpart to per-block
-<a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector.norm" title="pyzag.operators.dense.DenseBlockVector.norm"><code class="xref py py-meth docutils literal notranslate"><span class="pre">norm()</span></code></a>; used for convergence metrics that need a single
-scalar per batch (e.g. line search).</p>
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.flatten">
+<span class="sig-name descname"><span class="pre">flatten</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.flatten" title="Link to this definition"></a></dt>
+<dd><p>Flatten to a raw <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">nblk</span> <span class="pre">*</span> <span class="pre">block_size)</span></code> tensor:
+transpose the block axis behind the batch axis and flatten the rest,
+so each batch element’s entries are concatenated along the last axis.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.where">
 <span class="sig-name descname"><span class="pre">where</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.where" title="Link to this definition"></a></dt>
-<dd><p>Batch-axis conditional combination, <code class="docutils literal notranslate"><span class="pre">torch.where</span></code> convention:
-returns <code class="docutils literal notranslate"><span class="pre">self</span></code> where <code class="docutils literal notranslate"><span class="pre">mask</span></code> is True, else <code class="docutils literal notranslate"><span class="pre">other</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">mask</span></code> is a raw tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code>; backends
-broadcast it over the block and state axes. Used by the Newton
-step for partial updates.</p>
+<dd><p>Batch-axis conditional combination (<code class="docutils literal notranslate"><span class="pre">torch.where</span></code> convention):
+return <code class="docutils literal notranslate"><span class="pre">self</span></code> where <code class="docutils literal notranslate"><span class="pre">mask</span></code> is True, else <code class="docutils literal notranslate"><span class="pre">other</span></code>. <code class="docutils literal notranslate"><span class="pre">mask</span></code> is a
+<code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code> tensor broadcast over the block and state axes.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.scale_batches">
 <span class="sig-name descname"><span class="pre">scale_batches</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">factor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.scale_batches" title="Link to this definition"></a></dt>
-<dd><p>Per-batch scalar broadcast: multiply each batch element by the
-corresponding entry of <code class="docutils literal notranslate"><span class="pre">factor</span></code> (raw tensor of shape
-<code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code>, broadcast over block and state axes). Used by
-line-search backtracking.</p>
+<dd><p>Multiply each batch element by its own scalar from <code class="docutils literal notranslate"><span class="pre">factor</span></code>
+(shape <code class="docutils literal notranslate"><span class="pre">(batch_size,)</span></code>), reshaped to <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">batch_size,</span> <span class="pre">1,</span> <span class="pre">...)</span></code> so
+it broadcasts over the block and state axes rather than the trailing
+(state) axis. Used by line-search backtracking.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.flip">
 <span class="sig-name descname"><span class="pre">flip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.flip" title="Link to this definition"></a></dt>
-<dd><p>Return a new vector with axis <cite>dim</cite> reversed.</p>
+<dd><p>Return a new vector with axis <code class="docutils literal notranslate"><span class="pre">dim</span></code> reversed.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.cat">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">cat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vectors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.cat" title="Link to this definition"></a></dt>
-<dd><p>Concatenate a sequence of compatible block vectors along <cite>dim</cite>.</p>
+<dd><p>Concatenate a sequence of <code class="docutils literal notranslate"><span class="pre">DenseBlockVector</span></code> along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -636,13 +673,142 @@ line-search backtracking.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.zeros_like">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">zeros_like</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.zeros_like" title="Link to this definition"></a></dt>
-<dd><p>Construct a zero-filled block vector with the same shape as <cite>other</cite>.</p>
+<dd><p>Return a zero-filled <code class="docutils literal notranslate"><span class="pre">DenseBlockVector</span></code> with the same shape as
+<code class="docutils literal notranslate"><span class="pre">other</span></code>.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockVector.empty">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">empty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nblk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">device</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockVector.empty" title="Link to this definition"></a></dt>
 <dd><p>Return an uninitialized DenseBlockVector of the given shape.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">DenseBlockOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pivots</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator" title="pyzag.operators.base.SolvableBlockOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">SolvableBlockOperator</span></code></a></p>
+<p>Dense tensor-backed packed block operator.</p>
+<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">SolvableBlockOperator</span></code> (LU-based <code class="docutils literal notranslate"><span class="pre">solve</span></code> and
+PCR primitives <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> / <code class="docutils literal notranslate"><span class="pre">pcr_reduce_level</span></code> / <code class="docutils literal notranslate"><span class="pre">pcr_finalize</span></code>).</p>
+<p>The cached LU factorization (<code class="docutils literal notranslate"><span class="pre">self.lu</span></code> / <code class="docutils literal notranslate"><span class="pre">self.pivots</span></code>) is
+materialized lazily on the first <code class="docutils literal notranslate"><span class="pre">solve</span></code> or <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> call.
+Use <a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator.factored" title="pyzag.operators.dense.DenseBlockOperator.factored"><code class="xref py py-meth docutils literal notranslate"><span class="pre">factored()</span></code></a> to construct with eager factorization for cases
+where you know LU will be needed (e.g., the diagonal of a Newton
+system). Slicing, cloning, and in-place assignment preserve the
+cached LU when present, so chained Thomas-style <code class="docutils literal notranslate"><span class="pre">A[i:i+1].solve(...)</span></code>
+calls don’t re-factor every block.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>torch.Tensor</em>) – shape <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk,</span> <span class="pre">sblk)</span></code>.</p></li>
+<li><p><strong>lu</strong> (<em>torch.Tensor</em><em>, </em><em>optional</em>) – pre-computed LU factor with the
+same shape as <code class="docutils literal notranslate"><span class="pre">data</span></code>.</p></li>
+<li><p><strong>pivots</strong> (<em>torch.Tensor</em><em>, </em><em>optional</em>) – pre-computed pivots, shape
+<code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk)</span></code>. Must be paired with <code class="docutils literal notranslate"><span class="pre">lu</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.factored">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">factored</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.factored" title="Link to this definition"></a></dt>
+<dd><p>Construct with eager LU factorization. Use when the caller
+knows <code class="docutils literal notranslate"><span class="pre">solve</span></code> or <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> will be invoked.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.device">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">device</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.device" title="Link to this definition"></a></dt>
+<dd><p>Execution device of the backing tensor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.dtype">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.dtype" title="Link to this definition"></a></dt>
+<dd><p>Data type of the backing tensor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.nblk">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nblk</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.nblk" title="Link to this definition"></a></dt>
+<dd><p>Number of logical blocks (axis 0 of <code class="docutils literal notranslate"><span class="pre">data</span></code>).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.batch_size">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">batch_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.batch_size" title="Link to this definition"></a></dt>
+<dd><p>Logical batch size expected in block-major vector inputs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.matvec">
+<span class="sig-name descname"><span class="pre">matvec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.matvec" title="Link to this definition"></a></dt>
+<dd><p>Apply the (block-diagonal) operator to <code class="docutils literal notranslate"><span class="pre">x</span></code>: per block, the
+matrix-vector product <code class="docutils literal notranslate"><span class="pre">A_k</span> <span class="pre">x_k</span></code>. Requires <code class="docutils literal notranslate"><span class="pre">x.nblk</span> <span class="pre">==</span> <span class="pre">self.nblk</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.t_matvec">
+<span class="sig-name descname"><span class="pre">t_matvec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.t_matvec" title="Link to this definition"></a></dt>
+<dd><p>Apply the transpose of the operator to <code class="docutils literal notranslate"><span class="pre">x</span></code> (per block,
+<code class="docutils literal notranslate"><span class="pre">A_k^T</span> <span class="pre">x_k</span></code>). Requires <code class="docutils literal notranslate"><span class="pre">x.nblk</span> <span class="pre">==</span> <span class="pre">self.nblk</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.solve">
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rhs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.solve" title="Link to this definition"></a></dt>
+<dd><p>Solve the block system <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">rhs</span></code> per block via the cached LU
+factorization (materialized lazily on first call). Requires
+<code class="docutils literal notranslate"><span class="pre">rhs.nblk</span> <span class="pre">==</span> <span class="pre">self.nblk</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.clone">
+<span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.clone" title="Link to this definition"></a></dt>
+<dd><p>Return a safe copy, cloning the cached LU factors if present.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pad_front">
+<span class="sig-name descname"><span class="pre">pad_front</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pad_front" title="Link to this definition"></a></dt>
+<dd><p>Return an operator with <code class="docutils literal notranslate"><span class="pre">n</span></code> leading zero (dummy) blocks prepended.
+Creates new data rather than a view; the result is un-factored since
+padding changes the per-block layout.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_init">
+<span class="sig-name descname"><span class="pre">pcr_init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockOperator" title="pyzag.operators.base.BlockOperator"><span class="pre">BlockOperator</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState" title="pyzag.operators.dense.DensePCRState"><span class="pre">DensePCRState</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_init" title="Link to this definition"></a></dt>
+<dd><p>Initialise Dense PCR working state for a power-of-two window.</p>
+<p>The state owns its <code class="docutils literal notranslate"><span class="pre">b</span></code>/<code class="docutils literal notranslate"><span class="pre">v</span></code> working buffers (cloned here), so the
+in-place reductions in <a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level" title="pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level"><code class="xref py py-meth docutils literal notranslate"><span class="pre">pcr_reduce_level()</span></code></a> never mutate the caller’s
+operator/vector – honouring the base-class contract that the backend
+allocates internal working tensors.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level">
+<span class="sig-name descname"><span class="pre">pcr_reduce_level</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.PCRState" title="pyzag.operators.base.PCRState"><span class="pre">PCRState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState" title="pyzag.operators.dense.DensePCRState"><span class="pre">DensePCRState</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level" title="Link to this definition"></a></dt>
+<dd><p>Apply one Dense PCR level: update v and B, then cyclic-shift all four tensors.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_finalize">
+<span class="sig-name descname"><span class="pre">pcr_finalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.PCRState" title="pyzag.operators.base.PCRState"><span class="pre">PCRState</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_finalize" title="Link to this definition"></a></dt>
+<dd><p>Extract (B_red, v_red) with nblk = window_size - 1 from the final PCR state.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.identity">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">identity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nblk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">device</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.identity" title="Link to this definition"></a></dt>
+<dd><p>Return an identity DenseBlockOperator of the given shape.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.from_diagonal">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_diagonal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.from_diagonal" title="Link to this definition"></a></dt>
+<dd><p>Return a DenseBlockOperator built from per-block diagonal data.</p>
 </dd></dl>
 
 </dd></dl>
@@ -702,147 +868,6 @@ so that <code class="xref py py-func docutils literal notranslate"><span class="
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">DenseBlockOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pivots</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="#pyzag.operators.base.SolvableBlockOperator" title="pyzag.operators.base.SolvableBlockOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">SolvableBlockOperator</span></code></a></p>
-<p>Dense tensor-backed packed block operator.</p>
-<p>Implements <code class="xref py py-class docutils literal notranslate"><span class="pre">SolvableBlockOperator</span></code> (LU-based <code class="docutils literal notranslate"><span class="pre">solve</span></code> and
-PCR primitives <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> / <code class="docutils literal notranslate"><span class="pre">pcr_reduce_level</span></code> / <code class="docutils literal notranslate"><span class="pre">pcr_finalize</span></code>).</p>
-<p>The cached LU factorization (<code class="docutils literal notranslate"><span class="pre">self.lu</span></code> / <code class="docutils literal notranslate"><span class="pre">self.pivots</span></code>) is
-materialized lazily on the first <code class="docutils literal notranslate"><span class="pre">solve</span></code> or <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> call.
-Use <a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator.factored" title="pyzag.operators.dense.DenseBlockOperator.factored"><code class="xref py py-meth docutils literal notranslate"><span class="pre">factored()</span></code></a> to construct with eager factorization for cases
-where you know LU will be needed (e.g., the diagonal of a Newton
-system). Slicing, cloning, and in-place assignment preserve the
-cached LU when present, so chained Thomas-style <code class="docutils literal notranslate"><span class="pre">A[i:i+1].solve(...)</span></code>
-calls don’t re-factor every block.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<em>torch.Tensor</em>) – shape <code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk,</span> <span class="pre">sblk)</span></code>.</p></li>
-<li><p><strong>lu</strong> (<em>torch.Tensor</em><em>, </em><em>optional</em>) – pre-computed LU factor with the
-same shape as <code class="docutils literal notranslate"><span class="pre">data</span></code>.</p></li>
-<li><p><strong>pivots</strong> (<em>torch.Tensor</em><em>, </em><em>optional</em>) – pre-computed pivots, shape
-<code class="docutils literal notranslate"><span class="pre">(nblk,</span> <span class="pre">sbat,</span> <span class="pre">sblk)</span></code>. Must be paired with <code class="docutils literal notranslate"><span class="pre">lu</span></code>.</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.factored">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">factored</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.factored" title="Link to this definition"></a></dt>
-<dd><p>Construct with eager LU factorization. Use when the caller
-knows <code class="docutils literal notranslate"><span class="pre">solve</span></code> or <code class="docutils literal notranslate"><span class="pre">pcr_init</span></code> will be invoked.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.device">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">device</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.device" title="Link to this definition"></a></dt>
-<dd><p>Execution device for torch-backed implementations.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.dtype">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.dtype" title="Link to this definition"></a></dt>
-<dd><p>Data type for torch-backed implementations.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.nblk">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nblk</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.nblk" title="Link to this definition"></a></dt>
-<dd><p>Number of logical blocks in this operator.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.batch_size">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">batch_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.batch_size" title="Link to this definition"></a></dt>
-<dd><p>Logical batch size expected in block-major vector inputs.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.matvec">
-<span class="sig-name descname"><span class="pre">matvec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.matvec" title="Link to this definition"></a></dt>
-<dd><p>Apply the operator to a block vector <cite>x</cite>.</p>
-<dl class="simple">
-<dt>Required:</dt><dd><p>x.nblk == self.nblk</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.t_matvec">
-<span class="sig-name descname"><span class="pre">t_matvec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.t_matvec" title="Link to this definition"></a></dt>
-<dd><p>Apply the transpose of the operator to a block vector <cite>x</cite>.</p>
-<dl class="simple">
-<dt>Required:</dt><dd><p>x.nblk == self.nblk</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.solve">
-<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rhs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.solve" title="Link to this definition"></a></dt>
-<dd><p>Solve the block system <cite>A x = rhs</cite>.</p>
-<dl class="simple">
-<dt>Required:</dt><dd><p>rhs.nblk == self.nblk</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.clone">
-<span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.clone" title="Link to this definition"></a></dt>
-<dd><p>Return a safe copy of the operator.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pad_front">
-<span class="sig-name descname"><span class="pre">pad_front</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pad_front" title="Link to this definition"></a></dt>
-<dd><p>Return an operator with <cite>n</cite> leading dummy logical blocks
-(creates new data, not a view).</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.trim_front">
-<span class="sig-name descname"><span class="pre">trim_front</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.trim_front" title="Link to this definition"></a></dt>
-<dd><p>Return an operator with the first <cite>n</cite> logical blocks removed.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_init">
-<span class="sig-name descname"><span class="pre">pcr_init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockOperator" title="pyzag.operators.base.BlockOperator"><span class="pre">BlockOperator</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState" title="pyzag.operators.dense.DensePCRState"><span class="pre">DensePCRState</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_init" title="Link to this definition"></a></dt>
-<dd><p>Initialise Dense PCR working state for a power-of-two window.</p>
-<p>The state owns its <code class="docutils literal notranslate"><span class="pre">b</span></code>/<code class="docutils literal notranslate"><span class="pre">v</span></code> working buffers (cloned here), so the
-in-place reductions in <a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level" title="pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level"><code class="xref py py-meth docutils literal notranslate"><span class="pre">pcr_reduce_level()</span></code></a> never mutate the caller’s
-operator/vector – honouring the base-class contract that the backend
-allocates internal working tensors.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level">
-<span class="sig-name descname"><span class="pre">pcr_reduce_level</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.PCRState" title="pyzag.operators.base.PCRState"><span class="pre">PCRState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DensePCRState" title="pyzag.operators.dense.DensePCRState"><span class="pre">DensePCRState</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_reduce_level" title="Link to this definition"></a></dt>
-<dd><p>Apply one Dense PCR level: update v and B, then cyclic-shift all four tensors.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.pcr_finalize">
-<span class="sig-name descname"><span class="pre">pcr_finalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.PCRState" title="pyzag.operators.base.PCRState"><span class="pre">PCRState</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.pcr_finalize" title="Link to this definition"></a></dt>
-<dd><p>Extract (B_red, v_red) with nblk = window_size - 1 from the final PCR state.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.identity">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">identity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nblk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">device</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.identity" title="Link to this definition"></a></dt>
-<dd><p>Return an identity DenseBlockOperator of the given shape.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockOperator.from_diagonal">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_diagonal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockOperator" title="pyzag.operators.dense.DenseBlockOperator"><span class="pre">DenseBlockOperator</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockOperator.from_diagonal" title="Link to this definition"></a></dt>
-<dd><p>Return a DenseBlockOperator built from per-block diagonal data.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">DenseBlockJacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_reversed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code></a></p>
@@ -876,100 +901,89 @@ boundary block).</p>
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.device">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">device</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">device</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.device" title="Link to this definition"></a></dt>
-<dd><p>Execution device for torch-backed implementations.</p>
+<dd><p>Execution device of the backing tensors.</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.dtype">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">dtype</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dtype</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.dtype" title="Link to this definition"></a></dt>
-<dd><p>Data type for torch-backed implementations.</p>
+<dd><p>Data type of the backing tensors.</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.nblk_steps">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nblk_steps</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.nblk_steps" title="Link to this definition"></a></dt>
-<dd><p>Number of residual rows in the chunk.</p>
+<dd><p>Number of residual rows in the chunk (axis 0 of <code class="docutils literal notranslate"><span class="pre">diag</span></code>).</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.batch_size">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">batch_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.batch_size" title="Link to this definition"></a></dt>
-<dd><p>Logical batch size.</p>
+<dd><p>Logical batch size (axis 1 of <code class="docutils literal notranslate"><span class="pre">diag</span></code>).</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.block_size">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">block_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.block_size" title="Link to this definition"></a></dt>
-<dd><p>Per-step state size (the user-facing <code class="docutils literal notranslate"><span class="pre">n</span></code>).</p>
+<dd><p>Per-step state size (last axis of <code class="docutils literal notranslate"><span class="pre">diag</span></code>).</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.forward_system">
 <span class="sig-name descname"><span class="pre">forward_system</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.forward_system" title="Link to this definition"></a></dt>
-<dd><p>Build the chunk’s forward bidiagonal system, ready for Newton.</p>
-<p>Returns a <a class="reference internal" href="chunktime.html#pyzag.chunktime.BidiagonalForwardOperator" title="pyzag.chunktime.BidiagonalForwardOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.chunktime.BidiagonalForwardOperator</span></code></a> whose
-diagonal <code class="docutils literal notranslate"><span class="pre">A</span></code> has <code class="docutils literal notranslate"><span class="pre">nblk</span> <span class="pre">==</span> <span class="pre">nblk_steps</span></code> and whose subdiagonal
-<code class="docutils literal notranslate"><span class="pre">B</span></code> has <code class="docutils literal notranslate"><span class="pre">nblk</span> <span class="pre">==</span> <span class="pre">nblk_steps</span> <span class="pre">-</span> <span class="pre">1</span></code>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>inverse_operator</strong> – factory used to build the inverse
-(e.g. <a class="reference internal" href="chunktime.html#pyzag.chunktime.BidiagonalThomasFactorization" title="pyzag.chunktime.BidiagonalThomasFactorization"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.chunktime.BidiagonalThomasFactorization</span></code></a>).</p>
-</dd>
-</dl>
+<dd><p>Build the chunk’s forward bidiagonal system for Newton: diagonal
+<code class="docutils literal notranslate"><span class="pre">A</span></code> = the (factored) per-step <code class="docutils literal notranslate"><span class="pre">diag</span></code> blocks and subdiagonal <code class="docutils literal notranslate"><span class="pre">B</span></code> =
+<code class="docutils literal notranslate"><span class="pre">sub[1:]</span></code>, wrapped in a <code class="xref py py-class docutils literal notranslate"><span class="pre">BidiagonalForwardOperator</span></code>. Must be
+called on a forward-walk Jacobian.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.adjoint_system">
 <span class="sig-name descname"><span class="pre">adjoint_system</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.adjoint_system" title="Link to this definition"></a></dt>
-<dd><p>Build the chunk’s adjoint bidiagonal <strong>solve</strong> operator, in
-adjoint-walk order.</p>
-<p>Transposes are baked in. The first-row / first+last-col slicing
-(<code class="docutils literal notranslate"><span class="pre">J[1,</span> <span class="pre">1:].T</span></code> and <code class="docutils literal notranslate"><span class="pre">J[0,</span> <span class="pre">1:-1].T</span></code> after <code class="docutils literal notranslate"><span class="pre">flip(1)</span></code>) is also
-baked in. Unlike <a class="reference internal" href="#pyzag.operators.dense.DenseBlockJacobian.forward_system" title="pyzag.operators.dense.DenseBlockJacobian.forward_system"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward_system()</span></code></a>,
-which returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">BidiagonalForwardOperator</span></code> (so Newton can
-call <code class="docutils literal notranslate"><span class="pre">.inverse()</span></code> between iterations), this returns the
-<strong>inverse / solve</strong> operator directly: applying <code class="docutils literal notranslate"><span class="pre">.matvec(rhs)</span></code>
-on the returned object yields the adjoint solution. This matches
-how <code class="docutils literal notranslate"><span class="pre">block_update_adjoint</span></code> consumes the result with a single
-linear solve per chunk.</p>
-<p>This method should be called on a <code class="docutils literal notranslate"><span class="pre">BlockJacobian</span></code> returned by
-<a class="reference internal" href="#pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk" title="pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">as_adjoint_walk()</span></code></a>.</p>
+<dd><p>Build the chunk’s adjoint bidiagonal <em>solve</em> operator, in
+adjoint-walk order with transposes baked in: drop the first walked
+diagonal block (handled by the terminal seed) and the first/last walked
+subdiagonal blocks. Must be called on the walk-order Jacobian from
+<a class="reference internal" href="#pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk" title="pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">as_adjoint_walk()</span></code></a>; applying <code class="docutils literal notranslate"><span class="pre">.matvec(rhs)</span></code> yields the adjoint
+solution.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.solve_terminal_adjoint">
 <span class="sig-name descname"><span class="pre">solve_terminal_adjoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g_terminal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.solve_terminal_adjoint" title="Link to this definition"></a></dt>
 <dd><p>Compute <code class="docutils literal notranslate"><span class="pre">-A_terminal^{-T}</span> <span class="pre">&#64;</span> <span class="pre">g_terminal</span></code> for the very last
-forward-time step of the trajectory.</p>
-<p>Returns a single-block <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> (<code class="docutils literal notranslate"><span class="pre">nblk</span> <span class="pre">==</span> <span class="pre">1</span></code> for
-<code class="docutils literal notranslate"><span class="pre">lookback</span> <span class="pre">==</span> <span class="pre">1</span></code>; for higher lookback this would be a
-<code class="docutils literal notranslate"><span class="pre">lookback</span></code>-block vector). The returned vector must not alias
-<code class="docutils literal notranslate"><span class="pre">g_terminal</span></code>.</p>
+forward-time step, returned as a single-block <code class="docutils literal notranslate"><span class="pre">DenseBlockVector</span></code> that
+does not alias <code class="docutils literal notranslate"><span class="pre">g_terminal</span></code>.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.couple_prev_chunk">
 <span class="sig-name descname"><span class="pre">couple_prev_chunk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a_first</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockVector" title="pyzag.operators.dense.DenseBlockVector"><span class="pre">DenseBlockVector</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.couple_prev_chunk" title="Link to this definition"></a></dt>
-<dd><p>Compute the inter-chunk adjoint coupling
-<code class="docutils literal notranslate"><span class="pre">B_boundary^T</span> <span class="pre">&#64;</span> <span class="pre">a_first</span></code>.</p>
-<p><code class="docutils literal notranslate"><span class="pre">a_first</span></code> is a single-block <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> holding the
-previous chunk’s adjoint tail (in adjoint-walk order). Returns a
-single-block <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> to be subtracted into the
-current chunk’s RHS first row (<code class="docutils literal notranslate"><span class="pre">nblk</span> <span class="pre">==</span> <span class="pre">1</span></code> for <code class="docutils literal notranslate"><span class="pre">lookback</span> <span class="pre">==</span>
-<span class="pre">1</span></code>; <code class="docutils literal notranslate"><span class="pre">lookback</span></code>-block for higher lookback).</p>
+<dd><p>Compute the inter-chunk adjoint coupling <code class="docutils literal notranslate"><span class="pre">B_boundary^T</span> <span class="pre">&#64;</span> <span class="pre">a_first</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">a_first</span></code> is the previous chunk’s adjoint tail (single-block, in
+walk order). Returns a single-block <code class="docutils literal notranslate"><span class="pre">DenseBlockVector</span></code> to subtract into
+the current chunk’s first-row RHS.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk">
 <span class="sig-name descname"><span class="pre">as_adjoint_walk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.operators.dense.DenseBlockJacobian" title="pyzag.operators.dense.DenseBlockJacobian"><span class="pre">DenseBlockJacobian</span></a></span></span><a class="headerlink" href="#pyzag.operators.dense.DenseBlockJacobian.as_adjoint_walk" title="Link to this definition"></a></dt>
-<dd><p>Return a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code> whose forward time order is
-the reverse of this one. Backends are free to implement lazily
-(e.g. via a flag) so that no copy happens unless storage requires
-it. Replaces direct <code class="docutils literal notranslate"><span class="pre">flip</span></code> calls in solver code.</p>
+<dd><p>Return a sibling Jacobian whose forward time order is reversed. This
+shares the same underlying tensors and only toggles a private flag, so
+no physical <code class="docutils literal notranslate"><span class="pre">flip</span></code> materializes.</p>
 </dd></dl>
 
 </dd></dl>
 
+<section id="dense-helpers">
+<h3>Dense helpers<a class="headerlink" href="#dense-helpers" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="pyzag.operators.dense.batch_lu_solve">
+<span class="sig-prename descclassname"><span class="pre">pyzag.operators.dense.</span></span><span class="sig-name descname"><span class="pre">batch_lu_solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pivots</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rhs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.operators.dense.batch_lu_solve" title="Link to this definition"></a></dt>
+<dd><p>Batched version of torch.linalg.lu_solve that accepts separate LU and pivot tensors.</p>
+</dd></dl>
+
+</section>
 </section>
 </section>
 

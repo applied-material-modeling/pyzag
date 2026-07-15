@@ -114,6 +114,10 @@
   <section id="module-pyzag.ode">
 <span id="pyzag-ode"></span><h1>pyzag.ode<a class="headerlink" href="#module-pyzag.ode" title="Link to this heading"></a></h1>
 <p>Generic ODE integration as <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> factories.</p>
+<p>For <img class="math" src="../_images/math/3c36da4a8653f0beec27489d99ab304d7a7712ab.png" alt="\dot x = g(x, t;\, p)"/> and a step of size <img class="math" src="../_images/math/2e62502a4eb0a245055b11976449d637cd3cda6f.png" alt="\Delta t"/>, the Euler
+schemes form a recursive residual <img class="math" src="../_images/math/ff560958d3e83f3bb466da53850526eb1f9cabb5.png" alt="R = 0"/> for the chunked solver:
+backward Euler <img class="math" src="../_images/math/8cedc30c1a909dc707da30ba3c980a041d116e51.png" alt="x_{n+1} - x_n - \Delta t\, g(x_{n+1}) = 0"/> or forward Euler
+<img class="math" src="../_images/math/3302334907787a7e6f58d37ae8a4dc7aad5d12fc.png" alt="x_{n+1} - x_n - \Delta t\, g(x_n) = 0"/>.</p>
 <p>The Euler integration math is fully abstract: it operates on
 <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> objects and produces <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockOperator</span></code> blocks via a
 user-supplied <a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a>. This decouples the integration scheme
