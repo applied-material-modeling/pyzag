@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>pyzag.ode &mdash; pyzag 1.1.3 documentation</title>
+  <title>pyzag.ode &mdash; pyzag 2.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb7bf70b"></script>
+      <script src="../_static/documentation_options.js?v=51b770b3"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="pyzag.reparametrization" href="reparametrization.html" />
-    <link rel="prev" title="pyzag.chunktime" href="chunktime.html" /> 
+    <link rel="prev" title="pyzag.operators" href="operators.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -49,16 +49,35 @@
 <li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
 <li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">pyzag.operators</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.ode</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.ODEWrapper"><code class="docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ODEWrapper.wrap_vector"><code class="docutils literal notranslate"><span class="pre">ODEWrapper.wrap_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ODEWrapper.unwrap_vector"><code class="docutils literal notranslate"><span class="pre">ODEWrapper.unwrap_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ODEWrapper.wrap_jacobian"><code class="docutils literal notranslate"><span class="pre">ODEWrapper.wrap_jacobian()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.DenseODEWrapper"><code class="docutils literal notranslate"><span class="pre">DenseODEWrapper</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.DenseODEWrapper.wrap_vector"><code class="docutils literal notranslate"><span class="pre">DenseODEWrapper.wrap_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.DenseODEWrapper.unwrap_vector"><code class="docutils literal notranslate"><span class="pre">DenseODEWrapper.unwrap_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.DenseODEWrapper.wrap_jacobian"><code class="docutils literal notranslate"><span class="pre">DenseODEWrapper.wrap_jacobian()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.IntegrateODE"><code class="docutils literal notranslate"><span class="pre">IntegrateODE</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.IntegrateODE.lookback"><code class="docutils literal notranslate"><span class="pre">IntegrateODE.lookback</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.IntegrateODE.wrapper"><code class="docutils literal notranslate"><span class="pre">IntegrateODE.wrapper</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE.forward"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE.evaluate_raw"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE.evaluate_raw()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.BackwardEulerODE.make_operator"><code class="docutils literal notranslate"><span class="pre">BackwardEulerODE.make_operator()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE.forward"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE.evaluate_raw"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE.evaluate_raw()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.ode.ForwardEulerODE.make_operator"><code class="docutils literal notranslate"><span class="pre">ForwardEulerODE.make_operator()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.ode.IntegrateODE"><code class="docutils literal notranslate"><span class="pre">IntegrateODE</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
@@ -94,99 +113,158 @@
              
   <section id="module-pyzag.ode">
 <span id="pyzag-ode"></span><h1>pyzag.ode<a class="headerlink" href="#module-pyzag.ode" title="Link to this heading"></a></h1>
-<p>Module for solving ordinary differential equations using numerical integration</p>
+<p>Generic ODE integration as <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> factories.</p>
+<p>For <img class="math" src="../_images/math/3c36da4a8653f0beec27489d99ab304d7a7712ab.png" alt="\dot x = g(x, t;\, p)"/> and a step of size <img class="math" src="../_images/math/2e62502a4eb0a245055b11976449d637cd3cda6f.png" alt="\Delta t"/>, the Euler
+schemes form a recursive residual <img class="math" src="../_images/math/ff560958d3e83f3bb466da53850526eb1f9cabb5.png" alt="R = 0"/> for the chunked solver:
+backward Euler <img class="math" src="../_images/math/8cedc30c1a909dc707da30ba3c980a041d116e51.png" alt="x_{n+1} - x_n - \Delta t\, g(x_{n+1}) = 0"/> or forward Euler
+<img class="math" src="../_images/math/3302334907787a7e6f58d37ae8a4dc7aad5d12fc.png" alt="x_{n+1} - x_n - \Delta t\, g(x_n) = 0"/>.</p>
+<p>The Euler integration math is fully abstract: it operates on
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> objects and produces <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockOperator</span></code> blocks via a
+user-supplied <a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a>. This decouples the integration scheme
+from any particular tensor backend (dense, sparse, structured, etc.).</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">BackwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE" title="Link to this definition"></a></dt>
-<dd><p>Applies a backward Euler time integration scheme to an ODE</p>
-<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
-return both the time rate of change of the state and the derivative of the rate of change with
-respect to the state as a function of time and the current state.</p>
-<p>The input and output for the underlying ODE must meet our global batch convention, where the first
-dimension of the input is used to vectorize time/step.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="pyzag.ode.ODEWrapper">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">ODEWrapper</span></span><a class="headerlink" href="#pyzag.ode.ODEWrapper" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Bridge from raw user-ODE outputs to the abstract block types.</p>
+<p>A user’s ODE module returns raw tensors <code class="docutils literal notranslate"><span class="pre">(x_dot,</span> <span class="pre">J_dot)</span> <span class="pre">=</span> <span class="pre">ode(t,</span> <span class="pre">x)</span></code>.
+The wrapper converts these into the <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> /
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockOperator</span></code> family that the Euler operator and downstream
+solver consume.</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE.forward" title="Link to this definition"></a></dt>
-<dd><p>Provide the blocked residual and Jacobian for the time integration scheme</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,nstate) tensor.  As always, the first batch dimension
-is used to vectorize over steps (for an ODE, time steps).  Then the operator
-must accept arbitrary batch dimensions.  The final dimension is the problem
-state size.</p></li>
-<li><p><strong>t</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,) tensor of times as driving forces</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>tuple giving R the (nchunk,…,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,…,nstate,nstate) tensor giving the Jacobians</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>(R,J) tuple(torch.tensor, torch.tensor)</p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="pyzag.ode.ODEWrapper.wrap_vector">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">wrap_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></span><a class="headerlink" href="#pyzag.ode.ODEWrapper.wrap_vector" title="Link to this definition"></a></dt>
+<dd><p>Wrap a raw tensor into a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.ODEWrapper.unwrap_vector">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">unwrap_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.ode.ODEWrapper.unwrap_vector" title="Link to this definition"></a></dt>
+<dd><p>Extract the raw tensor representation from a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>.</p>
+<p>Required because the user’s ODE module operates on raw tensors and
+the chunk’s combined state must be assembled before the call.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.ODEWrapper.wrap_jacobian">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">wrap_jacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a></span></span><a class="headerlink" href="#pyzag.ode.ODEWrapper.wrap_jacobian" title="Link to this definition"></a></dt>
+<dd><p>Wrap raw per-step diagonal and subdiagonal tensors into a
+backend-typed <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">diag[k]</span> <span class="pre">=</span> <span class="pre">dR[k]/dx[k]</span></code> and <code class="docutils literal notranslate"><span class="pre">sub[k]</span> <span class="pre">=</span> <span class="pre">dR[k]/dx[k-1]</span></code>, both of
+shape <code class="docutils literal notranslate"><span class="pre">(nblk_steps,</span> <span class="pre">...,</span> <span class="pre">nstate,</span> <span class="pre">nstate)</span></code> for the dense
+backend; other backends define their own raw contract.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">ForwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE" title="Link to this definition"></a></dt>
-<dd><p>Applies a forward Euler time integration scheme to an ODE</p>
-<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
-return both the time rate of change of the state and the derivative of the rate of change with
-respect to the state as a function of time and the current state.</p>
-<p>The input and output for the underlying ODE must meet our global batch convention, where the first
-dimension of the input is used to vectorize time/step.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="pyzag.ode.DenseODEWrapper">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">DenseODEWrapper</span></span><a class="headerlink" href="#pyzag.ode.DenseODEWrapper" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a></p>
+<p>Default wrapper for dense torch tensors.</p>
+<p>Uses <code class="xref py py-class docutils literal notranslate"><span class="pre">DenseBlockVector</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">DenseBlockJacobian</span></code>.</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE.forward" title="Link to this definition"></a></dt>
-<dd><p>Provide the blocked residual and Jacobian for the time integration scheme</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,nstate) tensor.  As always, the first batch dimension
-is used to vectorize over steps (for an ODE, time steps).  Then the operator
-must accept arbitrary batch dimensions.  The final dimension is the problem
-state size.</p></li>
-<li><p><strong>t</strong> (<em>torch.tensor</em>) – (nchunk+self.n,…,) tensor of times as driving forces</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>tuple giving R the (nchunk,…,nstate ) tensor giving the nonlinear residual and J the (self.n, nchunk,…,nstate,nstate) tensor giving the Jacobians</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>(R,J) tuple(torch.tensor, torch.tensor)</p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="pyzag.ode.DenseODEWrapper.wrap_vector">
+<span class="sig-name descname"><span class="pre">wrap_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></span><a class="headerlink" href="#pyzag.ode.DenseODEWrapper.wrap_vector" title="Link to this definition"></a></dt>
+<dd><p>Wrap a raw tensor into a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.DenseODEWrapper.unwrap_vector">
+<span class="sig-name descname"><span class="pre">unwrap_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.ode.DenseODEWrapper.unwrap_vector" title="Link to this definition"></a></dt>
+<dd><p>Extract the raw tensor representation from a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>.</p>
+<p>Required because the user’s ODE module operates on raw tensors and
+the chunk’s combined state must be assembled before the call.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.DenseODEWrapper.wrap_jacobian">
+<span class="sig-name descname"><span class="pre">wrap_jacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a></span></span><a class="headerlink" href="#pyzag.ode.DenseODEWrapper.wrap_jacobian" title="Link to this definition"></a></dt>
+<dd><p>Wrap raw per-step diagonal and subdiagonal tensors into a
+backend-typed <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">diag[k]</span> <span class="pre">=</span> <span class="pre">dR[k]/dx[k]</span></code> and <code class="docutils literal notranslate"><span class="pre">sub[k]</span> <span class="pre">=</span> <span class="pre">dR[k]/dx[k-1]</span></code>, both of
+shape <code class="docutils literal notranslate"><span class="pre">(nblk_steps,</span> <span class="pre">...,</span> <span class="pre">nstate,</span> <span class="pre">nstate)</span></code> for the dense
+backend; other backends define their own raw contract.</p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.ode.IntegrateODE">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">IntegrateODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ode</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.IntegrateODE" title="Link to this definition"></a></dt>
-<dd><p>Maps an ODE to a nonlinear function with some numerical integration scheme</p>
-<p>The input is a torch Module which defines the rate form of the ODE.  The forward function must
-return both the time rate of change of the state and the derivative of the rate of change with
-respect to the state as a function of time and the current state.</p>
-<p>The input and output for the underlying ODE must meet our global batch convention, where the first
-dimension of the input is used to vectorize time/step.</p>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">IntegrateODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wrapper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><span class="pre">ODEWrapper</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.IntegrateODE" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code>, <a class="reference internal" href="nonlinear.html#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory</span></code></a></p>
+<p>Base class for ODE integration factories.</p>
+<p>Extends <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> so the user’s ODE parameters are discovered
+by the enclosing solver via <code class="docutils literal notranslate"><span class="pre">parameters()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>ode</strong> (<em>torch.nn.Module</em>) – module defining the system of ODEs</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ode</strong> – <code class="docutils literal notranslate"><span class="pre">torch.nn.Module</span></code> whose <code class="docutils literal notranslate"><span class="pre">forward(t,</span> <span class="pre">x)</span></code> returns
+<code class="docutils literal notranslate"><span class="pre">(x_dot,</span> <span class="pre">J_dot)</span></code> as raw tensors.</p></li>
+<li><p><strong>wrapper</strong> – bridge between the raw ODE outputs and the abstract block
+types used by the solver.</p></li>
+</ul>
 </dd>
 </dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.ode.IntegrateODE.lookback">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">lookback</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.ode.IntegrateODE.lookback" title="Link to this definition"></a></dt>
+<dd><p>Number of previous solution steps the residual depends on.</p>
+<p>Declared abstract so a subclass that forgets it fails at instantiation
+rather than with a late <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code> deep in the solver.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.ode.IntegrateODE.wrapper">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">wrapper</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><span class="pre">ODEWrapper</span></a></span><a class="headerlink" href="#pyzag.ode.IntegrateODE.wrapper" title="Link to this definition"></a></dt>
+<dd><p>Backend bridge (an <a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a>-like object) that
+wraps/unwraps raw tensors as backend <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> objects.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">BackwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wrapper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><span class="pre">ODEWrapper</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.ode.IntegrateODE" title="pyzag.ode.IntegrateODE"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntegrateODE</span></code></a></p>
+<p>Backward Euler integration as a <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> factory.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE.evaluate_raw">
+<span class="sig-name descname"><span class="pre">evaluate_raw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE.evaluate_raw" title="Link to this definition"></a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code> for adjoint reconstruction.</p>
+<p><code class="docutils literal notranslate"><span class="pre">x_full</span></code> includes the lookback steps prepended to the chunk
+state. <code class="docutils literal notranslate"><span class="pre">R</span></code> is a raw torch tensor; <code class="docutils literal notranslate"><span class="pre">J</span></code> is a backend-typed
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.BackwardEulerODE.make_operator">
+<span class="sig-name descname"><span class="pre">make_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="nonlinear.html#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><span class="pre">NonlinearFunctionOperator</span></a></span></span><a class="headerlink" href="#pyzag.ode.BackwardEulerODE.make_operator" title="Link to this definition"></a></dt>
+<dd><p>Build a <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> for a single chunk.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.ode.</span></span><span class="sig-name descname"><span class="pre">ForwardEulerODE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wrapper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><span class="pre">ODEWrapper</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.ode.IntegrateODE" title="pyzag.ode.IntegrateODE"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntegrateODE</span></code></a></p>
+<p>Forward Euler integration as a <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> factory.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE.evaluate_raw">
+<span class="sig-name descname"><span class="pre">evaluate_raw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE.evaluate_raw" title="Link to this definition"></a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code> for adjoint reconstruction.</p>
+<p><code class="docutils literal notranslate"><span class="pre">x_full</span></code> includes the lookback steps prepended to the chunk
+state. <code class="docutils literal notranslate"><span class="pre">R</span></code> is a raw torch tensor; <code class="docutils literal notranslate"><span class="pre">J</span></code> is a backend-typed
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.ode.ForwardEulerODE.make_operator">
+<span class="sig-name descname"><span class="pre">make_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="nonlinear.html#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><span class="pre">NonlinearFunctionOperator</span></a></span></span><a class="headerlink" href="#pyzag.ode.ForwardEulerODE.make_operator" title="Link to this definition"></a></dt>
+<dd><p>Build a <code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code> for a single chunk.</p>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -195,7 +273,7 @@ dimension of the input is used to vectorize time/step.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="chunktime.html" class="btn btn-neutral float-left" title="pyzag.chunktime" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="operators.html" class="btn btn-neutral float-left" title="pyzag.operators" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="reparametrization.html" class="btn btn-neutral float-right" title="pyzag.reparametrization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

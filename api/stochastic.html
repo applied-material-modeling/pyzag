@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>pyzag.stochastic &mdash; pyzag 1.1.3 documentation</title>
+  <title>pyzag.stochastic &mdash; pyzag 2.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb7bf70b"></script>
+      <script src="../_static/documentation_options.js?v=51b770b3"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -48,14 +48,16 @@
 <li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
 <li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">pyzag.operators</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ode.html">pyzag.ode</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.stochastic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.stochastic.MapNormal"><code class="docutils literal notranslate"><span class="pre">MapNormal</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.stochastic.HierarchicalStatisticalModel"><code class="docutils literal notranslate"><span class="pre">HierarchicalStatisticalModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.stochastic.HierarchicalStatisticalModel.training"><code class="docutils literal notranslate"><span class="pre">HierarchicalStatisticalModel.training</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.stochastic.HierarchicalStatisticalModel.forward"><code class="docutils literal notranslate"><span class="pre">HierarchicalStatisticalModel.forward()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.stochastic.MapNormal"><code class="docutils literal notranslate"><span class="pre">MapNormal</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -91,45 +93,10 @@
 <span id="pyzag-stochastic"></span><h1>pyzag.stochastic<a class="headerlink" href="#module-pyzag.stochastic" title="Link to this heading"></a></h1>
 <p>Tools for converting deterministc models implemented in pytorch to stochastic models</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="pyzag.stochastic.HierarchicalStatisticalModel">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.stochastic.</span></span><span class="sig-name descname"><span class="pre">HierarchicalStatisticalModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_mapper</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_prior</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.stochastic.HierarchicalStatisticalModel" title="Link to this definition"></a></dt>
-<dd><p>Converts a torch model over to being a Pyro-based hierarchical statistical model</p>
-<p>Eventually the plan is to let the user provide a dictionary instead of a single parameter_mapper</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>base</strong> (<em>torch.nn.Module</em>) – base torch module</p></li>
-<li><p><strong>parameter_mapper</strong> (<em>MapParameter</em>) – mapper class describing how to convert from Parameter to Distribution</p></li>
-<li><p><strong>noise_prior</strong> (<em>float</em>) – scale prior for white noise</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>update_mask</strong> (<em>bool</em>) – if True, update the mask to remove samples that are not valid</p>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.stochastic.HierarchicalStatisticalModel.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.stochastic.HierarchicalStatisticalModel.forward" title="Link to this definition"></a></dt>
-<dd><p>Class the base forward with the appropriate args</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>*args</strong> – whatever arguments the underlying model needs.  But at least one must be a tensor so we can infer the correct batch shapes!</p>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em><em> or </em><em>None</em>) – results to condition on</p></li>
-<li><p><strong>weights</strong> (<em>torch.tensor</em><em> or </em><em>None</em>) – weights on the results, default all ones</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="pyzag.stochastic.MapNormal">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.stochastic.</span></span><span class="sig-name descname"><span class="pre">MapNormal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cov</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc_suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_loc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_scale'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.stochastic.MapNormal" title="Link to this definition"></a></dt>
-<dd><p>A map between a deterministic torch parameter and a two-scale normal distribution</p>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.stochastic.</span></span><span class="sig-name descname"><span class="pre">MapNormal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cov</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loc_suffix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'_loc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_suffix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'_scale'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.stochastic.MapNormal" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A map between a deterministic torch parameter and a two-scale normal distribution</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>cov</strong> – coefficient of variation used to define the scale priors</p>
@@ -142,6 +109,48 @@
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.stochastic.HierarchicalStatisticalModel">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.stochastic.</span></span><span class="sig-name descname"><span class="pre">HierarchicalStatisticalModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_mapper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.stochastic.MapNormal" title="pyzag.stochastic.MapNormal"><span class="pre">MapNormal</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.stochastic.HierarchicalStatisticalModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PyroModule</span></code></p>
+<p>Converts a torch model over to being a Pyro-based hierarchical statistical model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base</strong> (<em>torch.nn.Module</em>) – base torch module</p></li>
+<li><p><strong>parameter_mapper</strong> (<em>MapParameter</em>) – mapper class describing how to convert from Parameter to Distribution</p></li>
+<li><p><strong>noise_prior</strong> (<em>float</em>) – scale prior for white noise</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>update_mask</strong> (<em>bool</em>) – if True, update the mask to remove samples that are not valid</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pyzag.stochastic.HierarchicalStatisticalModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#pyzag.stochastic.HierarchicalStatisticalModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.stochastic.HierarchicalStatisticalModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.stochastic.HierarchicalStatisticalModel.forward" title="Link to this definition"></a></dt>
+<dd><p>Call the base forward with the appropriate args.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>*args</strong> – arguments forwarded to the underlying model. At least one must
+be a tensor so the batch shape can be inferred.</p>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>results</strong> (<em>torch.tensor</em><em> or </em><em>None</em>) – results to condition on.</p></li>
+<li><p><strong>weights</strong> (<em>torch.tensor</em><em> or </em><em>None</em>) – weights on the results; defaults to ones.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </section>

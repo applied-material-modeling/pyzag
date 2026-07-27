@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>pyzag.nonlinear &mdash; pyzag 1.1.3 documentation</title>
+  <title>pyzag.nonlinear &mdash; pyzag 2.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=cb7bf70b"></script>
+      <script src="../_static/documentation_options.js?v=51b770b3"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -48,43 +48,51 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorials.html">Tutorials</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.nonlinear</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.ExtrapolatingPredictor"><code class="docutils literal notranslate"><span class="pre">ExtrapolatingPredictor</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.ExtrapolatingPredictor.predict"><code class="docutils literal notranslate"><span class="pre">ExtrapolatingPredictor.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperator"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.lookback"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory.lookback</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.wrapper"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory.wrapper</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory.make_operator()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw"><code class="docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory.evaluate_raw()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.ChunkOp"><code class="docutils literal notranslate"><span class="pre">ChunkOp</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.FullTrajectoryPredictor"><code class="docutils literal notranslate"><span class="pre">FullTrajectoryPredictor</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.FullTrajectoryPredictor.predict"><code class="docutils literal notranslate"><span class="pre">FullTrajectoryPredictor.predict()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.InitialOffsetStepGenerator"><code class="docutils literal notranslate"><span class="pre">InitialOffsetStepGenerator</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.LastStepPredictor"><code class="docutils literal notranslate"><span class="pre">LastStepPredictor</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.LastStepPredictor.predict"><code class="docutils literal notranslate"><span class="pre">LastStepPredictor.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.ZeroPredictor"><code class="docutils literal notranslate"><span class="pre">ZeroPredictor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.ZeroPredictor.predict"><code class="docutils literal notranslate"><span class="pre">ZeroPredictor.predict()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.NonlinearRecursiveFunction"><code class="docutils literal notranslate"><span class="pre">NonlinearRecursiveFunction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.PreviousStepsPredictor"><code class="docutils literal notranslate"><span class="pre">PreviousStepsPredictor</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.PreviousStepsPredictor.predict"><code class="docutils literal notranslate"><span class="pre">PreviousStepsPredictor.predict()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.accumulate()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.block_update()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.block_update_adjoint()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.forward()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.rewind()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.solve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.LastStepPredictor"><code class="docutils literal notranslate"><span class="pre">LastStepPredictor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.LastStepPredictor.predict"><code class="docutils literal notranslate"><span class="pre">LastStepPredictor.predict()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.StepExtrapolatingPredictor"><code class="docutils literal notranslate"><span class="pre">StepExtrapolatingPredictor</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.StepExtrapolatingPredictor.predict"><code class="docutils literal notranslate"><span class="pre">StepExtrapolatingPredictor.predict()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.ExtrapolatingPredictor"><code class="docutils literal notranslate"><span class="pre">ExtrapolatingPredictor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.ExtrapolatingPredictor.predict"><code class="docutils literal notranslate"><span class="pre">ExtrapolatingPredictor.predict()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.StepGenerator"><code class="docutils literal notranslate"><span class="pre">StepGenerator</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.StepGenerator.reverse"><code class="docutils literal notranslate"><span class="pre">StepGenerator.reverse()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.ZeroPredictor"><code class="docutils literal notranslate"><span class="pre">ZeroPredictor</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.ZeroPredictor.predict"><code class="docutils literal notranslate"><span class="pre">ZeroPredictor.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.InitialOffsetStepGenerator"><code class="docutils literal notranslate"><span class="pre">InitialOffsetStepGenerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.solve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.block_update()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.rewind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.accumulate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint"><code class="docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver.block_update_adjoint()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.nonlinear.solve"><code class="docutils literal notranslate"><span class="pre">solve()</span></code></a></li>
@@ -92,6 +100,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">pyzag.operators</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ode.html">pyzag.ode</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stochastic.html">pyzag.stochastic</a></li>
@@ -126,342 +135,253 @@
              
   <section id="module-pyzag.nonlinear">
 <span id="pyzag-nonlinear"></span><h1>pyzag.nonlinear<a class="headerlink" href="#module-pyzag.nonlinear" title="Link to this heading"></a></h1>
-<p>Basic functionality for solving recursive nonlinear equations and calculating senstivities using the adjoint method</p>
+<p>Solving recursive nonlinear equations and computing parameter sensitivities
+via the adjoint method.</p>
+<p>The solver integrates a recursive system whose residual couples consecutive
+steps (lookback 1):</p>
+<div class="math">
+<p><img src="../_images/math/23e77255eb6d3ed9d2a6109f79dc5a44776ce8bd.png" alt="R_k = f(x_k, x_{k-1};\, p) = 0, \qquad k = 1, \dots, n,"/></p>
+</div><p>solving the trajectory in chunks with a blocked Newton iteration. Parameter
+gradients are obtained by a reverse adjoint sweep that reuses the same chunk
+Jacobians, giving memory cost independent of <code class="docutils literal notranslate"><span class="pre">n</span></code> rather than backpropagating
+through every step.</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.ExtrapolatingPredictor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">ExtrapolatingPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.ExtrapolatingPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict by extrapolating the values from the previous <em>single</em> steps</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.ExtrapolatingPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.ExtrapolatingPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">NonlinearFunctionOperator</span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract operator passed to the Newton solver.</p>
+<p>The solver integrates a recursive nonlinear system whose per-step residual
+has lookback <code class="docutils literal notranslate"><span class="pre">L</span></code>:</p>
+<blockquote>
+<div><p>R_k = f(x_k, x_{k-1}, dots, x_{k-L};, u_k;, p) = 0,
+qquad x_k in mathbb{R}^n</p>
+</div></blockquote>
+<p>A chunk covers <code class="docutils literal notranslate"><span class="pre">m</span></code> consecutive steps. The forces <code class="docutils literal notranslate"><span class="pre">u_k</span></code> and the lookback
+tail <code class="docutils literal notranslate"><span class="pre">x_0</span></code> (the previous solution) are captured at construction; Newton
+only varies the chunk unknowns <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">(x_1,</span> <span class="pre">...,</span> <span class="pre">x_m)</span></code>. Calling the operator
+maps that trial state to <code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">R(x)</span> <span class="pre">=</span> <span class="pre">(R_1,</span> <span class="pre">...,</span> <span class="pre">R_m)</span></code> (a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>), with
+<code class="docutils literal notranslate"><span class="pre">R_k</span> <span class="pre">=</span> <span class="pre">f(x_k,</span> <span class="pre">x_{k-1};</span> <span class="pre">u_k)</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">=</span> <span class="pre">dR/dx</span></code>. For <code class="docutils literal notranslate"><span class="pre">L</span> <span class="pre">==</span> <span class="pre">1</span></code> this is block lower-bidiagonal, with
+diagonal blocks <code class="docutils literal notranslate"><span class="pre">A_k</span> <span class="pre">=</span> <span class="pre">dR_k/dx_k</span></code> and subdiagonal blocks
+<code class="docutils literal notranslate"><span class="pre">B_k</span> <span class="pre">=</span> <span class="pre">dR_k/dx_{k-1}</span></code>, so that <code class="docutils literal notranslate"><span class="pre">(J</span> <span class="pre">&#64;</span> <span class="pre">d)_k</span> <span class="pre">=</span> <span class="pre">A_k</span> <span class="pre">d_k</span> <span class="pre">+</span> <span class="pre">B_{k-1}</span> <span class="pre">d_{k-1}</span></code>
+and all other blocks are zero.</p></li>
 </ul>
-</dd>
-</dl>
+<p>Newton iterates <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">&lt;-</span> <span class="pre">x</span> <span class="pre">-</span> <span class="pre">J^{-1}</span> <span class="pre">R(x)</span></code>, solving <code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">d</span> <span class="pre">=</span> <span class="pre">R</span></code> each iteration
+via the bidiagonal (Thomas/PCR) solver.</p>
+<p>Forces and time are captured at construction. Newton only passes the
+state <code class="docutils literal notranslate"><span class="pre">x</span></code> as a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> and receives back <code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code>
+where <code class="docutils literal notranslate"><span class="pre">R</span></code> is a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> and <code class="docutils literal notranslate"><span class="pre">J</span></code> is a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">chunktime.BidiagonalForwardOperator</span></code>.</p>
 </dd></dl>
 
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperatorFactory">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">NonlinearFunctionOperatorFactory</span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Factory for chunk-level <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code></a> objects.</p>
+<p>The forward solve calls <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator"><code class="xref py py-meth docutils literal notranslate"><span class="pre">make_operator()</span></code></a> once per chunk to create
+a stateful operator that captures the chunk’s previous-solution lookback
+and forces. The adjoint pass calls <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">evaluate_raw()</span></code></a> to recompute
+the residual and Jacobian; the latter as a backend-typed
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code> consumed by the adjoint walk.</p>
+<p>Subclasses must expose <code class="docutils literal notranslate"><span class="pre">lookback</span></code> and <code class="docutils literal notranslate"><span class="pre">wrapper</span></code> (typically as
+properties) and implement <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator"><code class="xref py py-meth docutils literal notranslate"><span class="pre">make_operator()</span></code></a> and
+<a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">evaluate_raw()</span></code></a>. The canonical <a class="reference internal" href="#pyzag.nonlinear.ChunkOp" title="pyzag.nonlinear.ChunkOp"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChunkOp</span></code></a> below is a
+drop-in implementation that most subclasses can return from
+<code class="docutils literal notranslate"><span class="pre">make_operator</span></code> without modification.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperatorFactory.lookback">
+<span class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">lookback</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.lookback" title="Link to this definition"></a></dt>
+<dd><p>Number of previous solution steps the residual depends on.</p>
+<p>Declared abstract so a subclass that forgets it fails at instantiation
+rather than with a late <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code> deep in the solver.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperatorFactory.wrapper">
+<span class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">wrapper</span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.wrapper" title="Link to this definition"></a></dt>
+<dd><p>Backend bridge (an <a class="reference internal" href="ode.html#pyzag.ode.ODEWrapper" title="pyzag.ode.ODEWrapper"><code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code></a>-like object) that
+wraps/unwraps raw tensors as backend <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code> objects.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">make_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><span class="pre">NonlinearFunctionOperator</span></a></span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.make_operator" title="Link to this definition"></a></dt>
+<dd><p>Build a <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code></a> for a single chunk.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">evaluate_raw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw" title="Link to this definition"></a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code> for adjoint reconstruction.</p>
+<p><code class="docutils literal notranslate"><span class="pre">x_full</span></code> includes the lookback steps prepended to the chunk
+state. <code class="docutils literal notranslate"><span class="pre">R</span></code> is a raw torch tensor; <code class="docutils literal notranslate"><span class="pre">J</span></code> is a backend-typed
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.ChunkOp">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">ChunkOp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">factory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory"><span class="pre">NonlinearFunctionOperatorFactory</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inverse_operator</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.ChunkOp" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperator" title="pyzag.nonlinear.NonlinearFunctionOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperator</span></code></a></p>
+<p>Generic per-chunk operator for any <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory</span></code></a>.</p>
+<p>Holds the chunk’s previous-solution lookback and forces; on each
+Newton call, assembles the full state, asks the factory for raw
+<code class="docutils literal notranslate"><span class="pre">(R,</span> <span class="pre">J)</span></code>, then wraps R via the factory’s <code class="xref py py-class docutils literal notranslate"><span class="pre">ODEWrapper</span></code> and
+builds the chunk’s forward bidiagonal system from the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code>. Most factories can return <code class="docutils literal notranslate"><span class="pre">ChunkOp(self,</span> <span class="pre">...)</span></code>
+from their <code class="docutils literal notranslate"><span class="pre">make_operator</span></code> without modification.</p>
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.nonlinear.FullTrajectoryPredictor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">FullTrajectoryPredictor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">history</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.FullTrajectoryPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict steps using a complete user-provided trajectory</p>
-<p>This is often used during optimization runs, where the provided trajectory could be the results from the previous step in the
-optimization routine</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>history</strong> (<em>torch.tensor</em>) – tensor of shape <img class="math" src="../_images/math/979948e47f3506abcd519a43b89befe691465cbc.png" alt="(n_{time},...,n_{state})"/> giving a complete previous trajectory</p>
-</dd>
-</dl>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">FullTrajectoryPredictor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">history</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.FullTrajectoryPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict steps using a complete user-provided trajectory.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.nonlinear.FullTrajectoryPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.FullTrajectoryPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.InitialOffsetStepGenerator">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">InitialOffsetStepGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.InitialOffsetStepGenerator" title="Link to this definition"></a></dt>
-<dd><p>Generate chunks of recursive steps to produce at once</p>
-<p>The user can provide a list of initial chunks to use, after which the object
-goes back to chunks of block_size</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>block_size</strong> (<em>int</em>) – regular chunk size</p></li>
-<li><p><strong>initial_steps</strong> (<em>list</em><em> of </em><em>int</em>) – initial steps</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.LastStepPredictor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">LastStepPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.LastStepPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict by providing the values from the previous single step</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.LastStepPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.LastStepPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.NonlinearRecursiveFunction">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">NonlinearRecursiveFunction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.NonlinearRecursiveFunction" title="Link to this definition"></a></dt>
-<dd><p>Basic structure of a nonlinear recursive function</p>
-<p>This class has two basic responsibilities, to define the residual and Jacobian of the function itself and second
-to define the lookback.</p>
-<p>The function and Jacobian are defined through <cite>forward</cite> so that this class is callable.</p>
-<p>The lookback is defined as a property</p>
-<p>The function here defines a series through the recursive relation</p>
-<div class="math">
-<p><img src="../_images/math/b112a0fa76ccb1908499c27af31c7d9cf1e07cc7.png" alt="f(x_{n+1}, x_{n}, x_{n-1}, \ldots) = 0"/></p>
-</div><p>We denote the number of past entries in the time series used in defining this residual function as
-the <em>lookback</em>.  A function with a lookback of 1 has the definition</p>
-<div class="math">
-<p><img src="../_images/math/39bb775cab4e07b4464f4148203c1f618ec28584.png" alt="f(x_{n+1}, x_{n}) = 0"/></p>
-</div><p>A lookback of 2 is</p>
-<div class="math">
-<p><img src="../_images/math/8b7d2d3da85f5b2dbb3690cd86286b890bec9c0f.png" alt="f(x_{n+1}, x_{n}, x_{n-1}) = 0"/></p>
-</div><p>etc.</p>
-<p><em>For the moment this class only supports functions with a lookback of 1!</em>.</p>
-<p>The function also must provide the Jacobian of the residual with respect to each input.  So a function
-with lookback 1 must provide both</p>
-<div class="math">
-<p><img src="../_images/math/8620a574beba2ae260071f948275bea8d0636b33.png" alt="J_{n+1} = \frac{\partial f}{\partial x_{n+1}}"/></p>
-</div><p>and</p>
-<div class="math">
-<p><img src="../_images/math/8e1a49231af3642416835631b41a059a40f24b7e.png" alt="J_{n} = \frac{\partial f}{\partial x_n}"/></p>
-</div><p>The input and output shapes of the function as dictated by the lookback and the desired amount of time-vectorization.
-Let’s call the number of time steps to be solved for at once <img class="math" src="../_images/math/9ee8dc8e37961ee5d523bead4e51f5a63bd5d78d.png" alt="n_{block}"/> and the lookback as
-<img class="math" src="../_images/math/826d27394480aa29ccb552b8386bb6a7c32b91ec.png" alt="n_{lookback}"/>.  Let’s say our function has a state size <img class="math" src="../_images/math/7d8e9a6efb81c040df1fb51fcc85375f18636aef.png" alt="\left| x \right| = n_{state}"/>.
-Our convention is the first dimension of input and output is the batch time axis and the last
-dimension is the true state size.  The input shape of the state <img class="math" src="../_images/math/dc7c3cda5993d9796ded25227057f413793ccb94.png" alt="x"/> must be
-<img class="math" src="../_images/math/de5bfcd40f02d769e1b9da7467e855072a850a0e.png" alt="(n_{block} + n_{lookback}, \ldots, n_{state})"/> where <img class="math" src="../_images/math/3a5ebc7ffe236c41491382a4e0473cb22042c877.png" alt="\ldots"/> indicates some arbitrary
-number of batch dimensions.  The output shape of the nonlinear residual will be
-<img class="math" src="../_images/math/d446481770be03a075b5612ef224d010305a5468.png" alt="(n_{block}, \ldots, n_{state})"/>.  The output shape of the Jacobian will be
-<img class="math" src="../_images/math/1c5c6424a574132aee159d8c34c414c684058caa.png" alt="(n_{lookback} + 1, n_{block}, \ldots, n_{state}, n_{state})"/>.</p>
-<p>Additionally, we allow the function to take some driving forces as input.  Mathematically we could
-envision these as an additional input tensor <img class="math" src="../_images/math/bdf28b530c63591bd53adee1b182ae4cc588475f.png" alt="u"/> with shape <img class="math" src="../_images/math/17bb8dd5e026b99e9e6afae5a984c2dbda8b4298.png" alt="(n_{block} + n_{lookback}, \ldots, n_{force})"/> and
-we expand the residual function definition to be</p>
-<div class="math">
-<p><img src="../_images/math/4d3bf79fb184082b228686d1633c96312418d7d8.png" alt="f(x_{n+1}, x_{n}, x_{n-1}, \ldots, u_{n+1}, u_{n}, u_{n-1}, \ldots) = 0"/></p>
-</div><p>However, for convience we instead take these driving forces as python <cite>*args</cite> and <cite>**kwargs</cite>.  Each entry in <cite>*args</cite> and <cite>**kwargs</cite> must have a
-shape of <img class="math" src="../_images/math/3b55dfb3b09af244342caf8c6ea35fac4796ddea.png" alt="(n_{block} + n_{lookback}, \ldots)"/> and we leave it to the user to use each entry as they see fit.</p>
-<p>To put it another way, the only hard requirement for driving forces is that the first dimension of the
-tensor must be slicable in the same way as the state <img class="math" src="../_images/math/dc7c3cda5993d9796ded25227057f413793ccb94.png" alt="x"/>.</p>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.PreviousStepsPredictor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">PreviousStepsPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.PreviousStepsPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict by providing the values from the previous chunk of steps steps</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.PreviousStepsPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.PreviousStepsPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">RecursiveNonlinearEquationSolver</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_generator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;pyzag.nonlinear.StepGenerator</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predictor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;pyzag.nonlinear.ZeroPredictor</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direct_solve_operator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;class</span> <span class="pre">'pyzag.chunktime.BidiagonalThomasFactorization'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nonlinear_solver</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;pyzag.chunktime.ChunkNewtonRaphson</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callbacks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_nan_gradients</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="Link to this definition"></a></dt>
-<dd><p>Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives</p>
-<p>The series is generated in a batched manner, generating <code class="docutils literal notranslate"><span class="pre">block_size</span></code> steps at a time.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>func</strong> (<a class="reference internal" href="#pyzag.nonlinear.NonlinearRecursiveFunction" title="pyzag.nonlinear.NonlinearRecursiveFunction"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.NonlinearRecursiveFunction</span></code></a>) – defines the nonlinear system</p>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>step_generator</strong> (<a class="reference internal" href="#pyzag.nonlinear.StepGenerator" title="pyzag.nonlinear.StepGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.StepGenerator</span></code></a>) – iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step</p></li>
-<li><p><strong>predictor</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.Predictor</span></code>) – how to generate guesses for the nonlinear solve.  Default uses all zeros</p></li>
-<li><p><strong>direct_solve_operator</strong> (<a class="reference internal" href="chunktime.html#pyzag.chunktime.LUFactorization" title="pyzag.chunktime.LUFactorization"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.chunktime.LUFactorization</span></code></a>) – how to solve the batched, blocked system of equations.  Default is to use Thomas’s method</p></li>
-<li><p><strong>nonlinear_solver</strong> (<a class="reference internal" href="chunktime.html#pyzag.chunktime.ChunkNewtonRaphson" title="pyzag.chunktime.ChunkNewtonRaphson"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.chunktime.ChunkNewtonRaphson</span></code></a>) – how to solve the nonlinear system, default is plain Newton-Raphson</p></li>
-<li><p><strong>callbacks</strong> (<em>None</em><em> or </em><em>list</em><em> of </em><em>functions</em>) – callback functions to apply after a successful step</p></li>
-<li><p><strong>convert_nan_gradients</strong> (<em>bool</em>) – if True, convert NaN gradients to zero</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate">
-<span class="sig-name descname"><span class="pre">accumulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grad_result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">full_adjoint</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate" title="Link to this definition"></a></dt>
-<dd><p>Accumulate the updated gradient values</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>grad_result</strong> (<em>tuple</em><em> of </em><em>tensor</em>) – current gradient results</p></li>
-<li><p><strong>full_adjoint</strong> (<em>torch.tensor</em>) – adjoint values</p></li>
-<li><p><strong>R</strong> (<em>torch.tensor</em>) – function values, for AD</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>retain</strong> (<em>bool</em>) – if True, retain the AD graph for a second pass</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update">
-<span class="sig-name descname"><span class="pre">block_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update" title="Link to this definition"></a></dt>
-<dd><p>Actually update the recursive system</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>prev_solution</strong> (<em>tensor</em>) – previous lookback steps of solution</p></li>
-<li><p><strong>solution</strong> (<em>tensor</em>) – guess at nchunk steps of solution</p></li>
-<li><p><strong>forces</strong> (<em>list</em><em> of </em><em>tensors</em>) – driving forces for next chunk plus lookback, to be passed as <code class="docutils literal notranslate"><span class="pre">*args</span></code></p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint">
-<span class="sig-name descname"><span class="pre">block_update_adjoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">J</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grads</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_prev</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint" title="Link to this definition"></a></dt>
-<dd><p>Do the blocked adjoint solve</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>J</strong> (<em>torch.tensor</em>) – block of jacobians</p></li>
-<li><p><strong>grads</strong> (<em>torch.tensor</em>) – block of gradient values</p></li>
-<li><p><strong>a_prev</strong> (<em>torch.tensor</em>) – previous adjoint value</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>next block of updated adjoint values</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>adjoint_block (torch.tensor)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward" title="Link to this definition"></a></dt>
-<dd><p>Alias for solve</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>y0</strong> (<em>torch.tensor</em>) – initial state values with shape <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">nstate)</span></code></p></li>
-<li><p><strong>n</strong> (<em>int</em>) – number of recursive time steps to solve, step 1 is y0</p></li>
-<li><p><strong>*args</strong> – driving forces to pass to the model</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>adjoint_params</strong> (<em>None</em><em> or </em><em>list</em><em> of </em><em>parameters</em>) – if provided, cache the information needed to run an adjoint pass over the parameters in the list</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind">
-<span class="sig-name descname"><span class="pre">rewind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_grad</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind" title="Link to this definition"></a></dt>
-<dd><p>Rewind through an adjoint pass to provide the dot product for each quantity in output_grad</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>output_grad</strong> (<em>torch.tensor</em>) – thing to dot product with</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve">
-<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjoint_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve" title="Link to this definition"></a></dt>
-<dd><p>Solve the recursive equations for n steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>y0</strong> (<em>torch.tensor</em>) – initial state values with shape <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">nstate)</span></code></p></li>
-<li><p><strong>n</strong> (<em>int</em>) – number of recursive time steps to solve, step 1 is y0</p></li>
-<li><p><strong>*args</strong> – driving forces to pass to the model</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>adjoint_params</strong> (<em>None</em><em> or </em><em>list</em><em> of </em><em>parameters</em>) – if provided, cache the information needed to run an adjoint pass over the parameters in the list</p>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.StepExtrapolatingPredictor">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">StepExtrapolatingPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.StepExtrapolatingPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict by extrapolating using the previous <em>chunks</em> of steps</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.StepExtrapolatingPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.StepExtrapolatingPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pyzag.nonlinear.StepGenerator">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">StepGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.StepGenerator" title="Link to this definition"></a></dt>
-<dd><p>Generate chunks of recursive steps to produce at once</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>block_size</strong> (<em>int</em>) – regular chunk size</p></li>
-<li><p><strong>first_block_size</strong> (<em>int</em>) – if &gt; 0 then use a special first chunk size, after that use block_size</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="pyzag.nonlinear.StepGenerator.reverse">
-<span class="sig-name descname"><span class="pre">reverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.StepGenerator.reverse" title="Link to this definition"></a></dt>
-<dd><p>Reverse the iterator to yield chunks starting from the end</p>
-</dd></dl>
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.FullTrajectoryPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pyzag.nonlinear.ZeroPredictor">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">ZeroPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.ZeroPredictor" title="Link to this definition"></a></dt>
-<dd><p>Predict steps just using zeros</p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict steps just using zeros.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyzag.nonlinear.ZeroPredictor.predict">
-<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.ZeroPredictor.predict" title="Link to this definition"></a></dt>
-<dd><p>Predict the next steps</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>results</strong> (<em>torch.tensor</em>) – current results tensor, filled up to step k.</p></li>
-<li><p><strong>k</strong> (<em>int</em>) – start of current chunk</p></li>
-<li><p><strong>kinc</strong> (<em>int</em>) – next number of steps to predict</p></li>
-</ul>
-</dd>
-</dl>
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.ZeroPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.PreviousStepsPredictor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">PreviousStepsPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.PreviousStepsPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict by providing the values from the previous chunk of steps.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.PreviousStepsPredictor.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.PreviousStepsPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.LastStepPredictor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">LastStepPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.LastStepPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict by providing the values from the previous single step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.LastStepPredictor.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.LastStepPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.StepExtrapolatingPredictor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">StepExtrapolatingPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.StepExtrapolatingPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict by extrapolating using the previous chunks of steps.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.StepExtrapolatingPredictor.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.StepExtrapolatingPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.ExtrapolatingPredictor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">ExtrapolatingPredictor</span></span><a class="headerlink" href="#pyzag.nonlinear.ExtrapolatingPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Predict by extrapolating the values from the previous single steps.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.ExtrapolatingPredictor.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kinc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.ExtrapolatingPredictor.predict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.StepGenerator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">StepGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.StepGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Generate chunks of recursive steps to produce at once.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.StepGenerator.reverse">
+<span class="sig-name descname"><span class="pre">reverse</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pyzag.nonlinear.StepGenerator" title="pyzag.nonlinear.StepGenerator"><span class="pre">StepGenerator</span></a></span></span><a class="headerlink" href="#pyzag.nonlinear.StepGenerator.reverse" title="Link to this definition"></a></dt>
+<dd><p>Reverse the iterator to yield chunks starting from the end.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.InitialOffsetStepGenerator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">InitialOffsetStepGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_steps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.InitialOffsetStepGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyzag.nonlinear.StepGenerator" title="pyzag.nonlinear.StepGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">StepGenerator</span></code></a></p>
+<p>Generate chunks of recursive steps with optional user-provided initial chunks.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">RecursiveNonlinearEquationSolver</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">func:</span> <span class="pre">~pyzag.nonlinear.NonlinearFunctionOperatorFactory,</span> <span class="pre">step_generator:</span> <span class="pre">~pyzag.nonlinear.StepGenerator</span> <span class="pre">=</span> <span class="pre">&lt;pyzag.nonlinear.StepGenerator</span> <span class="pre">object&gt;,</span> <span class="pre">predictor=&lt;pyzag.nonlinear.ZeroPredictor</span> <span class="pre">object&gt;,</span> <span class="pre">direct_solve_operator=&lt;class</span> <span class="pre">'pyzag.chunktime.BidiagonalThomasFactorization'&gt;,</span> <span class="pre">nonlinear_solver:</span> <span class="pre">~pyzag.chunktime.ChunkNewtonRaphson</span> <span class="pre">=</span> <span class="pre">&lt;pyzag.chunktime.ChunkNewtonRaphson</span> <span class="pre">object&gt;,</span> <span class="pre">callbacks:</span> <span class="pre">~typing.Sequence[~typing.Callable[[~torch.Tensor],</span> <span class="pre">~torch.Tensor]]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">convert_nan_gradients:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives.</p>
+<p><code class="docutils literal notranslate"><span class="pre">func</span></code> is a <a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory</span></code></a>. The factory
+knows how to create chunk-level operators (for the forward solve) and
+how to recompute residuals / Jacobians (for the adjoint). Built-in
+factories include <a class="reference internal" href="ode.html#pyzag.ode.BackwardEulerODE" title="pyzag.ode.BackwardEulerODE"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.ode.BackwardEulerODE</span></code></a> and
+<a class="reference internal" href="ode.html#pyzag.ode.ForwardEulerODE" title="pyzag.ode.ForwardEulerODE"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.ode.ForwardEulerODE</span></code></a>; users can also subclass
+<a class="reference internal" href="#pyzag.nonlinear.NonlinearFunctionOperatorFactory" title="pyzag.nonlinear.NonlinearFunctionOperatorFactory"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonlinearFunctionOperatorFactory</span></code></a> directly and return
+<a class="reference internal" href="#pyzag.nonlinear.ChunkOp" title="pyzag.nonlinear.ChunkOp"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChunkOp</span></code></a> from their <code class="docutils literal notranslate"><span class="pre">make_operator</span></code>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward" title="Link to this definition"></a></dt>
+<dd><p>Alias for solve.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve">
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjoint_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.solve" title="Link to this definition"></a></dt>
+<dd><p>Solve the recursive equations for n steps.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update">
+<span class="sig-name descname"><span class="pre">block_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prev_solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update" title="Link to this definition"></a></dt>
+<dd><p>Solve one chunk via Newton.</p>
+<p>Builds a chunk-level operator from the factory, wraps the initial
+guess as a <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockVector</span></code>, runs Newton, and unwraps back to
+a raw tensor for the result array.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind">
+<span class="sig-name descname"><span class="pre">rewind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_grad</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind" title="Link to this definition"></a></dt>
+<dd><p>Rewind through an adjoint pass to provide the dot product for each quantity in output_grad.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate">
+<span class="sig-name descname"><span class="pre">accumulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grad_result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate" title="Link to this definition"></a></dt>
+<dd><p>Accumulate the updated gradient values.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint">
+<span class="sig-name descname"><span class="pre">block_update_adjoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">J</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockJacobian" title="pyzag.operators.base.BlockJacobian"><span class="pre">BlockJacobian</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">grads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_prev</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="operators.html#pyzag.operators.base.BlockVector" title="pyzag.operators.base.BlockVector"><span class="pre">BlockVector</span></a></span></span><a class="headerlink" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver.block_update_adjoint" title="Link to this definition"></a></dt>
+<dd><p>Do the blocked adjoint solve.</p>
+<p><code class="docutils literal notranslate"><span class="pre">J</span></code> is the chunk’s <code class="xref py py-class docutils literal notranslate"><span class="pre">BlockJacobian</span></code> in adjoint-walk order
+(i.e. the result of <code class="xref py py-meth docutils literal notranslate"><span class="pre">BlockJacobian.as_adjoint_walk()</span></code>). The
+single-block inter-chunk coupling is delegated to
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">BlockJacobian.couple_prev_chunk()</span></code> so the solver never
+touches raw tensor indexing.</p>
 </dd></dl>
 
 </dd></dl>
@@ -469,31 +389,13 @@ tensor must be slicable in the same way as the state <img class="math" src="../_
 <dl class="py function">
 <dt class="sig sig-object py" id="pyzag.nonlinear.solve">
 <span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solver</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">forces</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.solve" title="Link to this definition"></a></dt>
-<dd><p>Solve a <a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.RecursiveNonlinearEquationSolver</span></code></a> for a time history without the adjoint method</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>solver</strong> (py:class:<cite>pyzag.nonlinear.RecursiveNonlinearEquationSolver</cite>) – solve to apply</p></li>
-<li><p><strong>n</strong> (<em>int</em>) – number of recursive steps</p></li>
-<li><p><strong>*forces</strong> (<code class="docutils literal notranslate"><span class="pre">*args</span></code> of tensors) – driving forces</p></li>
-</ul>
-</dd>
-</dl>
+<dd><p>Solve a <a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="xref py py-class docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver</span></code></a> without the adjoint method.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyzag.nonlinear.solve_adjoint">
 <span class="sig-prename descclassname"><span class="pre">pyzag.nonlinear.</span></span><span class="sig-name descname"><span class="pre">solve_adjoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solver</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">forces</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.nonlinear.solve_adjoint" title="Link to this definition"></a></dt>
-<dd><p>Apply a <a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.RecursiveNonlinearEquationSolver</span></code></a> to solve for a time history in an adjoint differentiable way</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>solver</strong> (<a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.nonlinear.RecursiveNonlinearEquationSolver</span></code></a>) – solve to apply</p></li>
-<li><p><strong>n</strong> (<em>int</em>) – number of recursive steps</p></li>
-<li><p><strong>*forces</strong> (<code class="docutils literal notranslate"><span class="pre">*args</span></code> of tensors) – driving forces</p></li>
-</ul>
-</dd>
-</dl>
+<dd><p>Apply a <a class="reference internal" href="#pyzag.nonlinear.RecursiveNonlinearEquationSolver" title="pyzag.nonlinear.RecursiveNonlinearEquationSolver"><code class="xref py py-class docutils literal notranslate"><span class="pre">RecursiveNonlinearEquationSolver</span></code></a> to solve adjoint-differentiably.</p>
 </dd></dl>
 
 </section>
