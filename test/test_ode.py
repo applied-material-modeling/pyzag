@@ -25,6 +25,7 @@
 """Test solving ODEs as specialized nonlinear recursive equations"""
 
 from pyzag import ode, nonlinear, chunktime
+from pyzag.operators.dense import DenseBlockJacobian
 
 import itertools
 
@@ -81,13 +82,18 @@ class TestBackwardEulerTimeIntegrationLogistic(unittest.TestCase):
 
     def test_shapes(self):
         nchunk = 8
-        R, J = self.model(
+        R, J = self.model.evaluate_raw(
             self.y[: nchunk + self.model.lookback],
-            self.times[: nchunk + self.model.lookback],
+            [self.times[: nchunk + self.model.lookback]],
         )
 
         self.assertEqual(R.shape, (nchunk, self.nbatch, 1))
-        self.assertEqual(J.shape, (1 + self.model.lookback, nchunk, self.nbatch, 1, 1))
+        self.assertIsInstance(J, DenseBlockJacobian)
+        self.assertEqual(J.nblk_steps, nchunk)
+        self.assertEqual(J.batch_size, self.nbatch)
+        self.assertEqual(J.block_size, 1)
+        self.assertEqual(J.diag.shape, (nchunk, self.nbatch, 1, 1))
+        self.assertEqual(J.sub.shape, (nchunk, self.nbatch, 1, 1))
 
     def test_integrate_forward(self):
         nchunk = 8

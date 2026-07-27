@@ -24,11 +24,12 @@
 
 """Tools for converting deterministc models implemented in pytorch to stochastic models"""
 
-import torch
+from __future__ import annotations
 
 import pyro
-from pyro.nn import PyroSample
 import pyro.distributions as dist
+import torch
+from pyro.nn import PyroSample
 
 
 class MapNormal:
@@ -43,14 +44,25 @@ class MapNormal:
         scale_suffix: suffix to add to the parameter name to give the lower-level distribution for the scale
     """
 
-    def __init__(self, cov, loc_suffix="_loc", scale_suffix="_scale"):
+    def __init__(
+        self,
+        cov: float,
+        loc_suffix: str = "_loc",
+        scale_suffix: str = "_scale",
+    ) -> None:
         self.cov = cov
 
         self.loc_suffix = loc_suffix
         self.scale_suffix = scale_suffix
 
-    def __call__(self, pyro_module, name, value, prefix):
-        """Actually do the mapped conversion to a normal distribution
+    def __call__(
+        self,
+        pyro_module: pyro.nn.module.PyroModule,
+        name: str,
+        value: torch.nn.Parameter,
+        prefix: str,
+    ) -> tuple[list[str], str]:
+        """Apply the mapped conversion to a normal distribution.
 
         Args:
             pyro_module (pyro.nn.PyroModule): new pyro module to contain parameters
@@ -63,7 +75,7 @@ class MapNormal:
             list of names of the new top-level parameters
         """
         dim = value.dim()
-        mean = value.data.detach().clone()
+        mean = value.detach().clone()
         scale = torch.abs(mean) * self.cov
         setattr(
             pyro_module,
@@ -96,8 +108,6 @@ class MapNormal:
 class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
     """Converts a torch model over to being a Pyro-based hierarchical statistical model
 
-    Eventually the plan is to let the user provide a dictionary instead of a single parameter_mapper
-
     Args:
         base (torch.nn.Module):     base torch module
         parameter_mapper (MapParameter): mapper class describing how to convert from Parameter to Distribution
@@ -107,32 +117,34 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         update_mask (bool): if True, update the mask to remove samples that are not valid
     """
 
-    def __init__(self, base, parameter_mapper, noise_prior, update_mask=False):
+    def __init__(
+        self,
+        base: torch.nn.Module,
+        parameter_mapper: MapNormal,
+        noise_prior: torch.Tensor,
+        update_mask: bool = False,
+    ) -> None:
         super().__init__()
 
-        # Convert over and make a submodule
         self.base = base
 
-        # Run through each parameter and apply the map to convert the parameter to a distribution
-        # We also need to save what to sample at the top level
+        # Map each parameter to a distribution; record sample sites for each level.
         self.top = []
         self.bot = []
         for nm, m in self.base.named_modules():
             converted_params = []
             for n, val in list(m.named_parameters(recurse=False)):
                 upper_params, lower_param = parameter_mapper(self, n, val, nm + ".")
-                # Isn't this fun
                 delattr(m, n)
-                setattr(m, n, val.data.detach().clone())
+                setattr(m, n, val.detach().clone())
                 self.top.extend(upper_params)
                 self.bot.append((m, n, lower_param))
                 converted_params.append(n)
 
-            # This adds a new parameter to the module itself giving the *names* of the original parameters
-            # This is required for the adjoint method to do introspection on what to track
+            # Record original parameter names on the module so the adjoint
+            # method can introspect which parameters to track.
             m.converted_params = converted_params
 
-        # Setup noise
         if noise_prior.dim() == 0:
             self.sample_noise_outside = True
             self.eps = PyroSample(dist.HalfNormal(noise_prior))
@@ -143,53 +155,55 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         self.update_mask = update_mask
         self.mask = True
 
-    def _sample_top(self):
+    def _sample_top(self) -> list[torch.Tensor]:
         """Sample the top level parameter values"""
         return [getattr(self, n) for n in self.top]
 
-    def _sample_bot(self):
+    def _sample_bot(self) -> None:
         """Sample the lower level parameters and assign to the base module"""
         for mod, orig_name, name in self.bot:
             setattr(mod, orig_name, getattr(self, name))
 
-    def forward(self, *args, results=None, weights=None, **kwargs):
-        """Class the base forward with the appropriate args
+    def forward(
+        self,
+        *args: torch.Tensor,
+        results: torch.Tensor | None = None,
+        weights: torch.Tensor | None = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Call the base forward with the appropriate args.
 
         Args:
-            *args: whatever arguments the underlying model needs.  But at least one must be a tensor so we can infer the correct batch shapes!
+            *args: arguments forwarded to the underlying model. At least one must
+                be a tensor so the batch shape can be inferred.
 
         Keyword Args:
-            results (torch.tensor or None): results to condition on
-            weights (torch.tensor or None): weights on the results, default all ones
-
+            results (torch.tensor or None): results to condition on.
+            weights (torch.tensor or None): weights on the results; defaults to ones.
         """
         if len(args) == 0:
             raise ValueError(
-                "Model cannot use introspection to figure out the batch dimension!"
+                "At least one tensor argument is required to infer the batch dimension."
             )
 
         shape = args[0].shape[:-1]
         if len(shape) != 2:
-            raise ValueError("For now we require shape of (ntime, nbatch)")
+            raise ValueError("Input shape must be (ntime, nbatch).")
 
         if results is not None:
             if results.dim() != 3:
-                raise ValueError(
-                    "The results tensor should be a dim = 3 tensor, maybe unsqueeze your output?"
-                )
+                raise ValueError("The results tensor must be 3-dimensional.")
 
         if weights is None:
             weights = torch.ones(shape[-1], device=self.eps.device)
 
-        # Rather annoying that this is necessary, this is not a no-op as it tells pyro that these
-        # are *not* batched over the number of samples
+        # Sampling top-level here tells Pyro these are not batched over samples.
         _ = self._sample_top()
 
-        # Same here
         if self.sample_noise_outside:
             eps = self.eps
 
-        # Stupid way to write this, but pylint has trouble with scale and mask
+        # Nested context managers required so pylint can resolve scale and mask.
         with pyro.plate(
             "samples", shape[-1]
         ), pyro.poutine.scale_messenger.ScaleMessenger(

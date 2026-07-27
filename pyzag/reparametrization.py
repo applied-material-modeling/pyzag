@@ -24,6 +24,10 @@
 
 """Helper methods for reparameterizing modules, for example to scale parameter values and gradients"""
 
+from __future__ import annotations
+
+from typing import Mapping
+
 import torch
 from torch.nn.utils import parametrize
 
@@ -31,13 +35,18 @@ from torch.nn.utils import parametrize
 class RangeRescale(torch.nn.Module):
     """Scale parameter within bounds"""
 
-    def __init__(self, lb, ub, clamp=True):
+    def __init__(
+        self,
+        lb: torch.Tensor | float,
+        ub: torch.Tensor | float,
+        clamp: bool = True,
+    ) -> None:
         super().__init__()
         self.lb = lb
         self.ub = ub
         self.clamp = clamp
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Go from scaled to natural parameters
 
         Args:
@@ -48,7 +57,7 @@ class RangeRescale(torch.nn.Module):
 
         return X * (self.ub - self.lb) + self.lb
 
-    def reverse(self, X):
+    def reverse(self, X: torch.Tensor) -> torch.Tensor:
         """Go from natural to scaled parameter values
 
         Args:
@@ -59,7 +68,7 @@ class RangeRescale(torch.nn.Module):
             return torch.clamp(Y, 0, 1)
         return Y
 
-    def forward_std_dev(self, X):
+    def forward_std_dev(self, X: torch.Tensor) -> torch.Tensor:
         """Go from the standard deviation of a scaled normal to the actual standard deviation
 
         Args:
@@ -67,7 +76,7 @@ class RangeRescale(torch.nn.Module):
         """
         return torch.abs(self.ub - self.lb) * X
 
-    def reverse_std_dev(self, X):
+    def reverse_std_dev(self, X: torch.Tensor) -> torch.Tensor:
         """Go from the standard deviation of the actual normal to the standard deviation of the scaled normal
 
         Args:
@@ -87,11 +96,15 @@ class Reparameterizer:
 
     """
 
-    def __init__(self, map_dict, error_not_provided=False):
+    def __init__(
+        self,
+        map_dict: Mapping[str, RangeRescale],
+        error_not_provided: bool = False,
+    ) -> None:
         self.map_dict = map_dict
         self.error_not_provided = error_not_provided
 
-    def __call__(self, base):
+    def __call__(self, base: torch.nn.Module) -> None:
         """Apply the reparameterization strategy to a model
 
         This function:
@@ -115,12 +128,13 @@ class Reparameterizer:
                         pname,
                         self.map_dict[full_name],
                         mname + ".parametrizations." + pname + ".original",
-                        self.map_dict[full_name].reverse(parameter.data),
+                        self.map_dict[full_name].reverse(parameter.detach()),
                     )
                 )
 
-        # You need this because the reparameterization changes the named_parameters dict
+        # Re-fetch via the new name: registration changed the named_parameters dict.
         for module, pname, reparam, new_name, new_value in queue:
             parametrize.register_parametrization(module, pname, reparam)
             p_scaled = base.get_parameter(new_name)
-            p_scaled.data = new_value
+            with torch.no_grad():
+                p_scaled.copy_(new_value)

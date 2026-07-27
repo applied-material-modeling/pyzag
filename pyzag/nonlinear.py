@@ -22,13 +22,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Basic functionality for solving recursive nonlinear equations and calculating senstivities using the adjoint method"""
+r"""Solving recursive nonlinear equations and computing parameter sensitivities
+via the adjoint method.
+
+The solver integrates a recursive system whose residual couples consecutive
+steps (lookback 1):
+
+.. math::
+
+    R_k = f(x_k, x_{k-1};\, p) = 0, \qquad k = 1, \dots, n,
+
+solving the trajectory in chunks with a blocked Newton iteration. Parameter
+gradients are obtained by a reverse adjoint sweep that reuses the same chunk
+Jacobians, giving memory cost independent of ``n`` rather than backpropagating
+through every step.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Callable, Sequence
 
 import warnings
 
 import torch
 
 from pyzag import chunktime
+from pyzag.operators.base import BlockJacobian, BlockVector
 
 
 def _disable_donated_buffers() -> None:
@@ -51,7 +71,7 @@ def _disable_donated_buffers() -> None:
 
     This is deliberately blunt: it lowers a global torch default the first time a
     :class:`RecursiveNonlinearEquationSolver` is constructed. It is scoped to actual
-    pyzag use -- merely importing pyzag (or neml2) does not touch the default, so code
+    pyzag use -- merely importing pyzag does not touch the default, so code
     that never runs the adjoint is unaffected. A ``UserWarning`` is emitted once, when it
     takes effect. To keep donated buffers enabled, restore the default::
 
@@ -85,126 +105,154 @@ def _disable_donated_buffers() -> None:
         )
 
 
-class NonlinearRecursiveFunction(torch.nn.Module):
-    # pylint: disable=W0223,W0246
-    """Basic structure of a nonlinear recursive function
+class NonlinearFunctionOperator(ABC):
+    r"""Abstract operator passed to the Newton solver.
 
-    This class has two basic responsibilities, to define the residual and Jacobian of the function itself and second
-    to define the lookback.
+    The solver integrates a recursive nonlinear system whose per-step residual
+    has lookback ``L``:
 
-    The function and Jacobian are defined through `forward` so that this class is callable.
+        R_k = f(x_k, x_{k-1}, \dots, x_{k-L};\, u_k;\, p) = 0,
+        \qquad x_k \in \mathbb{R}^n
 
-    The lookback is defined as a property
+    A chunk covers ``m`` consecutive steps. The forces ``u_k`` and the lookback
+    tail ``x_0`` (the previous solution) are captured at construction; Newton
+    only varies the chunk unknowns ``x = (x_1, ..., x_m)``. Calling the operator
+    maps that trial state to ``(R, J)``:
 
-    The function here defines a series through the recursive relation
+    - ``R(x) = (R_1, ..., R_m)`` (a :class:`BlockVector`), with
+      ``R_k = f(x_k, x_{k-1}; u_k)``.
+    - ``J = dR/dx``. For ``L == 1`` this is block lower-bidiagonal, with
+      diagonal blocks ``A_k = dR_k/dx_k`` and subdiagonal blocks
+      ``B_k = dR_k/dx_{k-1}``, so that ``(J @ d)_k = A_k d_k + B_{k-1} d_{k-1}``
+      and all other blocks are zero.
 
-    .. math::
-        f(x_{n+1}, x_{n}, x_{n-1}, \\ldots) = 0
+    Newton iterates ``x <- x - J^{-1} R(x)``, solving ``J d = R`` each iteration
+    via the bidiagonal (Thomas/PCR) solver.
 
-    We denote the number of past entries in the time series used in defining this residual function as
-    the *lookback*.  A function with a lookback of 1 has the definition
-
-    .. math::
-        f(x_{n+1}, x_{n}) = 0
-
-    A lookback of 2 is
-
-    .. math::
-        f(x_{n+1}, x_{n}, x_{n-1}) = 0
-
-    etc.
-
-    *For the moment this class only supports functions with a lookback of 1!*.
-
-    The function also must provide the Jacobian of the residual with respect to each input.  So a function
-    with lookback 1 must provide both
-
-    .. math::
-        J_{n+1} = \\frac{\\partial f}{\\partial x_{n+1}}
-
-    and
-
-    .. math::
-        J_{n} = \\frac{\\partial f}{\\partial x_n}
-
-    The input and output shapes of the function as dictated by the lookback and the desired amount of time-vectorization.
-    Let's call the number of time steps to be solved for at once :math:`n_{block}` and the lookback as
-    :math:`n_{lookback}`.  Let's say our function has a state size :math:`\\left| x \\right| = n_{state}`.
-    Our convention is the first dimension of input and output is the batch time axis and the last
-    dimension is the true state size.  The input shape of the state :math:`x` must be
-    :math:`(n_{block} + n_{lookback}, \\ldots, n_{state})` where :math:`\\ldots` indicates some arbitrary
-    number of batch dimensions.  The output shape of the nonlinear residual will be
-    :math:`(n_{block}, \\ldots, n_{state})`.  The output shape of the Jacobian will be
-    :math:`(n_{lookback} + 1, n_{block}, \\ldots, n_{state}, n_{state})`.
-
-    Additionally, we allow the function to take some driving forces as input.  Mathematically we could
-    envision these as an additional input tensor :math:`u` with shape :math:`(n_{block} + n_{lookback}, \\ldots, n_{force})` and
-    we expand the residual function definition to be
-
-    .. math::
-        f(x_{n+1}, x_{n}, x_{n-1}, \\ldots, u_{n+1}, u_{n}, u_{n-1}, \\ldots) = 0
-
-    However, for convience we instead take these driving forces as python `*args` and `**kwargs`.  Each entry in `*args` and `**kwargs` must have a
-    shape of :math:`(n_{block} + n_{lookback}, \\ldots)` and we leave it to the user to use each entry as they see fit.
-
-    To put it another way, the only hard requirement for driving forces is that the first dimension of the
-    tensor must be slicable in the same way as the state :math:`x`.
+    Forces and time are captured at construction. Newton only passes the
+    state ``x`` as a :class:`BlockVector` and receives back ``(R, J)``
+    where ``R`` is a :class:`BlockVector` and ``J`` is a
+    :class:`chunktime.BidiagonalForwardOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @abstractmethod
+    def __call__(
+        self, x: BlockVector
+    ) -> tuple[BlockVector, "chunktime.BidiagonalForwardOperator"]:
+        """Return ``(residual, Jacobian operator)`` for current state ``x``."""
+
+
+class NonlinearFunctionOperatorFactory(ABC):
+    """Factory for chunk-level :class:`NonlinearFunctionOperator` objects.
+
+    The forward solve calls :meth:`make_operator` once per chunk to create
+    a stateful operator that captures the chunk's previous-solution lookback
+    and forces. The adjoint pass calls :meth:`evaluate_raw` to recompute
+    the residual and Jacobian; the latter as a backend-typed
+    :class:`BlockJacobian` consumed by the adjoint walk.
+
+    Subclasses must expose ``lookback`` and ``wrapper`` (typically as
+    properties) and implement :meth:`make_operator` and
+    :meth:`evaluate_raw`. The canonical :class:`ChunkOp` below is a
+    drop-in implementation that most subclasses can return from
+    ``make_operator`` without modification.
+    """
+
+    @property
+    @abstractmethod
+    def lookback(self) -> int:
+        """Number of previous solution steps the residual depends on.
+
+        Declared abstract so a subclass that forgets it fails at instantiation
+        rather than with a late ``AttributeError`` deep in the solver.
+        """
+
+    @property
+    @abstractmethod
+    def wrapper(self):
+        """Backend bridge (an :class:`~pyzag.ode.ODEWrapper`-like object) that
+        wraps/unwraps raw tensors as backend :class:`BlockVector` objects."""
+
+    @abstractmethod
+    def make_operator(
+        self,
+        prev_solution: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+        inverse_operator,
+    ) -> NonlinearFunctionOperator:
+        """Build a :class:`NonlinearFunctionOperator` for a single chunk."""
+
+    @abstractmethod
+    def evaluate_raw(
+        self,
+        x_full: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+    ) -> tuple[torch.Tensor, BlockJacobian]:
+        """Return ``(R, J)`` for adjoint reconstruction.
+
+        ``x_full`` includes the lookback steps prepended to the chunk
+        state. ``R`` is a raw torch tensor; ``J`` is a backend-typed
+        :class:`BlockJacobian`.
+        """
+
+
+class ChunkOp(NonlinearFunctionOperator):
+    """Generic per-chunk operator for any :class:`NonlinearFunctionOperatorFactory`.
+
+    Holds the chunk's previous-solution lookback and forces; on each
+    Newton call, assembles the full state, asks the factory for raw
+    ``(R, J)``, then wraps R via the factory's :class:`ODEWrapper` and
+    builds the chunk's forward bidiagonal system from the
+    :class:`BlockJacobian`. Most factories can return ``ChunkOp(self, ...)``
+    from their ``make_operator`` without modification.
+    """
+
+    def __init__(
+        self,
+        factory: NonlinearFunctionOperatorFactory,
+        prev_solution: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+        inverse_operator,
+    ) -> None:
+        self.factory = factory
+        self.prev_solution = prev_solution
+        self.forces = forces
+        self.inverse_operator = inverse_operator
+
+    def __call__(
+        self, x: BlockVector
+    ) -> tuple[BlockVector, "chunktime.BidiagonalForwardOperator"]:
+        x_chunk_raw = self.factory.wrapper.unwrap_vector(x)
+        x_full_raw = torch.cat([self.prev_solution, x_chunk_raw])
+
+        R_raw, J = self.factory.evaluate_raw(x_full_raw, self.forces)
+
+        R = self.factory.wrapper.wrap_vector(R_raw)
+        return R, J.forward_system(self.inverse_operator)
 
 
 class FullTrajectoryPredictor:
-    """Predict steps using a complete user-provided trajectory
+    """Predict steps using a complete user-provided trajectory."""
 
-    This is often used during optimization runs, where the provided trajectory could be the results from the previous step in the
-    optimization routine
-
-    Args:
-        history (torch.tensor):     tensor of shape :math:`(n_{time},...,n_{state})` giving a complete previous trajectory
-    """
-
-    def __init__(self, history):
+    def __init__(self, history: torch.Tensor) -> None:
         self.history = history
 
-    def predict(self, results, k, kinc):
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
         # pylint: disable=W0613
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
         return self.history[k : k + kinc]
 
 
 class ZeroPredictor:
-    """Predict steps just using zeros"""
+    """Predict steps just using zeros."""
 
-    def predict(self, results, k, kinc):
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
         return torch.zeros_like(results[k : k + kinc])
 
 
 class PreviousStepsPredictor:
-    """Predict by providing the values from the previous chunk of steps steps"""
+    """Predict by providing the values from the previous chunk of steps."""
 
-    def predict(self, results, k, kinc):
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
         if k - kinc < 0:
             res = torch.zeros_like(results[k : k + kinc])
             res[kinc - k :] = results[0:k]
@@ -215,16 +263,9 @@ class PreviousStepsPredictor:
 
 
 class LastStepPredictor:
-    """Predict by providing the values from the previous single step"""
+    """Predict by providing the values from the previous single step."""
 
-    def predict(self, results, k, kinc):
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
         if k < 1:
             return torch.zeros_like(results[k : k + kinc])
 
@@ -232,20 +273,11 @@ class LastStepPredictor:
 
 
 class StepExtrapolatingPredictor:
-    """Predict by extrapolating using the previous *chunks* of steps"""
+    """Predict by extrapolating using the previous chunks of steps."""
 
-    def predict(self, results, k, kinc):
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
-        if k < 1:
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
+        if k < 2:
             return torch.zeros_like(results[k : k + kinc])
-
-        results[k - 1].unsqueeze(0).expand((kinc,) + results.shape[1:])
 
         dinc = (results[k - 1] - results[k - 2]) + results[k - 1]
 
@@ -253,16 +285,9 @@ class StepExtrapolatingPredictor:
 
 
 class ExtrapolatingPredictor:
-    """Predict by extrapolating the values from the previous *single* steps"""
+    """Predict by extrapolating the values from the previous single steps."""
 
-    def predict(self, results, k, kinc):
-        """Predict the next steps
-
-        Args:
-            results (torch.tensor): current results tensor, filled up to step k.
-            k (int): start of current chunk
-            kinc (int): next number of steps to predict
-        """
+    def predict(self, results: torch.Tensor, k: int, kinc: int) -> torch.Tensor:
         if k - kinc < 0:
             res = torch.zeros_like(results[k : k + kinc])
             res[kinc - k :] = results[0:k]
@@ -277,29 +302,19 @@ class ExtrapolatingPredictor:
 
 
 class StepGenerator:
-    """Generate chunks of recursive steps to produce at once
+    """Generate chunks of recursive steps to produce at once."""
 
-    Args:
-        block_size (int):   regular chunk size
-        first_block_size (int): if > 0 then use a special first chunk size, after that use block_size
-    """
-
-    def __init__(self, block_size=1, first_block_size=0):
+    def __init__(self, block_size: int = 1, first_block_size: int = 0) -> None:
         self.block_size = block_size
         self.offset_step = first_block_size
         self.back = False
 
         self.n = 0
-        self.steps = []
-        self.pairs = []
+        self.steps: list[int] = []
+        self.pairs: list[tuple[int, int]] = []
         self.i = 0
 
-    def __call__(self, n):
-        """Generate n steps of chunks
-
-        Args:
-            n (int): number of steps
-        """
+    def __call__(self, n: int) -> "StepGenerator":
         self.back = False
         self.n = n
         self.steps = [1]
@@ -313,26 +328,38 @@ class StepGenerator:
 
         return self
 
-    def __iter__(self):
+    def __iter__(self) -> "StepGenerator":
         return self
 
-    def reverse(self):
-        """Reverse the iterator to yield chunks starting from the end"""
+    def reverse(self) -> "StepGenerator":
+        """Reverse the iterator to yield chunks starting from the end."""
         self.back = True
         rev = [
             (self.n - k2, self.n - k1)
             for k1, k2 in zip(self.steps[:-1], self.steps[1:])
         ][:-1]
-        if rev[-1][0] != 1:
-            rev += [(1, rev[-1][0])]
-        self.pairs = rev
+        if not rev:
+            # Single forward chunk: the ``[:-1]`` above drops the only reversed
+            # pair, so re-anchor the sole reverse chunk at block 1 (both the
+            # terminal seed ``k2 + 1 == n`` and the first block). Needs n >= 3
+            # (two transitions) for a non-degenerate chunk; a 2-point trajectory
+            # has a single transition the chunked adjoint cannot represent.
+            if self.n < 3:
+                raise NotImplementedError(
+                    "The adjoint pass requires at least 3 time steps in a single "
+                    f"chunk (got n={self.n}). Use more time steps."
+                )
+            self.pairs = [(1, self.n - 1)]
+        else:
+            if rev[-1][0] != 1:
+                rev += [(1, rev[-1][0])]
+            self.pairs = rev
 
         self.i = 0
 
         return self
 
-    def __next__(self):
-        """Iterate forward through the steps"""
+    def __next__(self) -> tuple[int, int]:
         self.i += 1
         if self.i <= len(self.pairs):
             return self.pairs[self.i - 1]
@@ -340,30 +367,19 @@ class StepGenerator:
 
 
 class InitialOffsetStepGenerator(StepGenerator):
-    """Generate chunks of recursive steps to produce at once
+    """Generate chunks of recursive steps with optional user-provided initial chunks."""
 
-    The user can provide a list of initial chunks to use, after which the object
-    goes back to chunks of block_size
-
-    Args:
-        block_size (int):   regular chunk size
-        initial_steps (list of int): initial steps
-    """
-
-    def __init__(self, *args, initial_steps=None, **kwargs):
+    def __init__(
+        self, *args, initial_steps: Sequence[int] | None = None, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if initial_steps is None:
-            self.initial_steps = []
+            self.initial_steps: list[int] = []
         else:
-            self.initial_steps = initial_steps
+            self.initial_steps = list(initial_steps)
 
-    def __call__(self, n):
-        """Generate n steps of chunks
-
-        Args:
-            n (int): number of steps
-        """
+    def __call__(self, n: int) -> "InitialOffsetStepGenerator":
         self.back = False
         self.n = n
         self.steps = [1]
@@ -379,39 +395,33 @@ class InitialOffsetStepGenerator(StepGenerator):
 
 
 class RecursiveNonlinearEquationSolver(torch.nn.Module):
-    """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives
+    """Generates a time series from a recursive nonlinear equation and (optionally) uses the adjoint method to provide derivatives.
 
-    The series is generated in a batched manner, generating ``block_size`` steps at a time.
-
-    Args:
-        func (:py:class:`pyzag.nonlinear.NonlinearRecursiveFunction`):   defines the nonlinear system
-
-    Keyword Args:
-        step_generator (:py:class:`pyzag.nonlinear.StepGenerator`): iterator to generate the blocks to integrate at once, default has a block size of 1 and no special fist step
-        predictor (:py:class:`pyzag.nonlinear.Predictor`): how to generate guesses for the nonlinear solve.  Default uses all zeros
-        direct_solve_operator (:py:class:`pyzag.chunktime.LUFactorization`):  how to solve the batched, blocked system of equations.  Default is to use Thomas's method
-        nonlinear_solver (:py:class:`pyzag.chunktime.ChunkNewtonRaphson`): how to solve the nonlinear system, default is plain Newton-Raphson
-        callbacks (None or list of functions): callback functions to apply after a successful step
-        convert_nan_gradients (bool): if True, convert NaN gradients to zero
+    ``func`` is a :class:`NonlinearFunctionOperatorFactory`. The factory
+    knows how to create chunk-level operators (for the forward solve) and
+    how to recompute residuals / Jacobians (for the adjoint). Built-in
+    factories include :class:`pyzag.ode.BackwardEulerODE` and
+    :class:`pyzag.ode.ForwardEulerODE`; users can also subclass
+    :class:`NonlinearFunctionOperatorFactory` directly and return
+    :class:`ChunkOp` from their ``make_operator``.
     """
 
     def __init__(
         self,
-        func,
-        step_generator=StepGenerator(1),
+        func: NonlinearFunctionOperatorFactory,
+        step_generator: StepGenerator = StepGenerator(1),
         predictor=ZeroPredictor(),
         direct_solve_operator=chunktime.BidiagonalThomasFactorization,
-        nonlinear_solver=chunktime.ChunkNewtonRaphson(),
-        callbacks=None,
-        convert_nan_gradients=True,
-    ):
+        nonlinear_solver: chunktime.ChunkNewtonRaphson = chunktime.ChunkNewtonRaphson(),
+        callbacks: Sequence[Callable[[torch.Tensor], torch.Tensor]] | None = None,
+        convert_nan_gradients: bool = True,
+    ) -> None:
         super().__init__()
         # Lower torch's AOTAutograd donated-buffer default so the adjoint (which uses
         # retain_graph=True) works with torch.compile'd models. Scoped here to actual
         # solver use, and runs before any solve compiles a backward. Process-global and
         # emits a one-time warning; see _disable_donated_buffers.
         _disable_donated_buffers()
-        # Store basic information
         self.func = func
 
         self.direct_solve_operator = direct_solve_operator
@@ -421,51 +431,36 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
         # Backward cache
         self.n = 0
-        self.forces = []
-        self.result = None
-        self.adjoint_params = []
+        self.forces: list[torch.Tensor] = []
+        self.result: torch.Tensor | None = None
+        self.adjoint_params: Sequence[torch.Tensor] = []
 
-        # For the moment we only accept lookback = 1
         if self.func.lookback != 1:
             raise ValueError(
-                f"The RecursiveNonlinearFunction has lookback = {self.func.lookback}, but the current solver only handles lookback = 1!"
+                f"The function factory has lookback = {self.func.lookback}, "
+                "but the current solver only handles lookback = 1!"
             )
 
         self.callbacks = callbacks
         self.convert_nan_gradients = convert_nan_gradients
 
     def forward(self, *args, **kwargs):
-        """Alias for solve
-
-        Args:
-            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
-            n (int):    number of recursive time steps to solve, step 1 is y0
-            ``*args``:      driving forces to pass to the model
-
-        Keyword Args:
-            adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
-        """
+        """Alias for solve."""
         return self.solve(*args, **kwargs)
 
-    def solve(self, y0, n, *args, adjoint_params=None):
-        """Solve the recursive equations for n steps
-
-        Args:
-            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
-            n (int):    number of recursive time steps to solve, step 1 is y0
-            ``*args``:      driving forces to pass to the model
-
-        Keyword Args:
-            adjoint_params (None or list of parameters): if provided, cache the information needed to run an adjoint pass over the parameters in the list
-        """
-        # Make sure our shapes are okay
+    def solve(
+        self,
+        y0: torch.Tensor,
+        n: int,
+        *args: torch.Tensor,
+        adjoint_params: Sequence[torch.Tensor] | None = None,
+    ) -> torch.Tensor:
+        """Solve the recursive equations for n steps."""
         self._check_shapes(y0, n, args)
 
-        # Setup results and store y0
         result = torch.empty(n, *y0.shape, dtype=y0.dtype, device=y0.device)
         result[0] = y0
 
-        # Actually solve
         for k1, k2 in self.step_generator(n):
             result[k1:k2] = self.block_update(
                 result[k1 - self.func.lookback : k1].clone(),
@@ -476,8 +471,12 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
                 for fn in self.callbacks:
                     result[k1:k2] = fn(result[k1:k2])
 
-        # Cache result and driving forces if needed for adjoint pass
-        if adjoint_params:
+        # Cache the trajectory whenever an adjoint pass is possible. ``None`` is
+        # the sentinel for a plain (non-adjoint) solve; an *empty* tuple is a
+        # valid adjoint solve with no differentiable parameters (e.g. computing
+        # only d(loss)/dy0), so it must still cache — hence ``is not None``
+        # rather than a truthiness check.
+        if adjoint_params is not None:
             self.n = n
             self.forces = [arg.clone() for arg in args]
             self.result = result.clone()
@@ -485,134 +484,124 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
         return result
 
-    def block_update(self, prev_solution, solution, forces):
-        """Actually update the recursive system
+    def block_update(
+        self,
+        prev_solution: torch.Tensor,
+        solution: torch.Tensor,
+        forces: Sequence[torch.Tensor],
+    ) -> torch.Tensor:
+        """Solve one chunk via Newton.
 
-        Args:
-            prev_solution (tensor): previous lookback steps of solution
-            solution (tensor): guess at nchunk steps of solution
-            forces (list of tensors): driving forces for next chunk plus lookback, to be passed as ``*args``
+        Builds a chunk-level operator from the factory, wraps the initial
+        guess as a :class:`BlockVector`, runs Newton, and unwraps back to
+        a raw tensor for the result array.
         """
+        fn = self.func.make_operator(prev_solution, forces, self.direct_solve_operator)
+        x0 = self.func.wrapper.wrap_vector(solution)
+        result = self.nonlinear_solver.solve(fn, x0)
+        return self.func.wrapper.unwrap_vector(result)
 
-        def RJ(y):
-            # Batch update the rate and jacobian
-            R, J = self.func(
-                torch.cat([prev_solution, y]),
-                *forces,
-            )
-            return R, chunktime.BidiagonalForwardOperator(
-                J[1], J[0, 1:], inverse_operator=self.direct_solve_operator
-            )
-
-        return self.nonlinear_solver.solve(RJ, solution)
-
-    def rewind(self, output_grad):
-        """Rewind through an adjoint pass to provide the dot product for each quantity in output_grad
-
-        Args:
-            output_grad (torch.tensor): thing to dot product with
-        """
-        # Setup storage for result
+    def rewind(
+        self, output_grad: torch.Tensor
+    ) -> tuple[tuple[torch.Tensor, ...], torch.Tensor]:
+        """Rewind through an adjoint pass to provide the dot product for each quantity in output_grad."""
         grad_result = tuple(
             torch.zeros(p.shape, device=output_grad.device) for p in self.adjoint_params
         )
 
-        # Loop backwards through time
         for k1, k2 in self.step_generator(len(self.result)).reverse():
-            # Get our block of the results
             with torch.enable_grad():
-                R, J = self.func(
+                R, J = self.func.evaluate_raw(
                     self.result[k1 - 1 : k2 + 1],
-                    *[f[k1 - 1 : k2 + 1] for f in self.forces],
+                    [f[k1 - 1 : k2 + 1] for f in self.forces],
                 )
-                # We want these in reverse order for the chunked update
                 R = R.flip(0)
-                J = J.flip(1)
+                J_walk = J.as_adjoint_walk()
 
-            # Setup initial condition if this is our first time through
             if k2 + 1 == len(self.result):
-                adjoint = -torch.linalg.solve(
-                    J[1, 0].transpose(-1, -2), output_grad[-1]
-                ).unsqueeze(0)
-                # And count the accumulation
+                adjoint = J_walk.solve_terminal_adjoint(output_grad[-1])
                 with torch.enable_grad():
                     grad_result = self.accumulate(
                         grad_result, adjoint, R[:1], retain=True
                     )
 
-            # Do the block adjoint update
             adjoint = self.block_update_adjoint(
-                J, output_grad[k1:k2].flip(0), adjoint[-1]
+                J_walk,
+                self.func.wrapper.wrap_vector(output_grad[k1:k2].flip(0)),
+                adjoint[-1:],
             )
 
-            # And accumulate
             with torch.enable_grad():
                 grad_result = self.accumulate(grad_result, adjoint, R[1:])
 
+        adj_last = self.func.wrapper.unwrap_vector(adjoint[-1:]).squeeze(0)
+
         if self.convert_nan_gradients:
             return tuple(torch.nan_to_num(g) for g in grad_result), torch.nan_to_num(
-                adjoint[-1]
+                adj_last
             )
 
-        return grad_result, adjoint[-1]
+        return grad_result, adj_last
 
-    def accumulate(self, grad_result, full_adjoint, R, retain=False):
-        """Accumulate the updated gradient values
-
-        Args:
-            grad_result (tuple of tensor): current gradient results
-            full_adjoint (torch.tensor): adjoint values
-            R (torch.tensor): function values, for AD
-
-        Keyword Args:
-            retain (bool): if True, retain the AD graph for a second pass
-        """
-        # This was a design choice.  Right now we don't know if parameters affect the initial conditions *only*
-        # or if they come into the recursive function somehow.  If they only affect the recursive function then
-        # grad will raise an error if you don't set allowed_unused.  If you do set it then you need to
-        # check for Nones in the output.
+    def accumulate(
+        self,
+        grad_result: tuple[torch.Tensor, ...],
+        adjoint: BlockVector,
+        R: torch.Tensor,
+        retain: bool = False,
+    ) -> tuple[torch.Tensor, ...]:
+        """Accumulate the updated gradient values."""
+        # No differentiable parameters (e.g. an IC-only adjoint solve): there is
+        # nothing to accumulate, and ``torch.autograd.grad`` rejects an empty
+        # ``inputs``. The y0 gradient is carried entirely by the adjoint
+        # recursion (``adj_last``), independent of this accumulation.
+        if not self.adjoint_params:
+            return grad_result
+        full_adjoint = self.func.wrapper.unwrap_vector(adjoint)
         g = torch.autograd.grad(
-            R, self.adjoint_params, full_adjoint, retain_graph=retain, allow_unused=True
+            R,
+            self.adjoint_params,
+            full_adjoint,
+            retain_graph=retain,
+            allow_unused=True,
         )
         return tuple(
             pi + gi if gi is not None else pi for pi, gi in zip(grad_result, g)
         )
 
-    def block_update_adjoint(self, J, grads, a_prev):
-        """Do the blocked adjoint solve
+    def block_update_adjoint(
+        self,
+        J: BlockJacobian,
+        grads: BlockVector,
+        a_prev: BlockVector,
+    ) -> BlockVector:
+        """Do the blocked adjoint solve.
 
-        Args:
-            J (torch.tensor):   block of jacobians
-            grads (torch.tensor): block of gradient values
-            a_prev (torch.tensor): previous adjoint value
-
-        Returns:
-            adjoint_block (torch.tensor): next block of updated adjoint values
+        ``J`` is the chunk's :class:`BlockJacobian` in adjoint-walk order
+        (i.e. the result of :meth:`BlockJacobian.as_adjoint_walk`). The
+        single-block inter-chunk coupling is delegated to
+        :meth:`BlockJacobian.couple_prev_chunk` so the solver never
+        touches raw tensor indexing.
         """
-        # Remember to transpose
-        operator = self.direct_solve_operator(
-            J[1, 1:].transpose(-1, -2), J[0, 1:-1].transpose(-1, -2)
-        )
+        operator = J.adjoint_system(self.direct_solve_operator)
+
+        # ``-grads`` already allocates a fresh vector (__neg__ copies), so the
+        # in-place boundary update below is safe without an extra clone.
         rhs = -grads
-        rhs[0] -= torch.matmul(J[0, 0].transpose(-1, -2), a_prev.unsqueeze(-1)).squeeze(
-            -1
-        )
+        rhs[0:1] = rhs[0:1] - J.couple_prev_chunk(a_prev)
 
         return operator.matvec(rhs)
 
-    def _check_shapes(self, y0, n, forces):
-        """Check the shapes of everything before starting the calculation
-
-        Args:
-            y0 (torch.tensor):  initial state values with shape ``(..., nstate)``
-            n (int):        number of recursive time steps
-            forces (list):  list of driving forces
-        """
+    def _check_shapes(
+        self, y0: torch.Tensor, n: int, forces: Sequence[torch.Tensor]
+    ) -> None:
+        """Check the shapes of everything before starting the calculation."""
         correct_force_batch_shape = (n,) + y0.shape[:-1]
         for f in forces:
             if f.shape[:-1] != correct_force_batch_shape:
                 raise ValueError(
-                    "One of the provided driving forces does not have the correct shape.  The batch shape should be "
+                    "One of the provided driving forces does not have the correct shape. "
+                    "The batch shape should be "
                     + str(correct_force_batch_shape)
                     + " but is instead "
                     + str(f.shape[:-1])
@@ -621,7 +610,7 @@ class RecursiveNonlinearEquationSolver(torch.nn.Module):
 
 class AdjointWrapper(torch.autograd.Function):
     # pylint: disable=all
-    """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD"""
+    """Defines the backward pass for pytorch, allowing us to mix the adjoint calculation with AD."""
 
     @staticmethod
     def forward(solver, y0, n, forces, *params):
@@ -638,35 +627,22 @@ class AdjointWrapper(torch.autograd.Function):
         with torch.no_grad():
             grad_res, adj_last = ctx.solver.rewind(output_grad)
             if ctx.needs_input_grad[1]:
-                return (None, -adj_last, None, None, *grad_res)
+                # ``y[0] == y0``, so the total y0 gradient is the adjoint
+                # propagated back through the recursion (``-adj_last``) PLUS the
+                # objective's *direct* dependence on the returned first block
+                # (``output_grad[0]``). Omitting the direct term under-counts
+                # d(loss)/dy0 when the loss depends on the returned initial state.
+                return (None, -adj_last + output_grad[0], None, None, *grad_res)
             return (None, None, None, None, *grad_res)
 
 
 def solve(solver, y0, n, *forces):
-    """Solve a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` for a time history without the adjoint method
-
-    Args:
-        solver (py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
-        n (int): number of recursive steps
-        ``*forces`` (``*args`` of tensors): driving forces
-    """
+    """Solve a :class:`RecursiveNonlinearEquationSolver` without the adjoint method."""
     return solver.solve(y0, n, *forces)
 
 
 def solve_adjoint(solver, y0, n, *forces):
-    """Apply a :py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver` to solve for a time history in an adjoint differentiable way
-
-    Args:
-        solver (:py:class:`pyzag.nonlinear.RecursiveNonlinearEquationSolver`): solve to apply
-        n (int): number of recursive steps
-        ``*forces`` (``*args`` of tensors): driving forces
-    """
-    # This is very fragile code to accomodate pyro
-    # 1) We no longer can use the list of torch parameters b/c we converted them to pyro distributions
-    # 2) We can't rely on a list of values (i.e. tensors) stored in converted_params because we need to
-    # .  grab these *after* pyro samples them
-    # 3) We can't rely on this object having a converted_params method because it might be a basic "unconverted"
-    #    pytorch module.
+    """Apply a :class:`RecursiveNonlinearEquationSolver` to solve adjoint-differentiably."""
     additional_params = []
     for m in solver.modules():
         if hasattr(m, "converted_params"):
