@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="pyzag.stochastic" href="stochastic.html" />
+    <link rel="next" title="pyzag.curvature" href="curvature.html" />
     <link rel="prev" title="pyzag.ode" href="ode.html" /> 
 </head>
 
@@ -59,9 +59,18 @@
 <li class="toctree-l4"><a class="reference internal" href="#pyzag.reparametrization.RangeRescale.reverse_std_dev"><code class="docutils literal notranslate"><span class="pre">RangeRescale.reverse_std_dev()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.reparametrization.CurvatureRescale"><code class="docutils literal notranslate"><span class="pre">CurvatureRescale</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.reparametrization.CurvatureRescale.forward"><code class="docutils literal notranslate"><span class="pre">CurvatureRescale.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.reparametrization.CurvatureRescale.reverse"><code class="docutils literal notranslate"><span class="pre">CurvatureRescale.reverse()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.reparametrization.CurvatureRescale.forward_std_dev"><code class="docutils literal notranslate"><span class="pre">CurvatureRescale.forward_std_dev()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.reparametrization.CurvatureRescale.reverse_std_dev"><code class="docutils literal notranslate"><span class="pre">CurvatureRescale.reverse_std_dev()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#pyzag.reparametrization.Reparameterizer"><code class="docutils literal notranslate"><span class="pre">Reparameterizer</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">pyzag.curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preconditioning.html">pyzag.preconditioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stochastic.html">pyzag.stochastic</a></li>
 </ul>
 </li>
@@ -147,6 +156,88 @@
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="pyzag.reparametrization.CurvatureRescale">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.reparametrization.</span></span><span class="sig-name descname"><span class="pre">CurvatureRescale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.CurvatureRescale" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Scale a parameter by a curvature-derived step size, with optional bounds.</p>
+<p>The data-driven counterpart of <a class="reference internal" href="#pyzag.reparametrization.RangeRescale" title="pyzag.reparametrization.RangeRescale"><code class="xref py py-class docutils literal notranslate"><span class="pre">RangeRescale</span></code></a>. Where that one takes
+the step scale from a hand-picked range width <code class="docutils literal notranslate"><span class="pre">(ub</span> <span class="pre">-</span> <span class="pre">lb)</span></code>, this takes it
+from the Gauss-Newton curvature, <code class="docutils literal notranslate"><span class="pre">scale</span> <span class="pre">=</span> <span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(diag</span> <span class="pre">H)</span></code> – build one
+per parameter with <a class="reference internal" href="preconditioning.html#pyzag.preconditioning.gauss_newton_rescalers" title="pyzag.preconditioning.gauss_newton_rescalers"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyzag.preconditioning.gauss_newton_rescalers()</span></code></a>.</p>
+<p><strong>This separates two jobs that a range rescale conflates.</strong> A range width
+both bounds the parameter and sets its step size, and those pull in opposite
+directions: bounds you can trust are wide, and wide bounds condition the
+problem badly. Here the scale comes from the data and <code class="docutils literal notranslate"><span class="pre">lb</span></code> / <code class="docutils literal notranslate"><span class="pre">ub</span></code> are
+bounds and nothing else, so they can be as generous as honesty requires
+without costing anything.</p>
+<p>Being a reparametrization rather than a gradient preconditioner, it works
+with <strong>any</strong> optimizer – including Adam, which is invariant to
+<a class="reference internal" href="preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner" title="pyzag.preconditioning.GaussNewtonPreconditioner"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.preconditioning.GaussNewtonPreconditioner</span></code></a> and rejects it.
+The optimizer’s own state (momentum, second moments) lives in the scaled
+coordinates along with the metric, which is what makes the pair coherent.</p>
+<p>It is <strong>static</strong>: the scale is fixed when it is built. If the curvature drifts
+materially over the fit, use <code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code>, which can refresh;
+re-scaling mid-run would invalidate a stateful optimizer’s moments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>scale</strong> (<em>torch.tensor</em>) – per-element step scale, <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(diag</span> <span class="pre">H)</span></code>.</p>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>offset</strong> (<em>torch.tensor</em><em> or </em><em>float</em>) – natural value at scaled zero (default 0).</p></li>
+<li><p><strong>ub</strong> (<em>lb</em><em>,</em>) – bounds in <strong>natural</strong> units, clamped
+after scaling. Both must be given, or neither. Note that swapping a
+<code class="docutils literal notranslate"><span class="pre">RangeRescale</span></code> for this one <em>drops its clamp</em> unless you pass these.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.reparametrization.CurvatureRescale.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.CurvatureRescale.forward" title="Link to this definition"></a></dt>
+<dd><p>Go from scaled to natural parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.tensor</em>) – scaled parameter values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.reparametrization.CurvatureRescale.reverse">
+<span class="sig-name descname"><span class="pre">reverse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.CurvatureRescale.reverse" title="Link to this definition"></a></dt>
+<dd><p>Go from natural to scaled parameter values</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.tensor</em>) – natural parameter values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.reparametrization.CurvatureRescale.forward_std_dev">
+<span class="sig-name descname"><span class="pre">forward_std_dev</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.CurvatureRescale.forward_std_dev" title="Link to this definition"></a></dt>
+<dd><p>Go from the standard deviation of a scaled normal to the actual standard deviation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.tensor</em>) – scaled standard deviation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.reparametrization.CurvatureRescale.reverse_std_dev">
+<span class="sig-name descname"><span class="pre">reverse_std_dev</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.CurvatureRescale.reverse_std_dev" title="Link to this definition"></a></dt>
+<dd><p>Go from the standard deviation of the actual normal to the standard deviation of the scaled normal</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.tensor</em>) – natural standard deviation</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="pyzag.reparametrization.Reparameterizer">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.reparametrization.</span></span><span class="sig-name descname"><span class="pre">Reparameterizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">map_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#pyzag.reparametrization.RangeRescale" title="pyzag.reparametrization.RangeRescale"><span class="pre">RangeRescale</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_not_provided</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.reparametrization.Reparameterizer" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
@@ -168,7 +259,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ode.html" class="btn btn-neutral float-left" title="pyzag.ode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="stochastic.html" class="btn btn-neutral float-right" title="pyzag.stochastic" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="curvature.html" class="btn btn-neutral float-right" title="pyzag.curvature" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

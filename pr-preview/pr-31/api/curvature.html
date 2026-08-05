@@ -1,0 +1,261 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pyzag.curvature &mdash; pyzag 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pyzag.preconditioning" href="preconditioning.html" />
+    <link rel="prev" title="pyzag.reparametrization" href="reparametrization.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            pyzag
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Additional topics:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">pyzag.operators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ode.html">pyzag.ode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.curvature</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.estimate"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.estimate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.nparam"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.nparam</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.pack"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.pack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.pack_grads"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.pack_grads()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.theta"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.theta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.vjp"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.vjp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.weights_flat"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.weights_flat()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.write_grads"><code class="docutils literal notranslate"><span class="pre">CurvatureEstimator.write_grads()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preconditioning.html">pyzag.preconditioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stochastic.html">pyzag.stochastic</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pyzag</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="api.html">API documentation</a></li>
+      <li class="breadcrumb-item active">pyzag.curvature</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/curvature.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-pyzag.curvature">
+<span id="pyzag-curvature"></span><h1>pyzag.curvature<a class="headerlink" href="#module-pyzag.curvature" title="Link to this heading"></a></h1>
+<p>Gauss-Newton curvature extraction, shared by everything that needs <code class="docutils literal notranslate"><span class="pre">H</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">J^T</span> <span class="pre">W</span> <span class="pre">J</span></code> for a residual <code class="docutils literal notranslate"><span class="pre">r(theta)</span></code>, formed without ever materializing
+the dense Jacobian: each sampled row costs one reverse-mode sweep. Two consumers
+build on this, and they want quite different things from it:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature" title="pyzag.preconditioning.GaussNewtonCurvature"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.preconditioning.GaussNewtonCurvature</span></code></a> – caching, staleness and
+Levenberg-Marquardt damping, to precondition a training loop step by step;</p></li>
+<li><p><a class="reference internal" href="preconditioning.html#pyzag.preconditioning.gauss_newton_rescalers" title="pyzag.preconditioning.gauss_newton_rescalers"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyzag.preconditioning.gauss_newton_rescalers()</span></code></a> – a single estimate, to
+build a static reparametrization.</p></li>
+</ul>
+<p>Keeping the extraction here means one implementation of the row sampling, the
+cotangent grouping and the packing, rather than one per consumer.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.curvature.</span></span><span class="sig-name descname"><span class="pre">CurvatureEstimator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameters</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'diag'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cotangents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'random'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator" title="Link to this definition"></a></dt>
+<dd><p>Form the Gauss-Newton curvature <code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">J^T</span> <span class="pre">W</span> <span class="pre">J</span></code> of a residual.</p>
+<p>The estimation half of Gauss-Newton, with no notion of an optimizer, a
+training loop, or a cached value that might go stale. It packs a parameter
+list into a flat vector, takes reverse-mode products against a residual, and
+turns a chosen set of rows into <code class="docutils literal notranslate"><span class="pre">H</span></code>. Two rather different consumers need
+exactly that and nothing more:</p>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonCurvature</span></code> adds caching, staleness and damping, to
+precondition a training loop step by step;</p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">gauss_newton_rescalers()</span></code> calls <a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.estimate" title="pyzag.curvature.CurvatureEstimator.estimate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">estimate()</span></code></a> exactly once, to
+build a static reparametrization.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>parameters</strong> (<em>iterable</em><em> of </em><em>Tensor</em>) – leaf tensors with <code class="docutils literal notranslate"><span class="pre">requires_grad=True</span></code>.
+Their shapes and order are frozen here.</p>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>mode</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;diag&quot;</span></code> (default) or <code class="docutils literal notranslate"><span class="pre">&quot;full&quot;</span></code>.</p></li>
+<li><p><strong>nsub</strong> (<em>int</em><em> or </em><em>None</em>) – residual rows to subsample, one reverse sweep each.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> (default) uses <strong>every</strong> row, which is exact. Subsampling is
+an opt-in trade: see <a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.estimate" title="pyzag.curvature.CurvatureEstimator.estimate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">estimate()</span></code></a> for what it costs you.
+Ignored if <code class="docutils literal notranslate"><span class="pre">sample_indices</span></code> or <code class="docutils literal notranslate"><span class="pre">cotangents</span></code> is given.</p></li>
+<li><p><strong>sample_indices</strong> (<em>array-like</em><em> of </em><em>int</em><em>, </em><em>optional</em>) – explicit rows to sample.</p></li>
+<li><p><strong>cotangents</strong> (<em>callable</em><em> or </em><em>sequence</em><em>, </em><em>optional</em>) – custom cotangents; see
+<a class="reference internal" href="#pyzag.curvature.CurvatureEstimator.estimate" title="pyzag.curvature.CurvatureEstimator.estimate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">estimate()</span></code></a> for the precondition they carry.</p></li>
+<li><p><strong>weights</strong> (<em>Tensor</em><em>, </em><em>optional</em>) – diagonal of <code class="docutils literal notranslate"><span class="pre">W</span></code>, broadcastable to the
+residual shape. <code class="docutils literal notranslate"><span class="pre">None</span></code> means <code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">I</span></code>.</p></li>
+<li><p><strong>generator</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – RNG for reproducible subsampling.</p></li>
+<li><p><strong>sampling</strong> (<em>str</em>) – <p><code class="docutils literal notranslate"><span class="pre">&quot;random&quot;</span></code> (default) draws uniformly without
+replacement; <code class="docutils literal notranslate"><span class="pre">&quot;stratified&quot;</span></code> draws one row from each of <code class="docutils literal notranslate"><span class="pre">nsub</span></code>
+equal blocks of the flattened residual.</p>
+<p>Measured on the NEML2 calibration the two are equivalent: both give a
+usable scale above <code class="docutils literal notranslate"><span class="pre">nsub</span> <span class="pre">~</span> <span class="pre">32</span></code> and both fail below it, because a
+parameter whose sensitivity is concentrated in a small part of the
+residual can be missed either way. Stratified is offered because it
+cannot alias against a <code class="docutils literal notranslate"><span class="pre">(ntime,</span> <span class="pre">nbatch)</span></code> layout the way an explicit
+stride can, but it is not a substitute for a large enough <code class="docutils literal notranslate"><span class="pre">nsub</span></code>.</p>
+<p><strong>Watch the scale, not H.</strong> <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(H)</span></code> amplifies a near-zero
+entry without bound, so <code class="docutils literal notranslate"><span class="pre">||H</span> <span class="pre">-</span> <span class="pre">H_exact||</span></code> badly understates the
+damage: at <code class="docutils literal notranslate"><span class="pre">nsub=8</span></code> that norm is 17% off while the scale it implies
+is wrong by twelve orders of magnitude.</p>
+</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.estimate">
+<span class="sig-name descname"><span class="pre">estimate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.estimate" title="Link to this definition"></a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">(H,</span> <span class="pre">nsweeps)</span></code>, sampling rows as configured.</p>
+<p>With a custom <code class="docutils literal notranslate"><span class="pre">cotangents</span></code> sequence each cotangent costs one sweep, but
+the vector it returns is the <strong>sum</strong> of the rows it selects. That sum is
+the correct contribution only when those rows have <strong>disjoint parameter
+support</strong> – otherwise the estimate picks up cross terms. Valid for
+block-diagonal Jacobians (one cotangent per time step across a
+<code class="docutils literal notranslate"><span class="pre">pyro.plate</span></code> of independent specimens); invalid for parameters shared
+across the grouped rows, which must be handled separately.</p>
+<p>Custom cotangents also carry their own weighting: put <code class="docutils literal notranslate"><span class="pre">sqrt(w_k)</span></code> in
+entry <code class="docutils literal notranslate"><span class="pre">k</span></code> rather than 1, since <code class="docutils literal notranslate"><span class="pre">(sum_k</span> <span class="pre">sqrt(w_k)</span> <span class="pre">J_k)^2</span></code> equals
+<code class="docutils literal notranslate"><span class="pre">sum_k</span> <span class="pre">w_k</span> <span class="pre">J_k^2</span></code> when the supports are disjoint. They are used as
+given, with no <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">/</span> <span class="pre">nsampled</span></code> extrapolation – a custom grouping
+describes its own coverage.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.nparam">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nparam</span></span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.nparam" title="Link to this definition"></a></dt>
+<dd><p>Total number of scalar parameters <code class="docutils literal notranslate"><span class="pre">p</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.pack">
+<span class="sig-name descname"><span class="pre">pack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grads</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.pack" title="Link to this definition"></a></dt>
+<dd><p>Flatten a per-parameter gradient tuple to a length-<code class="docutils literal notranslate"><span class="pre">p</span></code> vector,
+substituting zeros for <code class="docutils literal notranslate"><span class="pre">None</span></code> (the <code class="docutils literal notranslate"><span class="pre">allow_unused</span></code> case).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.pack_grads">
+<span class="sig-name descname"><span class="pre">pack_grads</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.pack_grads" title="Link to this definition"></a></dt>
+<dd><p>Flatten the parameters’ current <code class="docutils literal notranslate"><span class="pre">.grad</span></code> to a length-<code class="docutils literal notranslate"><span class="pre">p</span></code> vector.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.theta">
+<span class="sig-name descname"><span class="pre">theta</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.theta" title="Link to this definition"></a></dt>
+<dd><p>Flat, detached copy of the current parameter values.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.vjp">
+<span class="sig-name descname"><span class="pre">vjp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cotangent</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.vjp" title="Link to this definition"></a></dt>
+<dd><p>One reverse-mode sweep: J^T cotangent, packed to a length-p vector.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.weights_flat">
+<span class="sig-name descname"><span class="pre">weights_flat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.weights_flat" title="Link to this definition"></a></dt>
+<dd><p>The diagonal of <code class="docutils literal notranslate"><span class="pre">W</span></code>, flattened to match the flattened residual.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.curvature.CurvatureEstimator.write_grads">
+<span class="sig-name descname"><span class="pre">write_grads</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.curvature.CurvatureEstimator.write_grads" title="Link to this definition"></a></dt>
+<dd><p>Overwrite every parameter’s <code class="docutils literal notranslate"><span class="pre">.grad</span></code> with the matching slice of
+<code class="docutils literal notranslate"><span class="pre">vec</span></code>. Any previously accumulated gradient is discarded.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="reparametrization.html" class="btn btn-neutral float-left" title="pyzag.reparametrization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="preconditioning.html" class="btn btn-neutral float-right" title="pyzag.preconditioning" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Argonne National Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

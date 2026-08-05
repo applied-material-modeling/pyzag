@@ -1,0 +1,792 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pyzag.preconditioning &mdash; pyzag 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pyzag.stochastic" href="stochastic.html" />
+    <link rel="prev" title="pyzag.curvature" href="curvature.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            pyzag
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Additional topics:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">API documentation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nonlinear.html">pyzag.nonlinear</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chunktime.html">pyzag.chunktime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operators.html">pyzag.operators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ode.html">pyzag.ode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reparametrization.html">pyzag.reparametrization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">pyzag.curvature</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">pyzag.preconditioning</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.H"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.H</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.adapt_damping()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.begin_step"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.begin_step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.gain_ratio()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.note_refresh"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.note_refresh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.note_step"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.note_step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.precondition"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.precondition()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.refresh"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.refresh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.reject_failed_evaluation"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.reject_failed_evaluation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.request_refresh"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.request_refresh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.reset_anchor"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.reset_anchor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.set_H"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.set_H()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.should_refresh"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.should_refresh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.undo_last_step"><code class="docutils literal notranslate"><span class="pre">GaussNewtonCurvature.undo_last_step()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.lam"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.lam</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.mode"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.mode</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_refresh_sweeps"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.n_refresh_sweeps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_refreshes"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.n_refreshes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_steps"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.n_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.parameters"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.parameters</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.refresh_steps"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.refresh_steps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.rho"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.rho</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.step"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner.zero_grad"><code class="docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner.zero_grad()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.apply_preconditioned_update"><code class="docutils literal notranslate"><span class="pre">apply_preconditioned_update()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.check_optimizer_is_memoryless"><code class="docutils literal notranslate"><span class="pre">check_optimizer_is_memoryless()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.check_optimizer_respects_gradient_scale"><code class="docutils literal notranslate"><span class="pre">check_optimizer_respects_gradient_scale()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pyzag.preconditioning.gauss_newton_rescalers"><code class="docutils literal notranslate"><span class="pre">gauss_newton_rescalers()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-scaler">The scaler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#preconditioning-an-svi-fit">Preconditioning an SVI fit</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stochastic.html">pyzag.stochastic</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pyzag</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="api.html">API documentation</a></li>
+      <li class="breadcrumb-item active">pyzag.preconditioning</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/preconditioning.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="pyzag-preconditioning">
+<h1>pyzag.preconditioning<a class="headerlink" href="#pyzag-preconditioning" title="Link to this heading"></a></h1>
+<p>Two ways to use the Gauss-Newton curvature of a calibration residual, sharing one
+estimator. Pick by whether the curvature drifts over the fit:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 30.0%" />
+<col style="width: 25.0%" />
+<col style="width: 25.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>lever</p></th>
+<th class="head"><p>what it does</p></th>
+<th class="head"><p>optimizers</p></th>
+<th class="head"><p>refreshes?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code></p></td>
+<td><p>reshapes the gradient each step</p></td>
+<td><p>SGD-family only</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-func docutils literal notranslate"><span class="pre">gauss_newton_rescalers()</span></code></p></td>
+<td><p>changes coordinates once</p></td>
+<td><p><strong>any</strong>, incl. Adam</p></td>
+<td><p>no</p></td>
+</tr>
+</tbody>
+</table>
+<p>Adam and its relatives divide each coordinate by its own running gradient RMS, so
+they are <em>exactly invariant</em> to gradient preconditioning – the preconditioner
+rejects them rather than silently doing nothing. Use the reparametrization lever
+with those.</p>
+<p id="module-pyzag.preconditioning">Gauss-Newton curvature for least-squares model calibration: two levers.</p>
+<p>When calibrating a model against data by minimizing a least-squares loss
+<code class="docutils literal notranslate"><span class="pre">L(theta)</span> <span class="pre">=</span> <span class="pre">1/2</span> <span class="pre">r(theta)^T</span> <span class="pre">W</span> <span class="pre">r(theta)</span></code> (<code class="docutils literal notranslate"><span class="pre">r</span></code> the residual, <code class="docutils literal notranslate"><span class="pre">W</span></code> a diagonal
+weight), the raw gradient is badly scaled whenever the parameters have
+heterogeneous magnitudes or sensitivities – which slows first-order optimizers.
+The usual fix, <a class="reference internal" href="reparametrization.html#module-pyzag.reparametrization" title="pyzag.reparametrization"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyzag.reparametrization</span></code></a>, rescales each parameter by a
+hand-picked range <code class="docutils literal notranslate"><span class="pre">(ub</span> <span class="pre">-</span> <span class="pre">lb)</span></code>; that works but demands prior knowledge of every
+parameter’s range.</p>
+<p>This module offers data-driven alternatives that need <strong>no ranges</strong>, both built on
+the Gauss-Newton curvature <code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">J^T</span> <span class="pre">W</span> <span class="pre">J</span></code> (<code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">=</span> <span class="pre">dr/dtheta</span></code>) and both sharing one
+estimator, <code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code>. It never forms the dense Jacobian: <code class="docutils literal notranslate"><span class="pre">H</span></code>
+comes from a small <strong>subsample</strong> of residual rows, one reverse-mode sweep each.</p>
+<p><strong>Lever 1 – preconditioning</strong> (<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner" title="pyzag.preconditioning.GaussNewtonPreconditioner"><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code></a>), a wrapper
+around a torch optimizer that reshapes the gradient every step:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">theta</span> <span class="o">&lt;-</span> <span class="n">optimizer_update</span><span class="p">(</span> <span class="p">(</span><span class="n">H</span> <span class="o">+</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">diag</span><span class="p">(</span><span class="n">H</span><span class="p">))</span><span class="o">^</span><span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">}</span> <span class="o">@</span> <span class="n">grad</span> <span class="p">)</span>
+</pre></div>
+</div>
+<p>It can refresh <code class="docutils literal notranslate"><span class="pre">H</span></code> as the fit moves, and at <code class="docutils literal notranslate"><span class="pre">lr=1</span></code> with SGD the update is
+exactly the damped Gauss-Newton step, so there is nothing to tune. It requires an
+optimizer whose step is proportional to its gradient – see the note below.</p>
+<p><strong>Lever 2 – static reparametrization</strong>
+(<a class="reference internal" href="#pyzag.preconditioning.gauss_newton_rescalers" title="pyzag.preconditioning.gauss_newton_rescalers"><code class="xref py py-func docutils literal notranslate"><span class="pre">gauss_newton_rescalers()</span></code></a> + <a class="reference internal" href="reparametrization.html#pyzag.reparametrization.CurvatureRescale" title="pyzag.reparametrization.CurvatureRescale"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.reparametrization.CurvatureRescale</span></code></a>),
+which estimates <code class="docutils literal notranslate"><span class="pre">H</span></code> <strong>once</strong> and changes coordinates by <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(diag</span> <span class="pre">H)</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">scalers</span> <span class="o">=</span> <span class="n">gauss_newton_rescalers</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">(),</span> <span class="n">residual_closure</span><span class="p">)</span>
+<span class="n">Reparameterizer</span><span class="p">(</span><span class="n">scalers</span><span class="p">)(</span><span class="n">model</span><span class="p">)</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=...</span><span class="p">)</span>   <span class="c1"># any optimizer</span>
+</pre></div>
+</div>
+<p>Because it is a reparametrization the optimizer’s own state moves into the scaled
+coordinates with the metric, so it works with <strong>any</strong> optimizer, Adam included.
+It cannot refresh, though: re-scaling mid-run would invalidate a stateful
+optimizer’s moments.</p>
+<p>Which to reach for:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>curvature over the fit</p></th>
+<th class="head"><p>lever</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>stable</p></td>
+<td><p><strong>reparametrization</strong> – one estimate, any optimizer</p></td>
+</tr>
+<tr class="row-odd"><td><p>drifts</p></td>
+<td><p><strong>preconditioning</strong> – refreshes, SGD-family only</p></td>
+</tr>
+</tbody>
+</table>
+<p>Both are alternatives to a hand-picked <code class="docutils literal notranslate"><span class="pre">RangeRescale</span></code>, and lever 2 additionally
+<em>separates</em> the two jobs a range width does today: it takes the step scale from
+the data, leaving <code class="docutils literal notranslate"><span class="pre">lb</span></code> / <code class="docutils literal notranslate"><span class="pre">ub</span></code> free to be honest bounds rather than a
+compromise between bounding and conditioning.</p>
+<p>Damping in lever 1 is Marquardt (<code class="docutils literal notranslate"><span class="pre">lam</span> <span class="pre">*</span> <span class="pre">diag(H)</span></code>), invariant to parameter scales.</p>
+<p>The <strong>gain ratio</strong> – observed loss reduction over the reduction the quadratic
+model predicted – drives two independent mechanisms, and it is worth keeping
+them apart:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>knob</p></th>
+<th class="head"><p>question</p></th>
+<th class="head"><p>action</p></th>
+<th class="head"><p>cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rho</span></code></p></td>
+<td><p>is the cached H stale?</p></td>
+<td><p>recompute H</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nsub</span></code> sweeps</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lam_adapt</span></code></p></td>
+<td><p>is the step too long?</p></td>
+<td><p>adapt lam, reject bad step</p></td>
+<td><p>free</p></td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">rho=None</span></code> turns off refreshing (compute <code class="docutils literal notranslate"><span class="pre">H</span></code> once and reuse it) but leaves
+damping active – which matters <em>more</em> in that configuration, since refreshing is
+no longer available as a corrective. Damping costs nothing extra: it reuses loss
+values the training loop already has.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The base optimizer’s step must be <strong>proportional to the gradient it is
+given</strong> – SGD, with or without momentum. That proportionality is what makes
+the update the damped Gauss-Newton step.</p>
+<p><strong>Adam and its relatives do not qualify.</strong> They divide each coordinate by its
+own running gradient RMS, so multiplying the gradient by a diagonal leaves
+their step exactly unchanged; wrapping one is a no-op, not a weaker effect.
+The constructor rejects them for that reason. To condition a problem you
+intend to optimize with Adam, change coordinates instead –
+<a class="reference internal" href="reparametrization.html#module-pyzag.reparametrization" title="pyzag.reparametrization"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyzag.reparametrization</span></code></a> composes with Adam precisely because a
+reparametrization also moves the optimizer’s own state into the new space,
+which a preconditioner applied to the gradient cannot do.</p>
+</div>
+<p>Typical use (no parameter ranges required):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="n">pre</span> <span class="o">=</span> <span class="n">GaussNewtonPreconditioner</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">rho</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">nsub</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">niter</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">pre</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">model</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">loading</span><span class="p">)</span> <span class="o">-</span> <span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The closure returns the <strong>residual vector</strong> <code class="docutils literal notranslate"><span class="pre">r(theta)</span></code> (differentiable w.r.t. the
+parameters); the preconditioner computes the gradient and curvature from it. At
+<code class="docutils literal notranslate"><span class="pre">lr=1</span></code> with SGD the update is exactly the damped Gauss-Newton step.</p>
+<p>Forming <code class="docutils literal notranslate"><span class="pre">H</span></code> lives in <a class="reference internal" href="curvature.html#module-pyzag.curvature" title="pyzag.curvature"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyzag.curvature</span></code></a>
+(<a class="reference internal" href="curvature.html#pyzag.curvature.CurvatureEstimator" title="pyzag.curvature.CurvatureEstimator"><code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code></a>), shared by both levers.
+<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature" title="pyzag.preconditioning.GaussNewtonCurvature"><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonCurvature</span></code></a> extends it with the caching, staleness and damping a
+training loop needs. <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner" title="pyzag.preconditioning.GaussNewtonPreconditioner"><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code></a> drives a plain torch loop;
+<a class="reference internal" href="stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim" title="pyzag.stochastic.PyroGaussNewtonOptim"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.stochastic.PyroGaussNewtonOptim</span></code></a> drives Pyro SVI, where the training
+loop belongs to somebody else.</p>
+<p>Scope / notes:</p>
+<ul class="simple">
+<li><p>Physical <strong>bounds are intentionally not handled here</strong> – a preconditioner only
+rescales the step direction. Enforce bounds separately (e.g. a projection after
+<code class="docutils literal notranslate"><span class="pre">step</span></code> or a bounds-only <a class="reference internal" href="reparametrization.html#module-pyzag.reparametrization" title="pyzag.reparametrization"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyzag.reparametrization</span></code></a>).</p></li>
+<li><p>Non-finite residuals or preconditioned gradients (which stiff models can
+produce) cause the update to be <strong>skipped with a warning</strong>, never silently.</p></li>
+<li><p>For <code class="docutils literal notranslate"><span class="pre">mode=&quot;full&quot;</span></code> use <code class="docutils literal notranslate"><span class="pre">nsub</span></code> (or <code class="docutils literal notranslate"><span class="pre">len(sample_indices)</span></code>) at least the number
+of parameters, otherwise the sampled <code class="docutils literal notranslate"><span class="pre">H</span></code> is rank deficient.</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">GaussNewtonCurvature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameters</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lam</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lam_adapt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_refresh_interval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">estimator_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature" title="Link to this definition"></a></dt>
+<dd><p>A <code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code> plus the state a training loop needs.</p>
+<p>Caches <code class="docutils literal notranslate"><span class="pre">H</span></code>, judges when it has gone stale (<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.should_refresh" title="pyzag.preconditioning.GaussNewtonCurvature.should_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">should_refresh()</span></code></a>), and
+runs the Levenberg-Marquardt damping schedule (<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">adapt_damping()</span></code></a>). A
+driver calls <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.begin_step" title="pyzag.preconditioning.GaussNewtonCurvature.begin_step"><code class="xref py py-meth docutils literal notranslate"><span class="pre">begin_step()</span></code></a>, <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio" title="pyzag.preconditioning.GaussNewtonCurvature.gain_ratio"><code class="xref py py-meth docutils literal notranslate"><span class="pre">gain_ratio()</span></code></a>, <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">adapt_damping()</span></code></a>,
+<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.should_refresh" title="pyzag.preconditioning.GaussNewtonCurvature.should_refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">should_refresh()</span></code></a>, <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.refresh" title="pyzag.preconditioning.GaussNewtonCurvature.refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">refresh()</span></code></a>, <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.precondition" title="pyzag.preconditioning.GaussNewtonCurvature.precondition"><code class="xref py py-meth docutils literal notranslate"><span class="pre">precondition()</span></code></a> and
+<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.note_step" title="pyzag.preconditioning.GaussNewtonCurvature.note_step"><code class="xref py py-meth docutils literal notranslate"><span class="pre">note_step()</span></code></a> in that order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rho</strong> (<em>float</em><em> or </em><em>None</em>) – gain-ratio threshold; <code class="docutils literal notranslate"><span class="pre">None</span></code> never refreshes after
+the first step (a fixed preconditioner).</p></li>
+<li><p><strong>lam</strong> (<em>float</em>) – initial Marquardt damping factor.</p></li>
+<li><p><strong>lam_adapt</strong> (<em>bool</em>) – adapt <code class="docutils literal notranslate"><span class="pre">lam</span></code> from the gain ratio – grow it when a step
+underdelivers, shrink it when a step delivers, reject a step that
+increased the loss. See <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">adapt_damping()</span></code></a>.</p></li>
+<li><p><strong>min_refresh_interval</strong> (<em>int</em>) – steps that must reuse the cached curvature
+before it may be refreshed again. The default 1 allows a refresh at
+most every other step; pass 0 to allow one on every step.</p></li>
+<li><p><strong>on_refresh</strong> (<em>callable</em><em>, </em><em>optional</em>) – called on every refresh as
+<code class="docutils literal notranslate"><span class="pre">on_refresh(step=...,</span> <span class="pre">gain_ratio=...,</span> <span class="pre">n_refresh=...)</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Every other keyword is forwarded to <code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code>.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.H">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">H</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.H" title="Link to this definition"></a></dt>
+<dd><p>a length-<code class="docutils literal notranslate"><span class="pre">p</span></code> vector (diag) or <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">x</span> <span class="pre">p</span></code> matrix
+(full), or <code class="docutils literal notranslate"><span class="pre">None</span></code> before the first refresh.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The cached curvature</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping">
+<span class="sig-name descname"><span class="pre">adapt_damping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gain_ratio</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="Link to this definition"></a></dt>
+<dd><p>Levenberg-Marquardt damping update, driven by the gain ratio.</p>
+<p>Gauss-Newton drops the <code class="docutils literal notranslate"><span class="pre">sum(r_i</span> <span class="pre">*</span> <span class="pre">grad^2</span> <span class="pre">r_i)</span></code> term of the true
+Hessian, and that term is not always small. For a Gaussian scale
+parameter in unconstrained coordinates (<code class="docutils literal notranslate"><span class="pre">sigma</span> <span class="pre">=</span> <span class="pre">exp(u)</span></code>) the dropped
+term is <code class="docutils literal notranslate"><span class="pre">r^2</span></code> – exactly as large as the Gauss-Newton term <code class="docutils literal notranslate"><span class="pre">r^2</span></code>
+itself – so the undamped step is a systematic factor-of-two overshoot in
+every scale coordinate. Damping is what absorbs that: on a step whose
+observed reduction falls short of the quadratic model’s prediction,
+<code class="docutils literal notranslate"><span class="pre">lam</span></code> grows and the step shrinks towards gradient descent; on a step
+that delivers, <code class="docutils literal notranslate"><span class="pre">lam</span></code> decays back towards the full Newton step.</p>
+<p>Rejection keys off the <strong>observed</strong> loss increase, not off
+<code class="docutils literal notranslate"><span class="pre">gain_ratio</span></code>. The two are not interchangeable: <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio" title="pyzag.preconditioning.GaussNewtonCurvature.gain_ratio"><code class="xref py py-meth docutils literal notranslate"><span class="pre">gain_ratio()</span></code></a>
+returns a <code class="docutils literal notranslate"><span class="pre">-1.0</span></code> sentinel when the <em>quadratic model</em> predicted an
+increase, which says the curvature is stale, not that the step was bad –
+the actual loss may well have fallen. Reading that sentinel as a
+regression would back out perfectly good steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_v</strong> (<em>float</em>) – objective at the current parameters.</p></li>
+<li><p><strong>gain_ratio</strong> (<em>float</em><em> or </em><em>None</em>) – from <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio" title="pyzag.preconditioning.GaussNewtonCurvature.gain_ratio"><code class="xref py py-meth docutils literal notranslate"><span class="pre">gain_ratio()</span></code></a>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the previous step should be <strong>rejected</strong> – the
+loss went up, so the caller should call <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.undo_last_step" title="pyzag.preconditioning.GaussNewtonCurvature.undo_last_step"><code class="xref py py-meth docutils literal notranslate"><span class="pre">undo_last_step()</span></code></a>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.begin_step">
+<span class="sig-name descname"><span class="pre">begin_step</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.begin_step" title="Link to this definition"></a></dt>
+<dd><p>Advance the step counter. Returns the new 0-based step index.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.gain_ratio">
+<span class="sig-name descname"><span class="pre">gain_ratio</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_v</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio" title="Link to this definition"></a></dt>
+<dd><p>Gain ratio of the PREVIOUS step: observed vs. predicted loss reduction.</p>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">None</span></code> when there is no anchored quadratic model, or when the
+prediction is too small to divide by. Only meaningful when the previous
+step’s quadratic model predicted a non-negligible change; at/near
+convergence pred_red -&gt; 0 and the ratio is 0/0 noise, which must not be
+mistaken for staleness.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.note_refresh">
+<span class="sig-name descname"><span class="pre">note_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gain_ratio</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refreshed</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.note_refresh" title="Link to this definition"></a></dt>
+<dd><p>Record this step’s refresh decision.</p>
+<p>Takes the decision rather than being one of a pair of methods, so a
+caller cannot handle one branch and forget the other.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.note_step">
+<span class="sig-name descname"><span class="pre">note_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtheta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">opt_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.note_step" title="Link to this definition"></a></dt>
+<dd><p>Anchor the quadratic model at the step that just completed.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dtheta</span></code> must be the <strong>actual</strong> parameter displacement the optimizer
+produced, not the proposed direction, so the gain ratio accounts for the
+base optimizer’s learning rate and momentum.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.precondition">
+<span class="sig-name descname"><span class="pre">precondition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.precondition" title="Link to this definition"></a></dt>
+<dd><p>Return (H + lam * diag(H))^{-1} g, Marquardt-damped and scale-invariant.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_flat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.refresh" title="Link to this definition"></a></dt>
+<dd><p>Re-estimate <code class="docutils literal notranslate"><span class="pre">H</span></code> from <code class="docutils literal notranslate"><span class="pre">residual</span></code> and cache it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">w_flat</span></code> is accepted for backwards compatibility and ignored – the
+weights come from <code class="docutils literal notranslate"><span class="pre">weights</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.reject_failed_evaluation">
+<span class="sig-name descname"><span class="pre">reject_failed_evaluation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.reject_failed_evaluation" title="Link to this definition"></a></dt>
+<dd><p>Back out the last step after the model could not be evaluated at all.</p>
+<p><a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">adapt_damping()</span></code></a> compares two loss values, so it cannot react to a
+point where the objective does not exist – a stiff forward model driven
+outside its valid region raises instead of returning a number, and the
+exception escapes before any comparison is possible. That is simply the
+limiting case of a step that was too long, so it is handled the same way,
+with a harder damping bump because the evidence is stronger.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if a good point was available to fall back to. When
+<code class="docutils literal notranslate"><span class="pre">False</span></code> there is nothing to undo – the very first evaluation
+failed – and the caller should let the error propagate rather than
+pretend to recover.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.request_refresh">
+<span class="sig-name descname"><span class="pre">request_refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.request_refresh" title="Link to this definition"></a></dt>
+<dd><p>Force a refresh on the next step.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.reset_anchor">
+<span class="sig-name descname"><span class="pre">reset_anchor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.reset_anchor" title="Link to this definition"></a></dt>
+<dd><p>Drop the cached quadratic model (its anchor point is no longer valid).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.set_H">
+<span class="sig-name descname"><span class="pre">set_H</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">H</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sweeps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.set_H" title="Link to this definition"></a></dt>
+<dd><p>Install a curvature computed elsewhere – e.g. a structure-aware
+estimator that assembles <code class="docutils literal notranslate"><span class="pre">H</span></code> from several blocks, each estimated by the
+method that suits it – counting it as a refresh.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>H</strong> (<em>Tensor</em>) – length-<code class="docutils literal notranslate"><span class="pre">p</span></code> vector in <code class="docutils literal notranslate"><span class="pre">&quot;diag&quot;</span></code> mode, <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">x</span> <span class="pre">p</span></code> matrix in
+<code class="docutils literal notranslate"><span class="pre">&quot;full&quot;</span></code> mode.</p></li>
+<li><p><strong>sweeps</strong> (<em>int</em>) – number of reverse-mode sweeps it cost, for accounting.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.should_refresh">
+<span class="sig-name descname"><span class="pre">should_refresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gain_ratio</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.should_refresh" title="Link to this definition"></a></dt>
+<dd><p>Whether the curvature must be (re)computed on this step. With
+<code class="docutils literal notranslate"><span class="pre">rho=None</span></code> it is computed once and never refreshed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.undo_last_step">
+<span class="sig-name descname"><span class="pre">undo_last_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.undo_last_step" title="Link to this definition"></a></dt>
+<dd><p>Restore the parameters <em>and</em> the optimizer state to before the last step.</p>
+<p>Restoring the parameters alone is not enough: a stateful optimizer’s
+momentum buffer still holds the rejected direction and would immediately
+re-apply it, so the same step is proposed, rejected, and re-proposed
+forever while <code class="docutils literal notranslate"><span class="pre">lam</span></code> ratchets to its ceiling. The optimizer state has to
+rewind with the parameters.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">GaussNewtonPreconditioner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'diag'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cotangents</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lam</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lam_adapt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_refresh_interval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_refresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner" title="Link to this definition"></a></dt>
+<dd><p>Wrap a torch optimizer and precondition its gradient with the Gauss-Newton
+curvature, refreshed on a gain-ratio trigger.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>optimizer</strong> (<em>torch.optim.Optimizer</em>) – the base optimizer to wrap. Its
+<code class="docutils literal notranslate"><span class="pre">param_groups</span></code> must cover exactly <code class="docutils literal notranslate"><span class="pre">parameters</span></code>.</p></li>
+<li><p><strong>parameters</strong> (<em>iterable</em><em> of </em><em>Parameter</em>) – the parameters being calibrated.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>mode</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;diag&quot;</span></code> (default) preconditions with the diagonal of <code class="docutils literal notranslate"><span class="pre">H</span></code>;
+<code class="docutils literal notranslate"><span class="pre">&quot;full&quot;</span></code> uses the full <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">x</span> <span class="pre">p</span></code> matrix.</p></li>
+<li><p><strong>nsub</strong> (<em>int</em>) – number of residual rows to subsample when estimating <code class="docutils literal notranslate"><span class="pre">H</span></code>
+(one reverse-mode sweep each). Ignored if <code class="docutils literal notranslate"><span class="pre">sample_indices</span></code> is given.</p></li>
+<li><p><strong>sample_indices</strong> (<em>array-like</em><em> of </em><em>int</em><em>, </em><em>optional</em>) – explicit rows of the
+flattened residual to sample (overrides <code class="docutils literal notranslate"><span class="pre">nsub</span></code>). Use this to sample
+<em>representatively</em> across conditions; a poorly chosen stride can alias
+with batch structure and starve some parameters, so when in doubt leave
+it <code class="docutils literal notranslate"><span class="pre">None</span></code> and let the estimator draw <code class="docutils literal notranslate"><span class="pre">nsub</span></code> rows at random.</p></li>
+<li><p><strong>cotangents</strong> (<em>callable</em><em> or </em><em>sequence</em><em>, </em><em>optional</em>) – custom cotangent vectors,
+overriding <code class="docutils literal notranslate"><span class="pre">nsub</span></code> and <code class="docutils literal notranslate"><span class="pre">sample_indices</span></code>. Each costs one sweep and
+may select a <em>group</em> of rows – valid only when those rows have
+disjoint parameter support. See <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.refresh" title="pyzag.preconditioning.GaussNewtonCurvature.refresh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GaussNewtonCurvature.refresh()</span></code></a>.</p></li>
+<li><p><strong>rho</strong> (<em>float</em><em> or </em><em>None</em>) – gain-ratio threshold. <code class="docutils literal notranslate"><span class="pre">H</span></code> is refreshed when the
+observed loss reduction of the previous step is below <code class="docutils literal notranslate"><span class="pre">rho</span></code> times the
+value the cached curvature predicted – i.e. when the curvature model
+has gone stale. Larger <code class="docutils literal notranslate"><span class="pre">rho</span></code> refreshes more eagerly. Set to <code class="docutils literal notranslate"><span class="pre">None</span></code>
+to never refresh after the first step: a <strong>fixed preconditioner</strong>, the
+cheapest option and often sufficient when the curvature profile is
+stable (e.g. a diagonal), where it acts as a data-driven analogue of a
+static per-parameter rescaling.</p></li>
+<li><p><strong>lam</strong> (<em>float</em>) – initial Marquardt damping factor; the solve uses
+<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">+</span> <span class="pre">lam</span> <span class="pre">*</span> <span class="pre">diag(H)</span></code>.</p></li>
+<li><p><strong>lam_adapt</strong> (<em>bool</em>) – Levenberg-Marquardt damping adaptation – see
+<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping" title="pyzag.preconditioning.GaussNewtonCurvature.adapt_damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GaussNewtonCurvature.adapt_damping()</span></code></a>. On by default because the
+second-order term Gauss-Newton drops is not always small.</p></li>
+<li><p><strong>weights</strong> (<em>Tensor</em><em>, </em><em>optional</em>) – diagonal of <code class="docutils literal notranslate"><span class="pre">W</span></code>, broadcastable to the residual
+shape (e.g. inverse variances). <code class="docutils literal notranslate"><span class="pre">None</span></code> means unweighted (<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">I</span></code>).</p></li>
+<li><p><strong>min_refresh_interval</strong> (<em>int</em>) – number of steps that must <em>reuse</em> the cached
+curvature before it may be refreshed again – a hard floor on refresh
+cost. The default 1 therefore allows a refresh at most every other
+step; pass 0 to allow one on every step.</p></li>
+<li><p><strong>generator</strong> (<em>torch.Generator</em><em>, </em><em>optional</em>) – RNG for reproducible subsampling.</p></li>
+<li><p><strong>on_refresh</strong> (<em>callable</em><em>, </em><em>optional</em>) – called whenever the curvature is
+refreshed, as <code class="docutils literal notranslate"><span class="pre">on_refresh(step=&lt;0-based</span> <span class="pre">step</span> <span class="pre">index&gt;,</span>
+<span class="pre">gain_ratio=&lt;float</span> <span class="pre">or</span> <span class="pre">None&gt;,</span> <span class="pre">n_refresh=&lt;count&gt;)</span></code>. The refreshed step
+indices are also recorded on <code class="docutils literal notranslate"><span class="pre">self.refresh_steps</span></code> (useful for
+annotating plots with the recompute iterations).</p></li>
+<li><p><strong>check_optimizer</strong> (<em>bool</em>) – reject a base optimizer that is invariant to
+gradient preconditioning (Adam and relatives), which would make the
+whole wrapper a silent no-op. See
+<a class="reference internal" href="#pyzag.preconditioning.check_optimizer_respects_gradient_scale" title="pyzag.preconditioning.check_optimizer_respects_gradient_scale"><code class="xref py py-func docutils literal notranslate"><span class="pre">check_optimizer_respects_gradient_scale()</span></code></a>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.lam">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">lam</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.lam" title="Link to this definition"></a></dt>
+<dd><p>Marquardt damping factor.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.mode">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">mode</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.mode" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">&quot;diag&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;full&quot;</span></code>.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.n_refresh_sweeps">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">n_refresh_sweeps</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_refresh_sweeps" title="Link to this definition"></a></dt>
+<dd><p>Total reverse-mode sweeps spent refreshing the curvature.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.n_refreshes">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">n_refreshes</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_refreshes" title="Link to this definition"></a></dt>
+<dd><p>Number of curvature refreshes.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.n_steps">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">n_steps</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.n_steps" title="Link to this definition"></a></dt>
+<dd><p>Number of completed updates.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.parameters">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parameters</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.parameters" title="Link to this definition"></a></dt>
+<dd><p>The parameters being calibrated.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.refresh_steps">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">refresh_steps</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.refresh_steps" title="Link to this definition"></a></dt>
+<dd><p>Step indices at which the curvature was refreshed.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.rho">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">rho</span></span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.rho" title="Link to this definition"></a></dt>
+<dd><p>Gain-ratio refresh threshold (<code class="docutils literal notranslate"><span class="pre">None</span></code> = fixed preconditioner).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">residual_closure</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.step" title="Link to this definition"></a></dt>
+<dd><p>Evaluate the residual, precondition the gradient, and step the wrapped
+optimizer. Returns the scalar loss (float) at the current parameters, or
+<code class="docutils literal notranslate"><span class="pre">nan</span></code> if the residual was non-finite and the update was skipped.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>residual_closure</strong> (<em>callable</em>) – returns the residual <code class="docutils literal notranslate"><span class="pre">r(theta)</span></code> as a
+tensor that is differentiable w.r.t. <code class="docutils literal notranslate"><span class="pre">parameters</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonPreconditioner.zero_grad">
+<span class="sig-name descname"><span class="pre">zero_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonPreconditioner.zero_grad" title="Link to this definition"></a></dt>
+<dd><p>Delegate to the wrapped optimizer (provided for drop-in familiarity).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyzag.preconditioning.apply_preconditioned_update">
+<span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">apply_preconditioned_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">curvature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta_before</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.apply_preconditioned_update" title="Link to this definition"></a></dt>
+<dd><p>Precondition <code class="docutils literal notranslate"><span class="pre">g</span></code>, install it as <code class="docutils literal notranslate"><span class="pre">.grad</span></code>, and let <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> step.</p>
+<p>The tail every driver shares, whoever owns the training loop. The optimizer
+is handed <code class="docutils literal notranslate"><span class="pre">(H</span> <span class="pre">+</span> <span class="pre">lam)^-1</span> <span class="pre">g</span></code> – the damped Gauss-Newton direction – and its
+own rule (learning rate, momentum) scales it. The gradient is <strong>overwritten</strong>,
+not accumulated.</p>
+<p>This requires an optimizer whose step is proportional to the gradient it is
+given; see <a class="reference internal" href="#pyzag.preconditioning.check_optimizer_respects_gradient_scale" title="pyzag.preconditioning.check_optimizer_respects_gradient_scale"><code class="xref py py-func docutils literal notranslate"><span class="pre">check_optimizer_respects_gradient_scale()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>curvature</strong> (<a class="reference internal" href="#pyzag.preconditioning.GaussNewtonCurvature" title="pyzag.preconditioning.GaussNewtonCurvature"><em>GaussNewtonCurvature</em></a>) – the engine holding the parameters.</p></li>
+<li><p><strong>g</strong> (<em>Tensor</em>) – the raw packed gradient.</p></li>
+<li><p><strong>optimizer</strong> (<em>torch.optim.Optimizer</em>) – applies the update.</p></li>
+<li><p><strong>loss_v</strong> (<em>float</em><em>, </em><em>optional</em>) – objective at the current parameters. When
+given, the quadratic model is anchored here for the next step’s
+gain-ratio test; when <code class="docutils literal notranslate"><span class="pre">None</span></code> the trigger stays inert.</p></li>
+<li><p><strong>theta_before</strong> (<em>Tensor</em><em>, </em><em>optional</em>) – parameter vector before this step,
+recorded so a step that turns out to increase the loss can be backed
+out. Read from the parameters when omitted.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>whether the update was applied. <code class="docutils literal notranslate"><span class="pre">False</span></code> means the curvature
+produced a non-finite direction, so the parameters were left untouched
+and a refresh is forced for the next step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyzag.preconditioning.check_optimizer_is_memoryless">
+<span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">check_optimizer_is_memoryless</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.check_optimizer_is_memoryless" title="Link to this definition"></a></dt>
+<dd><p>Warn if <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> carries state that damping cannot reach.</p>
+<p>Levenberg-Marquardt damping assumes the step is a function of the <em>current</em>
+damped gradient: raise <code class="docutils literal notranslate"><span class="pre">lam</span></code>, get a shorter step. A momentum buffer breaks
+that – it contributes its own accumulated velocity, so a step that
+overshoots keeps overshooting no matter how hard <code class="docutils literal notranslate"><span class="pre">lam</span></code> is raised. In
+practice the run enters a reject/restore cycle and <code class="docutils literal notranslate"><span class="pre">lam</span></code> ratchets to its
+ceiling while the loss stalls. Restoring the optimizer state alongside the
+parameters does not help, because the restored state is what holds the
+offending velocity.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyzag.preconditioning.check_optimizer_respects_gradient_scale">
+<span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">check_optimizer_respects_gradient_scale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">optimizer</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.check_optimizer_respects_gradient_scale" title="Link to this definition"></a></dt>
+<dd><p>Raise if <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> would annihilate the preconditioner.</p>
+<p>Gauss-Newton preconditioning replaces the gradient with <code class="docutils literal notranslate"><span class="pre">(H</span> <span class="pre">+</span> <span class="pre">lam)^-1</span> <span class="pre">g</span></code>
+and relies on the optimizer’s step being <strong>proportional</strong> to what it is
+handed – that is what makes the update the damped Gauss-Newton step. Adam
+and its relatives normalize each coordinate by its own running gradient RMS,
+so multiplying the gradient by any fixed diagonal leaves their step exactly
+unchanged: wrapping one is a no-op, not a weaker effect.</p>
+<p>That failure is silent and easy to mistake for a working configuration, so
+it is rejected outright rather than warned about. Use SGD (optionally with
+momentum), or reach for <a class="reference internal" href="reparametrization.html#module-pyzag.reparametrization" title="pyzag.reparametrization"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyzag.reparametrization</span></code></a>, which conditions the
+problem by changing coordinates and therefore composes with Adam.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyzag.preconditioning.gauss_newton_rescalers">
+<span class="sig-prename descclassname"><span class="pre">pyzag.preconditioning.</span></span><span class="sig-name descname"><span class="pre">gauss_newton_rescalers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">named_parameters</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">residual_closure</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cond_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000000000000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">estimator_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.gauss_newton_rescalers" title="Link to this definition"></a></dt>
+<dd><p>Build a static, curvature-derived reparametrization – the second lever.</p>
+<p>Estimates <code class="docutils literal notranslate"><span class="pre">H</span></code> <strong>once</strong> at the current parameter values and returns one
+<a class="reference internal" href="reparametrization.html#pyzag.reparametrization.CurvatureRescale" title="pyzag.reparametrization.CurvatureRescale"><code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureRescale</span></code></a> per parameter, scaled by
+<code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(diag</span> <span class="pre">H)</span></code>. Feed the result straight to
+<a class="reference internal" href="reparametrization.html#pyzag.reparametrization.Reparameterizer" title="pyzag.reparametrization.Reparameterizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Reparameterizer</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">scalers</span> <span class="o">=</span> <span class="n">gauss_newton_rescalers</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">(),</span> <span class="n">residual_closure</span><span class="p">)</span>
+<span class="n">Reparameterizer</span><span class="p">(</span><span class="n">scalers</span><span class="p">)(</span><span class="n">model</span><span class="p">)</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=...</span><span class="p">)</span>   <span class="c1"># any optimizer</span>
+</pre></div>
+</div>
+<p>Use this rather than <a class="reference internal" href="#pyzag.preconditioning.GaussNewtonPreconditioner" title="pyzag.preconditioning.GaussNewtonPreconditioner"><code class="xref py py-class docutils literal notranslate"><span class="pre">GaussNewtonPreconditioner</span></code></a> when you want to keep
+an Adam-family optimizer (which is invariant to gradient preconditioning), or
+when the curvature is stable enough that one estimate serves the whole fit.
+Use the preconditioner instead when the curvature drifts, since only it can
+refresh. Cost here is a single estimate – <code class="docutils literal notranslate"><span class="pre">nsub</span></code> reverse sweeps – and
+nothing per step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>named_parameters</strong> – <code class="docutils literal notranslate"><span class="pre">(name,</span> <span class="pre">parameter)</span></code> pairs, or a dict. Names must be
+the dotted paths <code class="docutils literal notranslate"><span class="pre">Reparameterizer</span></code> matches on.</p></li>
+<li><p><strong>residual_closure</strong> (<em>callable</em>) – returns the residual at the current
+parameters, differentiable w.r.t. them.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>cond_max</strong> (<em>float</em>) – reject the estimate if <code class="docutils literal notranslate"><span class="pre">max(H)</span> <span class="pre">/</span> <span class="pre">min(H)</span></code> exceeds this.
+An under-sampled row set can leave a parameter’s curvature many orders
+of magnitude below the rest, and <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(H)</span></code> then hands that
+parameter an essentially infinite step. The damage is invisible in
+<code class="docutils literal notranslate"><span class="pre">H</span></code> itself – on this calibration <code class="docutils literal notranslate"><span class="pre">nsub=8</span></code> gives an <code class="docutils literal notranslate"><span class="pre">H</span></code> 17% off
+whose implied scale is wrong by twelve orders of magnitude – so the
+check has to be on the conditioning, not on the norm. Raise it only if
+your parameters genuinely differ that much in sensitivity.</p></li>
+<li><p><strong>normalize</strong> (<em>bool</em>) – divide the scales by their geometric mean, so the
+learning rate sets the <em>average</em> physical step and the curvature sets
+only how that step is <strong>distributed</strong> across parameters. On by
+default, and you almost always want it: <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(H)</span></code> carries units
+of <code class="docutils literal notranslate"><span class="pre">theta</span> <span class="pre">/</span> <span class="pre">residual</span></code>, so its absolute level is a property of the
+residual’s units rather than of the parameters. Measured on the NEML2
+calibration it sits ~920x below the hand-picked range widths, which
+would freeze an optimizer tuned for those. Normalizing makes the
+learning rate mean the same thing it does for any other coordinate
+choice; the curvature still supplies the whole relative profile.</p></li>
+<li><p><strong>bounds</strong> (<em>dict</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">-&gt;</span> <span class="pre">(lb,</span> <span class="pre">ub)</span></code> in natural units. Bounds are
+<em>only</em> bounds here – they do not influence the step scale, so they
+can be generous. Omitting them means no clamping at all, which is a
+real behavioural change if you are replacing a <code class="docutils literal notranslate"><span class="pre">RangeRescale</span></code>.</p></li>
+<li><p><strong>offsets</strong> (<em>dict</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">-&gt;</span> <span class="pre">offset</span></code>, the natural value at scaled
+zero. Defaults to 0.</p></li>
+<li><p><strong>**estimator_kwargs</strong> – forwarded to <code class="xref py py-class docutils literal notranslate"><span class="pre">CurvatureEstimator</span></code> (<code class="docutils literal notranslate"><span class="pre">nsub</span></code>,
+<code class="docutils literal notranslate"><span class="pre">sample_indices</span></code>, <code class="docutils literal notranslate"><span class="pre">cotangents</span></code>, <code class="docutils literal notranslate"><span class="pre">weights</span></code>, <code class="docutils literal notranslate"><span class="pre">generator</span></code>).</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">-&gt;</span> <span class="pre">CurvatureRescale</span></code>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – if any parameter has non-positive curvature. That means the
+    residual does not depend on it (or not detectably), so there is no
+    scale to derive and <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">sqrt(H)</span></code> is not defined – silently
+    flooring it would hand back an arbitrary scale dressed up as a
+    measurement.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<section id="the-scaler">
+<h2>The scaler<a class="headerlink" href="#the-scaler" title="Link to this heading"></a></h2>
+<p><a class="reference internal" href="#pyzag.preconditioning.gauss_newton_rescalers" title="pyzag.preconditioning.gauss_newton_rescalers"><code class="xref py py-func docutils literal notranslate"><span class="pre">gauss_newton_rescalers()</span></code></a> returns
+<a class="reference internal" href="reparametrization.html#pyzag.reparametrization.CurvatureRescale" title="pyzag.reparametrization.CurvatureRescale"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.reparametrization.CurvatureRescale</span></code></a> objects, installed with the
+existing <a class="reference internal" href="reparametrization.html#pyzag.reparametrization.Reparameterizer" title="pyzag.reparametrization.Reparameterizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.reparametrization.Reparameterizer</span></code></a>. See <a class="reference internal" href="reparametrization.html"><span class="doc">pyzag.reparametrization</span></a>.</p>
+</section>
+<section id="preconditioning-an-svi-fit">
+<h2>Preconditioning an SVI fit<a class="headerlink" href="#preconditioning-an-svi-fit" title="Link to this heading"></a></h2>
+<p>The Pyro-facing half lives in <a class="reference internal" href="stochastic.html"><span class="doc">pyzag.stochastic</span></a>, because those classes subclass
+Pyro types and this module is deliberately importable without Pyro. Use
+<a class="reference internal" href="stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim" title="pyzag.stochastic.PyroGaussNewtonOptim"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.stochastic.PyroGaussNewtonOptim</span></code></a> with
+<a class="reference internal" href="stochastic.html#pyzag.stochastic.PreconditionedSVI" title="pyzag.stochastic.PreconditionedSVI"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyzag.stochastic.PreconditionedSVI</span></code></a>, and build the residual with
+<a class="reference internal" href="stochastic.html#pyzag.stochastic.gaussian_map_residual" title="pyzag.stochastic.gaussian_map_residual"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyzag.stochastic.gaussian_map_residual()</span></code></a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="curvature.html" class="btn btn-neutral float-left" title="pyzag.curvature" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="stochastic.html" class="btn btn-neutral float-right" title="pyzag.stochastic" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Argonne National Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

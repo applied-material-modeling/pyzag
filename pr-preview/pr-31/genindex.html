@@ -79,6 +79,7 @@
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
  | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
  | <a href="#H"><strong>H</strong></a>
  | <a href="#I"><strong>I</strong></a>
  | <a href="#L"><strong>L</strong></a>
@@ -100,6 +101,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.RecursiveNonlinearEquationSolver.accumulate">accumulate() (pyzag.nonlinear.RecursiveNonlinearEquationSolver method)</a>
 </li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.adapt_damping">adapt_damping() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockJacobian.adjoint_system">adjoint_system() (pyzag.operators.base.BlockJacobian method)</a>
 
       <ul>
@@ -108,6 +111,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.apply_preconditioned_update">apply_preconditioned_update() (in module pyzag.preconditioning)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockJacobian.as_adjoint_walk">as_adjoint_walk() (pyzag.operators.base.BlockJacobian method)</a>
 
       <ul>
@@ -142,6 +147,8 @@
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.batch_size">(pyzag.operators.dense.DenseBlockVector property)</a>
 </li>
       </ul></li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.begin_step">begin_step() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
       <li><a href="api/chunktime.html#pyzag.chunktime.BidiagonalForwardOperator">BidiagonalForwardOperator (class in pyzag.chunktime)</a>
 </li>
       <li><a href="api/chunktime.html#pyzag.chunktime.BidiagonalHybridFactorization">BidiagonalHybridFactorization() (in module pyzag.chunktime)</a>
@@ -176,6 +183,8 @@
 </li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockOperator">BlockOperator (class in pyzag.operators.base)</a>
 </li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.blocks">blocks (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockVector">BlockVector (class in pyzag.operators.base)</a>
 </li>
   </ul></td>
@@ -190,6 +199,10 @@
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.cat">(pyzag.operators.dense.DenseBlockVector class method)</a>
 </li>
       </ul></li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.check_optimizer_is_memoryless">check_optimizer_is_memoryless() (in module pyzag.preconditioning)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.check_optimizer_respects_gradient_scale">check_optimizer_respects_gradient_scale() (in module pyzag.preconditioning)</a>
+</li>
       <li><a href="api/chunktime.html#pyzag.chunktime.ChunkNewtonRaphson">ChunkNewtonRaphson (class in pyzag.chunktime)</a>
 </li>
       <li><a href="api/chunktime.html#pyzag.chunktime.ChunkNewtonRaphsonLineSearch">ChunkNewtonRaphsonLineSearch (class in pyzag.chunktime)</a>
@@ -214,6 +227,10 @@
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockJacobian.couple_prev_chunk">(pyzag.operators.dense.DenseBlockJacobian method)</a>
 </li>
       </ul></li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator">CurvatureEstimator (class in pyzag.curvature)</a>
+</li>
+      <li><a href="api/reparametrization.html#pyzag.reparametrization.CurvatureRescale">CurvatureRescale (class in pyzag.reparametrization)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -276,6 +293,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.empty">empty() (pyzag.operators.dense.DenseBlockVector class method)</a>
 </li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.estimate">estimate() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.NonlinearFunctionOperatorFactory.evaluate_raw">evaluate_raw() (pyzag.nonlinear.NonlinearFunctionOperatorFactory method)</a>
 
       <ul>
@@ -296,6 +315,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockOperator.factored">factored() (pyzag.operators.dense.DenseBlockOperator class method)</a>
 </li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.flat">flat (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockVector.flatten">flatten() (pyzag.operators.base.BlockVector method)</a>
 
       <ul>
@@ -315,6 +336,8 @@
 </li>
         <li><a href="api/nonlinear.html#pyzag.nonlinear.RecursiveNonlinearEquationSolver.forward">(pyzag.nonlinear.RecursiveNonlinearEquationSolver method)</a>
 </li>
+        <li><a href="api/reparametrization.html#pyzag.reparametrization.CurvatureRescale.forward">(pyzag.reparametrization.CurvatureRescale method)</a>
+</li>
         <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.forward">(pyzag.reparametrization.RangeRescale method)</a>
 </li>
         <li><a href="api/stochastic.html#pyzag.stochastic.HierarchicalStatisticalModel.forward">(pyzag.stochastic.HierarchicalStatisticalModel method)</a>
@@ -322,8 +345,12 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.forward_std_dev">forward_std_dev() (pyzag.reparametrization.RangeRescale method)</a>
+      <li><a href="api/reparametrization.html#pyzag.reparametrization.CurvatureRescale.forward_std_dev">forward_std_dev() (pyzag.reparametrization.CurvatureRescale method)</a>
+
+      <ul>
+        <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.forward_std_dev">(pyzag.reparametrization.RangeRescale method)</a>
 </li>
+      </ul></li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockJacobian.forward_system">forward_system() (pyzag.operators.base.BlockJacobian method)</a>
 
       <ul>
@@ -341,9 +368,37 @@
   </ul></td>
 </tr></table>
 
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.gain_ratio">gain_ratio() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.gauss_newton_rescalers">gauss_newton_rescalers() (in module pyzag.preconditioning)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.gaussian_map_residual">gaussian_map_residual() (in module pyzag.stochastic)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual">GaussianResidual (class in pyzag.stochastic)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature">GaussNewtonCurvature (class in pyzag.preconditioning)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner">GaussNewtonPreconditioner (class in pyzag.preconditioning)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim.get_state">get_state() (pyzag.stochastic.PyroGaussNewtonOptim method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.H">H (pyzag.preconditioning.GaussNewtonCurvature property)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/stochastic.html#pyzag.stochastic.hierarchical_gn_diagonal">hierarchical_gn_diagonal() (in module pyzag.stochastic)</a>
+</li>
       <li><a href="api/stochastic.html#pyzag.stochastic.HierarchicalStatisticalModel">HierarchicalStatisticalModel (class in pyzag.stochastic)</a>
 </li>
   </ul></td>
@@ -368,16 +423,18 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.lam">lam (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.LastStepPredictor">LastStepPredictor (class in pyzag.nonlinear)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.NonlinearFunctionOperatorFactory.lookback">lookback (pyzag.nonlinear.NonlinearFunctionOperatorFactory property)</a>
 
       <ul>
         <li><a href="api/ode.html#pyzag.ode.IntegrateODE.lookback">(pyzag.ode.IntegrateODE property)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/operators.html#pyzag.operators.dense.DensePCRState.lu">lu (pyzag.operators.dense.DensePCRState attribute)</a>
 </li>
   </ul></td>
@@ -412,15 +469,21 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.mode">mode (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
       <li>
     module
 
       <ul>
         <li><a href="api/chunktime.html#module-pyzag.chunktime">pyzag.chunktime</a>
 </li>
+        <li><a href="api/curvature.html#module-pyzag.curvature">pyzag.curvature</a>
+</li>
         <li><a href="api/nonlinear.html#module-pyzag.nonlinear">pyzag.nonlinear</a>
 </li>
         <li><a href="api/ode.html#module-pyzag.ode">pyzag.ode</a>
+</li>
+        <li><a href="api/preconditioning.html#module-pyzag.preconditioning">pyzag.preconditioning</a>
 </li>
         <li><a href="api/reparametrization.html#module-pyzag.reparametrization">pyzag.reparametrization</a>
 </li>
@@ -434,6 +497,12 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/chunktime.html#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.n">n (pyzag.chunktime.SquareBatchedBlockDiagonalMatrix property)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.n_refresh_sweeps">n_refresh_sweeps (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.n_refreshes">n_refreshes (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.n_steps">n_steps (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
 </li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockOperator.nblk">nblk (pyzag.operators.base.BlockOperator property)</a>
 
@@ -469,12 +538,28 @@
       </ul></li>
       <li><a href="api/chunktime.html#pyzag.chunktime.ChunkNewtonRaphson.not_converged">not_converged() (pyzag.chunktime.ChunkNewtonRaphson method)</a>
 </li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.note_refresh">note_refresh() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.note_step">note_step() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.nparam">nparam (pyzag.curvature.CurvatureEstimator property)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="O">O</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.obs_name">obs_name (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.obs_plate_axis">obs_plate_axis() (pyzag.stochastic.GaussianResidual method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.obs_scale">obs_scale (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.obs_shape">obs_shape (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
       <li><a href="api/ode.html#pyzag.ode.ODEWrapper">ODEWrapper (class in pyzag.ode)</a>
 </li>
   </ul></td>
@@ -483,12 +568,18 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.pack">pack() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.pack_grads">pack_grads() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockOperator.pad_front">pad_front() (pyzag.operators.base.BlockOperator method)</a>
 
       <ul>
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockOperator.pad_front">(pyzag.operators.dense.DenseBlockOperator method)</a>
 </li>
       </ul></li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.parameters">parameters (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.SolvableBlockOperator.pcr_finalize">pcr_finalize() (pyzag.operators.base.SolvableBlockOperator method)</a>
 
       <ul>
@@ -511,6 +602,12 @@
 </li>
       <li><a href="api/operators.html#pyzag.operators.dense.DensePCRState.pivots">pivots (pyzag.operators.dense.DensePCRState attribute)</a>
 </li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.plates">plates (pyzag.stochastic.GaussianResidual attribute)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.precondition">precondition() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PreconditionedSVI">PreconditionedSVI (class in pyzag.stochastic)</a>
+</li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.ExtrapolatingPredictor.predict">predict() (pyzag.nonlinear.ExtrapolatingPredictor method)</a>
 
       <ul>
@@ -529,11 +626,24 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.PreviousStepsPredictor">PreviousStepsPredictor (class in pyzag.nonlinear)</a>
 </li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.prior_flat">prior_flat() (pyzag.stochastic.GaussianResidual method)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.GaussianResidual.prior_names">prior_names (pyzag.stochastic.GaussianResidual property)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim">PyroGaussNewtonOptim (class in pyzag.stochastic)</a>
+</li>
       <li>
     pyzag.chunktime
 
       <ul>
         <li><a href="api/chunktime.html#module-pyzag.chunktime">module</a>
+</li>
+      </ul></li>
+      <li>
+    pyzag.curvature
+
+      <ul>
+        <li><a href="api/curvature.html#module-pyzag.curvature">module</a>
 </li>
       </ul></li>
       <li>
@@ -548,6 +658,13 @@
 
       <ul>
         <li><a href="api/ode.html#module-pyzag.ode">module</a>
+</li>
+      </ul></li>
+      <li>
+    pyzag.preconditioning
+
+      <ul>
+        <li><a href="api/preconditioning.html#module-pyzag.preconditioning">module</a>
 </li>
       </ul></li>
       <li>
@@ -572,21 +689,45 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale">RangeRescale (class in pyzag.reparametrization)</a>
 </li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim.record_loss">record_loss() (pyzag.stochastic.PyroGaussNewtonOptim method)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim.recorded_loss">recorded_loss (pyzag.stochastic.PyroGaussNewtonOptim property)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim.recover_from_failed_evaluation">recover_from_failed_evaluation() (pyzag.stochastic.PyroGaussNewtonOptim method)</a>
+</li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.RecursiveNonlinearEquationSolver">RecursiveNonlinearEquationSolver (class in pyzag.nonlinear)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.refresh">refresh() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.refresh_steps">refresh_steps (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.reject_failed_evaluation">reject_failed_evaluation() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
 </li>
       <li><a href="api/reparametrization.html#pyzag.reparametrization.Reparameterizer">Reparameterizer (class in pyzag.reparametrization)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.request_refresh">request_refresh() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.reset_anchor">reset_anchor() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.StepGenerator.reverse">reverse() (pyzag.nonlinear.StepGenerator method)</a>
 
       <ul>
+        <li><a href="api/reparametrization.html#pyzag.reparametrization.CurvatureRescale.reverse">(pyzag.reparametrization.CurvatureRescale method)</a>
+</li>
         <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.reverse">(pyzag.reparametrization.RangeRescale method)</a>
 </li>
       </ul></li>
-      <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.reverse_std_dev">reverse_std_dev() (pyzag.reparametrization.RangeRescale method)</a>
+      <li><a href="api/reparametrization.html#pyzag.reparametrization.CurvatureRescale.reverse_std_dev">reverse_std_dev() (pyzag.reparametrization.CurvatureRescale method)</a>
+
+      <ul>
+        <li><a href="api/reparametrization.html#pyzag.reparametrization.RangeRescale.reverse_std_dev">(pyzag.reparametrization.RangeRescale method)</a>
 </li>
+      </ul></li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.RecursiveNonlinearEquationSolver.rewind">rewind() (pyzag.nonlinear.RecursiveNonlinearEquationSolver method)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.rho">rho (pyzag.preconditioning.GaussNewtonPreconditioner property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -600,9 +741,15 @@
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.scale_batches">(pyzag.operators.dense.DenseBlockVector method)</a>
 </li>
       </ul></li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.set_H">set_H() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+      <li><a href="api/stochastic.html#pyzag.stochastic.PyroGaussNewtonOptim.set_state">set_state() (pyzag.stochastic.PyroGaussNewtonOptim method)</a>
+</li>
       <li><a href="api/chunktime.html#pyzag.chunktime.ChunkNewtonRaphson.setup">setup() (pyzag.chunktime.ChunkNewtonRaphson method)</a>
 </li>
       <li><a href="api/chunktime.html#pyzag.chunktime.SquareBatchedBlockDiagonalMatrix.shape">shape (pyzag.chunktime.SquareBatchedBlockDiagonalMatrix property)</a>
+</li>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.should_refresh">should_refresh() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
 </li>
       <li><a href="api/operators.html#pyzag.operators.base.SolvableBlockOperator">SolvableBlockOperator (class in pyzag.operators.base)</a>
 </li>
@@ -635,6 +782,10 @@
       <ul>
         <li><a href="api/chunktime.html#pyzag.chunktime.ChunkNewtonRaphsonLineSearch.step">(pyzag.chunktime.ChunkNewtonRaphsonLineSearch method)</a>
 </li>
+        <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.step">(pyzag.preconditioning.GaussNewtonPreconditioner method)</a>
+</li>
+        <li><a href="api/stochastic.html#pyzag.stochastic.PreconditionedSVI.step">(pyzag.stochastic.PreconditionedSVI method)</a>
+</li>
       </ul></li>
       <li><a href="api/nonlinear.html#pyzag.nonlinear.StepExtrapolatingPredictor">StepExtrapolatingPredictor (class in pyzag.nonlinear)</a>
 </li>
@@ -652,6 +803,8 @@
         <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockOperator.t_matvec">(pyzag.operators.dense.DenseBlockOperator method)</a>
 </li>
       </ul></li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.theta">theta() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
       <li><a href="api/chunktime.html#pyzag.chunktime.thomas_solve">thomas_solve() (in module pyzag.chunktime)</a>
 </li>
   </ul></td>
@@ -669,6 +822,10 @@
 
 <h2 id="U">U</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonCurvature.undo_last_step">undo_last_step() (pyzag.preconditioning.GaussNewtonCurvature method)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/ode.html#pyzag.ode.DenseODEWrapper.unwrap_vector">unwrap_vector() (pyzag.ode.DenseODEWrapper method)</a>
 
@@ -688,12 +845,16 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/chunktime.html#pyzag.chunktime.BidiagonalForwardOperator.vecmat">vecmat() (pyzag.chunktime.BidiagonalForwardOperator method)</a>
 </li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.vjp">vjp() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.weights_flat">weights_flat() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockVector.where">where() (pyzag.operators.base.BlockVector method)</a>
 
       <ul>
@@ -720,18 +881,22 @@
         <li><a href="api/ode.html#pyzag.ode.IntegrateODE.wrapper">(pyzag.ode.IntegrateODE property)</a>
 </li>
       </ul></li>
+      <li><a href="api/curvature.html#pyzag.curvature.CurvatureEstimator.write_grads">write_grads() (pyzag.curvature.CurvatureEstimator method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="Z">Z</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api/nonlinear.html#pyzag.nonlinear.ZeroPredictor">ZeroPredictor (class in pyzag.nonlinear)</a>
+      <li><a href="api/preconditioning.html#pyzag.preconditioning.GaussNewtonPreconditioner.zero_grad">zero_grad() (pyzag.preconditioning.GaussNewtonPreconditioner method)</a>
 </li>
-      <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.zeros">zeros() (pyzag.operators.dense.DenseBlockVector class method)</a>
+      <li><a href="api/nonlinear.html#pyzag.nonlinear.ZeroPredictor">ZeroPredictor (class in pyzag.nonlinear)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/operators.html#pyzag.operators.dense.DenseBlockVector.zeros">zeros() (pyzag.operators.dense.DenseBlockVector class method)</a>
+</li>
       <li><a href="api/operators.html#pyzag.operators.base.BlockVector.zeros_like">zeros_like() (pyzag.operators.base.BlockVector class method)</a>
 
       <ul>
