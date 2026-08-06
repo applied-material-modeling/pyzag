@@ -434,6 +434,8 @@ pretend to recover.</p>
 <dt class="sig sig-object py" id="pyzag.preconditioning.GaussNewtonCurvature.reset_anchor">
 <span class="sig-name descname"><span class="pre">reset_anchor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyzag.preconditioning.GaussNewtonCurvature.reset_anchor" title="Link to this definition"></a></dt>
 <dd><p>Drop the cached quadratic model (its anchor point is no longer valid).</p>
+<p>Deliberately leaves <code class="docutils literal notranslate"><span class="pre">_good</span></code> alone: the last <em>evaluable</em> point stays
+valid even when the quadratic model built at it does not.</p>
 </dd></dl>
 
 <dl class="py method">
