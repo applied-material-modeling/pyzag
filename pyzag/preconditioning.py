@@ -305,7 +305,11 @@ class GaussNewtonCurvature(
         return self._t
 
     def reset_anchor(self):
-        """Drop the cached quadratic model (its anchor point is no longer valid)."""
+        """Drop the cached quadratic model (its anchor point is no longer valid).
+
+        Deliberately leaves ``_good`` alone: the last *evaluable* point stays
+        valid even when the quadratic model built at it does not.
+        """
         self._prev = None
 
     def request_refresh(self):

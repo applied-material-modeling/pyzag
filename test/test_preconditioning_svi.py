@@ -402,7 +402,7 @@ class TestPyroGaussNewtonOptim(_SVIFixture):
         self.assertEqual(opt.curvature.refresh_steps, [0, 2, 4])
 
     def test_it_actually_optimizes(self):
-        opt, svi = self.make(rho=0.25)
+        _, svi = self.make(rho=0.25)
         first = svi.step(self.obs)
         for _ in range(40):
             last = svi.step(self.obs)

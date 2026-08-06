@@ -116,11 +116,9 @@ class TestGaussNewtonPreconditioner(unittest.TestCase):
         with self.assertRaises(IndexError):
             pre.step(lambda: self._residual(theta))
 
-    # A non-finite residual on the *first* step is covered by
-    # `test_non_finite_at_the_initial_point_raises`, and one with a good point
-    # behind it by `test_non_finite_residual_backs_out_and_recovers`. The test
-    # that used to sit here asserted the pre-fix contract -- warn, return nan,
-    # leave theta put -- which is what let a caller in a loop spin forever.
+    # Non-finite residuals are covered further down: on the first step by
+    # `test_non_finite_at_the_initial_point_raises`, and with a good point behind
+    # it by `test_non_finite_residual_backs_out_and_recovers`.
 
     def test_on_refresh_callback_and_refresh_steps(self):
         events = []
@@ -325,18 +323,6 @@ class TestGaussNewtonPreconditioner(unittest.TestCase):
         D = torch.tensor([1e-3, 1.0, 1e3])
         xstar = torch.tensor([5.0, 5.0, 5.0])
         return D, xstar
-
-    def _run_scaled(self, opt_cls, lr, apply, niter=200, lam=1e-10):
-        D, xstar = self._badly_scaled()
-        theta = torch.zeros(3, requires_grad=True)
-        opt = opt_cls([theta], lr=lr)
-        pre = preconditioning.GaussNewtonPreconditioner(
-            opt, [theta], mode="diag", nsub=3, lam=lam, rho=None, apply=apply
-        )
-        # r = sqrt(D) * (theta - xstar)  =>  J^T J = diag(D), loss = 0.5 (theta-xstar)^T D (theta-xstar)
-        for _ in range(niter):
-            pre.step(lambda: torch.sqrt(D) * (theta - xstar))
-        return float(0.5 * (D * (theta.detach() - xstar) ** 2).sum())
 
     def test_adam_is_invariant_to_gradient_preconditioning(self):
         """The reason Adam-family optimizers are rejected outright.
