@@ -38,13 +38,13 @@ from __future__ import annotations
 import warnings
 
 import pyro
+import pyro.distributions as dist
 import pyro.infer
 import pyro.optim
 from pyro.infer.util import torch_item, zero_grads
-from pyro.poutine.subsample_messenger import _Subsample
-import pyro.distributions as dist
-import torch
 from pyro.nn import PyroSample
+from pyro.poutine.subsample_messenger import _Subsample
+import torch
 
 from pyzag import preconditioning
 
@@ -217,8 +217,12 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
         # Sampling top-level here tells Pyro these are not batched over samples.
         _ = self._sample_top()
 
-        if self.sample_noise_outside:
-            eps = self.eps
+        # `self.eps` is a PyroSample, so *where* it is read decides where the
+        # site is sampled -- outside the plate gives one shared noise scale,
+        # inside gives one per sample. The two reads below are exclusive, but
+        # that was invisible both to a reader and to pylint (which reported
+        # `eps` as possibly unbound); the sentinel makes it explicit.
+        eps = self.eps if self.sample_noise_outside else None
 
         # Nested context managers required so pylint can resolve scale and mask.
         with pyro.plate(
@@ -237,7 +241,7 @@ class HierarchicalStatisticalModel(pyro.nn.module.PyroModule):
                 )
                 res = torch.nan_to_num(res)
 
-            if not self.sample_noise_outside:
+            if eps is None:
                 eps = self.eps
 
             with pyro.plate("time", shape[0]):
@@ -876,7 +880,13 @@ class PreconditionedSVI(pyro.infer.SVI):
         on one bad point.
         """
         try:
-            with pyro.poutine.trace(param_only=True) as param_capture:
+            # The concrete messenger class rather than the `pyro.poutine.trace`
+            # factory, for the same reason as the scale/mask handlers above:
+            # pylint cannot resolve the factory's return type and reports the
+            # `with` as a non-context-manager. Same object either way.
+            with pyro.poutine.trace_messenger.TraceMessenger(
+                param_only=True
+            ) as param_capture:
                 loss = self.loss_and_grads(self.model, self.guide, *args, **kwargs)
         except (ValueError, RuntimeError) as err:
             recover = getattr(self.optim, "recover_from_failed_evaluation", None)
