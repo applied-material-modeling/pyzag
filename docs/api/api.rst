@@ -13,4 +13,6 @@ This page collects the API documentation for pyzag, split up by module.
    operators
    ode
    reparametrization
+   curvature
+   preconditioning
    stochastic
